@@ -1,5 +1,3 @@
-cd "/Users/Sergio/Dropbox (Personal)/PLS-SEM"
-
 /* Example 1 */
 /* --------- */
 use ./data/ecsimobi, clear
