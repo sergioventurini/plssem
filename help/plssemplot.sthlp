@@ -89,10 +89,10 @@ the PLS-SEM model estimated. This feature will be available soon.
 {pstd} Sergio Venturini{break}
 Department of Decision Sciences{break}
 Università Bocconi, Italy{break}
-sergio.venturini@unibocconi.it{break}
+{browse "mailto:sergio.venturini@unibocconi.it":sergio.venturini@unibocconi.it}{break}
 
 {pstd} Mehmet Mehmetoglu{break}
 Department of Psychology{break}
 Norwegian University of Science and Technology{break}
-mehmetm@svt.ntnu.no{break}
+{browse "mailto:mehmetm@svt.ntnu.no":mehmetm@svt.ntnu.no}{break}
 {p_end}

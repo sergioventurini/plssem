@@ -1,5 +1,5 @@
 *!plssem version 0.1
-*!Written 05Jan2017
+*!Written 06Jan2017
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -269,20 +269,20 @@ program Estimate, eclass byable(recall)
 
 	/* Standardize the indicators */
 	foreach var in `allindicators' {
-		quietly tabulate `var' if `touse'
-		if (r(r) > 2) {
+		// quietly tabulate `var' if `touse'
+		// if (r(r) > 2) {
 			capture confirm new variable std`var'
 			if (_rc == 0) {
 				quietly summarize `var' if `touse'
 				quietly generate std`var' = (`var' - r(mean))/r(sd) if `touse'
 			}
-		}
-		else {
-			capture confirm new variable std`var'
-			if (_rc == 0) {
-				quietly generate std`var' = `var' if `touse'  // do not standardize binary indicators
-			}
-		}
+		// }
+		// else {
+		// 	capture confirm new variable std`var'
+		// 	if (_rc == 0) {
+		// 		quietly generate std`var' = `var' if `touse'  // do not standardize binary indicators
+		// 	}
+		// }
 		if (_rc == 0) {
 			local allstdindicators "`allstdindicators' std`var'"
 		}
@@ -366,21 +366,25 @@ program Estimate, eclass byable(recall)
 			tokenize `"`i`k''"'
 			if (_byindex() > 1) {  // this provides all the LVs predictions when by'd
 				quietly replace `LV`k'' = cond(`1' >= ., 0, `1') if `touse' // equation (4)
+				// rs_* are the unstandardized versions of the latent variables
+				quietly replace rs_`LV`k'' = cond(`1' >= ., 0, `1') if `touse' // equation (4)
 			}
 			else {
 				quietly generate `LV`k'' = cond(`1' >= ., 0, `1') if `touse' // equation (4)
+				quietly generate rs_`LV`k'' = cond(`1' >= ., 0, `1') if `touse' // equation (4)
 			}
 			macro shift
 			while ("`1'" != "") {
 				quietly replace `LV`k'' = `LV`k'' + cond(`1' >= ., 0, `1') if `touse'
+				quietly replace rs_`LV`k'' = rs_`LV`k'' + cond(`1' >= ., 0, `1') if `touse'
 				macro shift
 			}
 			quietly summarize `LV`k'' if `touse'
 			local lv : word `k' of `alllatents'
 			local isbinary : list lv in binary
-			// if (!`isbinary') {
-			//	quietly replace `LV`k'' = (`LV`k'' - r(mean))/r(sd) if `touse' // equation (5)
-			// }
+			if (!`isbinary') {
+				quietly replace `LV`k'' = (`LV`k'' - r(mean))/r(sd) if `touse' // equation (5)
+			}
 		}
 	}
 
@@ -460,14 +464,14 @@ program Estimate, eclass byable(recall)
 						
 						// Standardize the product indicators
 						foreach var in `inter_ind' {
-							quietly tabulate `var' if `touse'
-							if (r(r) > 2) {
+							// quietly tabulate `var' if `touse'
+							// if (r(r) > 2) {
 								quietly summarize `var' if `touse'
 								quietly generate std`var' = (`var' - r(mean))/r(sd) if `touse'
-							}
-							else {
-								quietly generate std`var' = `var' if `touse'  // do not standardize binary indicators
-							}
+							// }
+							// else {
+							// 	quietly generate std`var' = `var' if `touse'  // do not standardize binary indicators
+							// }
 							local allstdindicators "`allstdindicators' std`var'"
 						}
 						foreach var in `i`num_lv'' {
@@ -1313,6 +1317,12 @@ program Estimate, eclass byable(recall)
 	}
 	if ("`structural'" != "") {
 		estimates drop `regest_tbl'
+	}
+	if ("`rawsum'" != "") {
+		foreach var in `alllatents' {
+			quietly replace `var' = rs_`var'
+			quietly drop rs_`var'
+		}
 	}
 	
 	/* Display results */

@@ -51,7 +51,7 @@
 {cmd:by} is allowed with {cmd:plssem}; see {help prefix}.
 
 {p 4 6 2}
-See {helpb plssem_postestimation:plssem postestimation} for features available after estimation.{p_end}
+See {helpb plssem_postestimation:plssem postestimation} and {helpb plssemplot:plssemplot} for features available after estimation.{p_end}
 
 {pstd}The syntax of {cmd:plssem} reflects the measurement and structural part of a PLS-SEM model,
 and accordingly requires the user to specify both of these parts simultaneously. Since a
@@ -198,12 +198,12 @@ For instance, {bf:cutoff(0.3)} will display the correlations above 0.3 in absolu
 {pstd} Sergio Venturini{break}
 Department of Decision Sciences{break}
 Università Bocconi, Italy{break}
-sergio.venturini@unibocconi.it{break}
+{browse "mailto:sergio.venturini@unibocconi.it":sergio.venturini@unibocconi.it}{break}
 
 {pstd} Mehmet Mehmetoglu{break}
 Department of Psychology{break}
 Norwegian University of Science and Technology{break}
-mehmetm@svt.ntnu.no{break}
+{browse "mailto:mehmetm@svt.ntnu.no":mehmetm@svt.ntnu.no}{break}
 {p_end}
 
 
