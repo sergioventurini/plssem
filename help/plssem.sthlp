@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 0.0.1  30Dec2016}{...}
+{* *! version 0.0.1  04May2017}{...}
 {vieweralsosee "plssem postestimation" "help plssem postestimation"}{...}
 {vieweralsosee "plssemplot" "help plssemplot"}{...}
 {viewerjumpto "Syntax" "plssem##syntax"}{...}
@@ -213,28 +213,32 @@ Norwegian University of Science and Technology{break}
 {pstd}
 {cmd:plssem} stores the following in {cmd:e()}:
 
-{synoptset 20 tabbed}{...}
-{p2col 5 20 24 2: Scalars}{p_end}
+{synoptset 24 tabbed}{...}
+{p2col 5 24 28 2: Scalars}{p_end}
 {synopt:{cmd:e(N)}}number of observations{p_end}
 {synopt:{cmd:e(reps)}}number of bootstrap replications{p_end}
 {synopt:{cmd:e(iterations)}}number of iterations to reach convergence{p_end}
 {synopt:{cmd:e(tolerance)}}chosen tolerance value{p_end}
 
-{synoptset 20 tabbed}{...}
-{p2col 5 20 24 2: Macros}{p_end}
+{synoptset 24 tabbed}{...}
+{p2col 5 24 28 2: Macros}{p_end}
 {synopt:{cmd:e(cmd)}}{cmd:plssem}{p_end}
 {synopt:{cmd:e(cmdline)}}command as typed{p_end}
 {synopt:{cmd:e(estat_cmd)}}program used to implement {cmd:estat}{p_end}
+{synopt:{cmd:e(predict)}}program used to implement {cmd:predict}{p_end}
+{synopt:{cmd:e(title)}}title in estimation output{p_end}
 {synopt:{cmd:e(mvs)}}list of manifest variables (indicators) used{p_end}
 {synopt:{cmd:e(lvs)}}list of latent variables used{p_end}
+{synopt:{cmd:e(datasignaturevars)}}variables used in calculation of checksum {p_end}
+{synopt:{cmd:e(datasignature)}}the checksum{p_end}
 {synopt:{cmd:e(reflective)}}list of latent variables measured in a reflective way{p_end}
 {synopt:{cmd:e(formative)}}list of latent variables measured in a formative way{p_end}
 {synopt:{cmd:e(struct_eqs)}}equations defining the structural model{p_end}
 {synopt:{cmd:e(properties)}}choices of initialization, weighting scheme,
 whether the boostrap has been used and whether the model has a structural part{p_end}
 
-{synoptset 20 tabbed}{...}
-{p2col 5 20 24 2: Matrices}{p_end}
+{synoptset 24 tabbed}{...}
+{p2col 5 24 28 2: Matrices}{p_end}
 {synopt:{cmd:e(loadings)}}outer loadings matrix{p_end}
 {synopt:{cmd:e(loadings_bs)}}bootstrap-based outer loadings matrix
 (available only if the {cmd:boot()} is chosen){p_end}
@@ -255,8 +259,8 @@ if the {cmd:boot()} is chosen){p_end}
 {synopt:{cmd:e(assessment)}}vector of model quality indices{p_end}
 {synopt:{cmd:e(reldiff)}}vector containing the history of weights' relative differences{p_end}
 
-{synoptset 20 tabbed}{...}
-{p2col 5 20 24 2: Functions}{p_end}
+{synoptset 24 tabbed}{...}
+{p2col 5 24 28 2: Functions}{p_end}
 {synopt:{cmd:e(sample)}}marks estimation sample{p_end}
 {p2colreset}{...}
 

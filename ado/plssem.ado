@@ -1,5 +1,5 @@
 *!plssem version 0.1
-*!Written 06Jan2017
+*!Written 04May2017
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -46,6 +46,11 @@ program plssem, byable(onecall)
 	}
 
 	local isgroup = strpos(`"`options'"', "gr")
+	local isrebus = strpos(`"`options'"', "reb")
+	if (`isgroup' & `isrebus') {
+		display as error "the 'group()' and 'rebus()' options cannot be used together"
+		error 198
+	}
 	if (`isgroup') {
 		if _by() {
 			display as error "the 'group()' option is not allowed with by"
@@ -53,6 +58,15 @@ program plssem, byable(onecall)
 		}
 		else {
 			`version' Compare `0'  // version is not necessary
+		}
+	}
+	else if (`isrebus') {
+		if _by() {
+			display as error "the 'rebus()' option is not allowed with by"
+			error 198
+		}
+		else {
+			`version' Heterogeneity `0'  // version is not necessary
 		}
 	}
 	else {
@@ -67,7 +81,7 @@ program Estimate, eclass byable(recall)
 		Boot(numlist integer >0 max=1) Seed(numlist max=1) Tol(real 1e-7) ///
 		MAXiter(integer 1000) INIT(string) DIGits(integer 3) noHEADer ///
 		noMEAStable noDISCRIMtable noSTRUCTtable STATs GRoup(string) ///
-		CORRelate(string) RAWsum ]
+		CORRelate(string) RAWsum REBus(string) ]
 	
 	/* Options:
 	   --------
@@ -106,6 +120,7 @@ program Estimate, eclass byable(recall)
 																				specified value
 		 rawsum													--> estimate the latent scores as the raw
 																				sum of the indicators
+		 rebus(string)									--> perform a REBUS analysis
 	 */
 	
 	/* Parse the specified blocks.
@@ -617,11 +632,11 @@ program Estimate, eclass byable(recall)
 						quietly correlate `var' `var2' if `touse'
 						matrix `C' = r(C)
 						if ("`wscheme'" == "centroid") {
-							quietly replace `t`var'' = `t`var'' + `var2' * `C'[1,2]/abs(`C'[1,2]) ///
+							quietly replace `t`var'' = `t`var'' + `var2' * `C'[1, 2]/abs(`C'[1, 2]) ///
 								if `touse' // Y~ = Y^*E for centroid scheme + equation (13)
 						}
 						else {
-							quietly replace `t`var'' = `t`var'' + `var2' * `C'[1,2] ///
+							quietly replace `t`var'' = `t`var'' + `var2' * `C'[1, 2] ///
 								if `touse' // Y~ = Y^*E for factorial and path schemes + equation (14)
 						}
 					}
@@ -754,6 +769,13 @@ program Estimate, eclass byable(recall)
 		}
 	}
 	
+	/* Label the LVs */
+	local now "`c(current_date)', `c(current_time)'"
+	local now : list clean now
+	foreach var of varlist `alllatents' {
+		label variable `var' "Scores of `var' latent variable [`now']"
+	}
+
 	/* Make the binary latent equal to 0 or 1 */
 	foreach var in `binary' {
 		quietly summarize `var' if `touse'
@@ -1267,14 +1289,19 @@ program Estimate, eclass byable(recall)
 		}
 		ereturn scalar tolerance = `tol'
 	}
-	ereturn local struct_eqs `reg3eqs'
-	ereturn local formative `modeB'
-	ereturn local reflective `modeA'
-	ereturn local lvs `alllatents'
-	ereturn local mvs `allindicators'
+	ereturn local struct_eqs `"`reg3eqs'"'
+	ereturn local formative `"`modeB'"'
+	ereturn local reflective `"`modeA'"'
+	ereturn local lvs `"`alllatents'"'
+	ereturn local mvs `"`allindicators'"'
+	local varlist `e(mvs)' `e(lvs)'
+	signestimationsample `varlist'
+	ereturn local title "Partial least squares structural equation modeling"
+	ereturn local predict plssem_p
 	ereturn local estat_cmd "plssem_estat"
-	ereturn local cmdline `cmdline'
+	ereturn local cmdline `"`cmdline'"'
 	ereturn local cmd "plssem"
+
 	if ("`structural'" != "") {
 		if ("`rawsum'" == "") {
 			ereturn matrix reldiff = `matreldiff'
@@ -1349,7 +1376,7 @@ program Compare, eclass sortpreserve
 		Boot(numlist integer >0 max=1) Seed(numlist max=1) Tol(real 1e-7) ///
 		MAXiter(integer 1000) INIT(string) DIGits(integer 3) noHEADer ///
 		noMEAStable noDISCRIMtable noSTRUCTtable STATs GRoup(string) ///
-		CORRelate(string) RAWsum ]
+		CORRelate(string) RAWsum REBus(string) ]
 
 	/* Options:
 	   --------
@@ -1388,6 +1415,7 @@ program Compare, eclass sortpreserve
 																				specified value
 		 rawsum													--> estimates the latent scores as the raw
 																				sum of the indicators
+		 rebus(string)									--> perform a REBUS analysis
 	 */
 	
 	/* Warning */
@@ -1649,9 +1677,11 @@ program Compare, eclass sortpreserve
 					}
 				}
 				
+				local tmp_skip = 0
 				forvalues h = 1/`reps' {
 					if (mod(`h', 50) == 0) {
 						local todisp = strtrim(string(`h', "%9.0f"))
+						display "`todisp'"
 						if (strlen("`todisp'") < strlen(string(`reps'))) {
 							local tmp_skip = strlen(string(`reps')) - strlen("`todisp'")
 						}
@@ -1964,6 +1994,74 @@ program Compare, eclass sortpreserve
 	/* Return */
 	// ereturn local method = "`method'"
 	// ereturn matrix comparison = `results'
+end
+
+program Heterogeneity, eclass
+	version 10
+	syntax anything(id="Indicator blocks" name=blocks equalok) [if] [in], ///
+		[ STRuctural(string) Wscheme(string) BINary(namelist min=1) ///
+		Boot(numlist integer >0 max=1) Seed(numlist max=1) Tol(real 1e-7) ///
+		MAXiter(integer 1000) INIT(string) DIGits(integer 3) noHEADer ///
+		noMEAStable noDISCRIMtable noSTRUCTtable STATs GRoup(string) ///
+		CORRelate(string) RAWsum REBus(string) ]
+
+	/* Options:
+	   --------
+		 structural(string)							--> structural model specification
+		 wscheme(string)								--> weighting scheme ("centroid", "factorial"
+																				or "path")
+		 binary(namelist min=1)					--> indicators to fit using logit
+		 boot(numlist integer >0 max=1)	--> bootstrap estimation (# of repetions)
+		 seed(numlist max=1)						--> bootstrap seed number
+		 tol(real 1e-7)									--> tolerance (default 1e-7)
+		 maxiter(integer 1000)					--> maximum number of iterations (default
+																				1000)
+		 init(string)										--> initialization method ("eigen" or "indsum")
+		 digits(integer 3)							--> number of digits to display (default 3)
+		 noheader												--> do not show the header
+		 nomeastable										--> do not show the measurement table
+		 nodiscrimtable									--> do not show the discriminant validity
+																				table
+		 nostructtable									--> do not show the structural table
+		 stats													--> print a table of summary statistics for
+																				the indicators
+		 group(string)									--> performs multigroup analysis; accepts
+																				the suboptions reps(#), method(), plot,
+																				alpha, what() and groupseed(numlist max=1);
+																				method() accepts either 'permutation',
+																				'bootstrap' or 'normal'; groupseed(numlist
+																				max=1) accepts an optional seed for
+																				multigroup analysis; what() accepts either
+																				'path' or 'loadings'
+		 correlate(string)							--> reports the correlation among the
+																				indicators, the LVs as well as the cross
+																				loadings; accepts any combination of 'mv',
+																				'lv' and 'cross' (i.e. cross-loadings);
+																				suboption 'cutoff()' can be used to avoid
+																				showing correlations smaller than the
+																				specified value
+		 rawsum													--> estimates the latent scores as the raw
+																				sum of the indicators
+		 rebus(string)									--> perform a REBUS analysis
+	 */
+	
+	/* Warning */
+	if ("`boot'" != "") {
+		display as error "using the 'boot()' option together with 'rebus()' will slow down excessively the calculation"
+		display as error "try removing 'boot()'"
+		exit
+	}
+	
+	/* Set obs to use */
+	marksample touse
+	
+	quietly count if `touse'
+	if (r(N) == 0) {
+		error 2000
+	}
+	
+	display
+	display "REBUS will be available soon!"
 end
 
 program Display

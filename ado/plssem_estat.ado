@@ -1,5 +1,5 @@
 *!plssem_estat version 0.1
-*!Written 05Jan2017
+*!Written 27Apr2017
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -26,7 +26,7 @@ program plssem_estat, rclass
 	return add
 end
 
-program indirect, eclass
+program indirect, rclass
 	version 10
 	syntax , Effects(string) [ Boot(numlist min=1 max=1) Seed(numlist max=1) ///
 		Level(real 0.95) DIGits(integer 3) ]
@@ -216,10 +216,10 @@ program indirect, eclass
 		hlines(`ind_line') level(`level') //novlines
 
 	/* Return values */
-	// ereturn matrix indirect = `indmeas'
+	return matrix indirect = `indmeas'
 end
 
-program total, eclass
+program total, rclass
 	version 10
 	syntax [ , DIGits(integer 3) Plot ]
 	
@@ -335,7 +335,7 @@ program total, eclass
 	}
 
 	/* Return values */
-	// ereturn matrix total = `alleffects_new'
+	return matrix total = `alleffects_new'
 end
 
 program mktable_indirect
@@ -627,4 +627,7 @@ program plssem_vif, rclass
 			title("Structural model - Multicollinearity check (VIFs)") ///
 			firstcolwidth(14) colwidth(12) hlines(`hline_path') novlines
 	}
+	
+	/* Return values */
+	return matrix strvif = `strvif'
 end

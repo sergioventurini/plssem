@@ -1,5 +1,5 @@
 *!plssemplot version 0.1
-*!Written 02Jan2017
+*!Written 04May2017
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -33,6 +33,9 @@ program _plssemplot
 	tempvar __touse__
 	quietly generate `__touse__' = e(sample)
 
+	// check that estimation sample has not changed
+	checkestimationsample
+	
 	if ("`innermodel'" != "") {
 		tempname adjmat
 		mata: `adjmat' = st_matrix("e(adj_struct)")

@@ -3,7 +3,11 @@
 {vieweralsosee "plssem" "help plssem"}{...}
 {vieweralsosee "plssemplot" "help plssemplot"}{...}
 {viewerjumpto "Postestimation commands" "plssem postestimation##description"}{...}
-{viewerjumpto "Options" "plssem postestimation##options_estat"}{...}
+{viewerjumpto "estat" "plssem postestimation##syntax_estat"}{...}
+{viewerjumpto "estat options" "plssem postestimation##options_estat"}{...}
+{viewerjumpto "predict" "plssem postestimation##syntax_predict"}{...}
+{viewerjumpto "predict options" "plssem postestimation##options_predict"}{...}
+{viewerjumpto "predict stored results" "plssem postestimation##results_predict"}{...}
 {viewerjumpto "Examples" "plssem postestimation##examples"}{...}
 {viewerjumpto "Authors" "plssem postestimation##authors"}{...}
 {viewerjumpto "References" "plssem postestimation##references"}{...}
@@ -23,15 +27,27 @@ The following postestimation commands are of special interest after
 {synoptset 22 tabbed}{...}
 {p2coldent:Command}Description{p_end}
 {synoptline}
-{synopt:{helpb plssem postestimation##indirect:estat indirect}}estimation and inference for indirect effects{p_end}
-{synopt:{helpb plssem postestimation##total:estat total}}decomposition of effects{p_end}
-{p2coldent:+ {helpb plssem postestimation##vif:estat vif}}display
-	summary statistics over the estimation sample{p_end}
+{synopt:{helpb plssem postestimation##indirect:estat indirect}}estimation and
+	inference for indirect effects{p_end}
+{synopt:{helpb plssem postestimation##total:estat total}}decomposition of
+	total effects{p_end}
+{p2coldent:* {helpb plssem postestimation##vif:estat vif}}variance inflation
+	factors for the structural model equations sample{p_end}
 {synoptline}
 {p2colreset}{...}
 {p 4 6 2}
-+ {cmd:estat vif} is not available after models fitted using bootstrap.
+* {cmd:estat vif} is not available after models fitted using bootstrap.
 {p_end}
+
+{pstd}
+The following standard postestimation commands are also available:
+
+{synoptset 20 tabbed}{...}
+{p2coldent :Command}Description{p_end}
+{synoptline}
+{synopt :{helpb plssem postestimation##predict:predict}}fitted values and residuals{p_end}
+{synoptline}
+{p2colreset}{...}
 
 
 {marker syntax_estat}{...}
@@ -124,6 +140,70 @@ an option used with {cmd:estat total}, provides a graphical representation of
 the total effects decomposition.
 
 
+{marker syntax_predict}{...}
+{marker predict}{...}
+{title:Syntax for predict}
+
+{p 8 16 2}
+{cmd:predict} [{cmd:,} {it:statistic} {opt noout:er} {opt noin:ner}]
+
+{synoptset 20 tabbed}{...}
+{synopthdr :statistic}
+{synoptline}
+{syntab :Main}
+{synopt :{cmd:xb}}linear predictions{p_end}
+{synopt :{opt res:iduals}}residuals{p_end}
+{synoptline}
+
+
+{marker des_predict}{...}
+{title:Description for predict}
+
+{pstd}
+{cmd:predict} creates new variables containing linear predictions and residuals.
+These quantities are provided only for reflective blocks of manifest variables
+in the measurement/outer model and for endogenous latent variables in the
+structural/inner model.
+
+{pstd}
+The computed variables will replace those already present in the data set.
+
+
+{marker options_predict}{...}
+{title:Options for predict}
+
+{dlgtab:Main}
+
+{phang}
+{opt xb} calculates the linear predictions (fitted values).
+
+{phang}
+{opt residuals} calculates the residuals.
+
+{dlgtab:Options}
+
+{phang}
+{opt nooouter} fitted values and residuals for the measurement/outer model
+are not saved in the data set.
+
+{phang}
+{opt nooinner} fitted values and residuals for the structural/inner model
+are not saved in the data set.
+
+
+{marker results_predict}{...}
+{title:Stored results for predict}
+
+{pstd}
+{cmd:predict} stores the following in {cmd:r()}:
+
+{synoptset 20 tabbed}{...}
+{p2col 5 20 24 2: Matrices}{p_end}
+{synopt:{cmd:r(fitted)}}matrix of fitted values for the outer and inner models{p_end}
+{synopt:{cmd:r(residuals)}}matrix of residuals for the outer and inner models{p_end}
+{p2colreset}{...}
+
+
 {marker examples}{...}
 {title:Examples}
 
@@ -138,6 +218,11 @@ the total effects decomposition.
 
 {phang}
 {stata estat total, plot}{p_end}
+
+{phang}
+{stata predict, xb residuals}{p_end}
+{phang}
+{stata describe *_hat *_res}{p_end}
 
 
 {marker authors}{...}
@@ -166,7 +251,7 @@ Personality and Social Psychology, 51, 1173-1182.
 
 {marker Hairetal2017}{...}
 {phang}
-Hair, J. F., Hult, G. T. M., Ringle, C. M., and Sarstedt, M. 2017. {it:A Primer on Partial Least Squares Structural Equation Modeling (PLS-SEM)}. Sage.
+Hair, J. F., Hult, G. T. M., Ringle, C. M., and Sarstedt, M. 2017. {it:A Primer on Partial Least Squares Structural Equation Modeling (PLS-SEM)}. 2nd edition. Sage.
 
 {marker Sobel1982}{...}
 {phang}

@@ -1,3 +1,5 @@
+cd "/Users/Sergio/Dropbox (Personal)/PLS-SEM"
+
 /* Example 1 */
 /* --------- */
 use ./data/ecsimobi, clear
@@ -532,3 +534,68 @@ plssem (SES > OccStat StdEduc) ///
 			structural(Motivation Incentives SES) ///
 			group(Gender, what("path")) ///
 	    //boot(25) seed(123) stats corr(lv)
+
+/* Example 35 */
+/* ---------- */
+use ./data/ecsimobi, clear
+
+// Let us first make some of the items binary here using the percat
+percat IMAG1-IMAG5
+
+// Now, we have got five binary image indicators
+plssem (Expectation > CUEX1-CUEX3) (Satisfaction > CUSA1-CUSA3) ///
+     (Image > med_IMAG1-med_IMAG5), ///
+	   structural(Expectation Image, Satisfaction Expectation Image) ///
+	   rawsum digits(4)
+
+// Let us see the range of the Image variable which is now sum of the five binary med_IMAG items
+sum Image //as you see it has a range from 0 to 5 as mentioned above
+corr CUEX* Expectation   
+corr CUSA* Satisfaction   
+corr med_IMAG* Image // the loadings in the measurement part should be equal to these corr but they are not
+reg Expectation Image, beta // the coefs provided in the table are not standardised
+reg Satisfaction Expectation Image, beta // the coefs in the table are not standardised
+
+/* Example 36 */
+/* ---------- */
+import excel "./data/REBUS/rebus_data.xlsx", firstrow clear
+
+rename ServMøte1 Service
+rename CSmat1 Food
+rename CSrengjør1 Hygiene
+rename ImagePsy1 Lively
+rename CSlys1 Lighting
+rename Lojal1 Positive_talk
+rename Lojal2 Recommend
+rename Kjønn Gender
+
+keep Service Food Hygiene Lively Lighting Positive_talk Recommend Gender Rebus_gr
+
+plssem (Tangible > Service Food Hygiene) (Atmospheric > Lively Lighting) ///
+	(Loyalty > Positive_talk Recommend), structural(Loyalty Tangible Atmospheric) ///
+	group(Rebus_gr, method(permutation) reps(100) plot seed(101)) */
+
+/* Example 37 */
+/* ---------- */
+/* [From Sanchez, G. (2013) PLS Path Modeling with R (Chapter 9)] */
+
+use ./data/futbol, clear
+
+* Global PLS Path Model
+plssem (Attack > GSH GSA SSH SSA) (Defense > NGCH NGCA CSH CSA) ///
+	(Success > WMH WMA), structural(Success Attack Defense) ///
+	wscheme(centroid) tol(1e-06)
+
+predict, xb residuals
+return list
+describe
+
+/* Example 38 */
+/* ---------- */
+use ./data/workout2, clear
+
+plssem (Attractive > face sexy) (Appearance > body appear attract) ///
+	(Muscle > muscle strength endur) (Weight > lweight calories cweight), ///
+	structural(Appearance Attractive, Muscle Appearance, Weight Appearance)
+
+predict, xb residuals
