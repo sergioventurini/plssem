@@ -1,5 +1,5 @@
-*!plssem_p version 0.1
-*!Written 04May2017
+*!plssem_p version 0.2.0
+*!Written 05May2017
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -14,15 +14,17 @@ program plssem_p, rclass sortpreserve
 		 residuals				--> residuals
 		 noouter					--> no results returned for the outer model
 		 noinner					--> no results returned for the inner model
-	 */
+	*/
 	 
-	 /* Description:
-			------------
-			This postestimation command computes fitted values and residuals for a
-			PLSSEM model.
-	 */
+	/* Description:
+		 ------------
+		 This postestimation command computes fitted values and residuals for a
+		 PLSSEM model.
+	*/
 	
-	local touse = e(sample)
+	tempvar __touse__
+*	quietly generate `__touse__' = e(sample)
+	quietly generate `__touse__' = 1
 	
 	// check that estimation sample has not changed
 	checkestimationsample
@@ -58,7 +60,7 @@ program plssem_p, rclass sortpreserve
 	/* Fitted values */
 	tempname latents
 	local lvs `e(lvs)'
-	mkmat `lvs' if `touse', matrix(`latents')
+	mkmat `lvs' if `__touse__', matrix(`latents')
 
 	/* 	- outer model */
 	if (!`noreflective') {
@@ -71,27 +73,28 @@ program plssem_p, rclass sortpreserve
 		local mvs : rownames `adj_meas'
 		local n_lvs : word count `modeA'
 		local n_mvs : word count `mvs'
-		mkmat `mvs' if `touse', matrix(`indicators')
-		mkmat `modeA' if `touse', matrix(`modeA_scores')
+		mkmat `mvs' if `__touse__', matrix(`indicators')
+		mkmat `modeA' if `__touse__', matrix(`modeA_scores')
 		local idx = 1
 		local start = 1
 		/*
-		quietly misstable patterns `mvs' if `touse'
+		quietly misstable patterns `mvs' if `__touse__'
 		local nobs = r(N_complete)
 		*/
 		local nobs = _N
 		mata: st_matrix("`ohat'", J(`nobs', 0, .))
-		mata: mvs_idx = J(0, 1, .)
+		tempname mvs_idx load_var load_idx load_nm num_block
+		mata: `mvs_idx' = J(0, 1, .)
 		foreach var in `modeA' {
 			local lv_col : list posof "`var'" in lvs_adj
-			mata: load_var = st_matrix("`loadings'")[., `lv_col']
-			mata: load_idx = selectindex(load_var :!= .)
-			mata: mvs_idx = (mvs_idx \ load_idx)
-			mata: load_nm = st_matrixrowstripe("`loadings'")[load_idx, .]
-			mata: nblock = rows(load_idx)
-			mata: st_local("nblock", strofreal(nblock))
-			mata: st_matrix("`b2use'", transposeonly(load_var[load_idx, .]))
-			mata: st_matrixcolstripe("`b2use'", load_nm)
+			mata: `load_var' = st_matrix("`loadings'")[., `lv_col']
+			mata: `load_idx' = selectindex(`load_var' :!= .)
+			mata: `mvs_idx' = (`mvs_idx' \ `load_idx')
+			mata: `load_nm' = st_matrixrowstripe("`loadings'")[`load_idx', .]
+			mata: `num_block' = rows(`load_idx')
+			mata: st_local("nblock", strofreal(`num_block'))
+			mata: st_matrix("`b2use'", transposeonly(`load_var'[`load_idx', .]))
+			mata: st_matrixcolstripe("`b2use'", `load_nm')
 			mata: st_matrix("`tmp'", ///
 						st_matrix("`modeA_scores'")[., `idx'] * st_matrix("`b2use'"))
 			mata: st_matrix("`ohat'", (st_matrix("`ohat'"), st_matrix("`tmp'")))
@@ -112,17 +115,17 @@ program plssem_p, rclass sortpreserve
 	
 	/*	- inner model */
 	if (`isstruct') {
-		tempname adj_struct path ihat
+		tempname adj_struct path endo path_mata ihat lvs_endo_nm
 		matrix `adj_struct' = e(adj_struct)
 		matrix `path' = e(pathcoef)
-		mata: endo = colsum(st_matrix("`adj_struct'"))
-		mata: endo = (endo :> 0)
-		mata: st_local("n_endo", strofreal(sum(endo)))
-		mata: path = st_matrix("`path'")[., selectindex(endo)]
-		mata: st_matrix("`ihat'", st_matrix("`latents'") * path)
-		mata: lvs_endo_nm = st_matrixcolstripe("`path'")[selectindex(endo), 2]
+		mata: `endo' = colsum(st_matrix("`adj_struct'"))
+		mata: `endo' = (`endo' :> 0)
+		mata: st_local("n_endo", strofreal(sum(`endo')))
+		mata: `path_mata' = st_matrix("`path'")[., selectindex(`endo')]
+		mata: st_matrix("`ihat'", st_matrix("`latents'") * `path_mata')
+		mata: `lvs_endo_nm' = st_matrixcolstripe("`path'")[selectindex(`endo'), 2]
 		forvalues j = 1/`n_endo' {
-			mata: st_local("lvs_endo", lvs_endo_nm[`j'])
+			mata: st_local("lvs_endo", `lvs_endo_nm'[`j'])
 			local endovs "`endovs' `lvs_endo'"
 			local ihat_nm "`ihat_nm' `lvs_endo'_hat"
 		}
@@ -133,14 +136,14 @@ program plssem_p, rclass sortpreserve
 	/* Residuals */
 	/*	- outer model */
 	if (!`noreflective') {
-		tempname ores
+		tempname ores mvs_nm
 		mata: st_matrix("`indicators_std'", ///
-			scale(st_matrix("`indicators'")[., mvs_idx]))
+			scale(st_matrix("`indicators'")[., `mvs_idx']))
 		matrix `ores' = `indicators_std' - `ohat'
-		mata: mvs_nm = st_matrixcolstripe("`indicators'")[mvs_idx, 2]
-		mata: st_local("n_ind", strofreal(rows(mvs_idx)))
+		mata: `mvs_nm' = st_matrixcolstripe("`indicators'")[`mvs_idx', 2]
+		mata: st_local("n_ind", strofreal(rows(`mvs_idx')))
 		forvalues j = 1/`n_ind' {
-			mata: st_local("ind_nm", mvs_nm[`j'])
+			mata: st_local("ind_nm", `mvs_nm'[`j'])
 			local indvs "`indvs' `ind_nm'"
 			local ores_nm "`ores_nm' `ind_nm'_res"
 		}
@@ -150,15 +153,16 @@ program plssem_p, rclass sortpreserve
 	/*	- inner model */
 	if (`isstruct') {
 		tempname ires
-		mata: st_matrix("`latents'", st_matrix("`latents'")[., selectindex(endo)])
+		mata: st_matrix("`latents'", st_matrix("`latents'")[., selectindex(`endo')])
 		matrix `ires' = `latents' - `ihat'
 		forvalues j = 1/`n_endo' {
-			mata: st_local("lvs_endo", lvs_endo_nm[`j'])
+			mata: st_local("lvs_endo", `lvs_endo_nm'[`j'])
 			local ires_nm "`ires_nm' `lvs_endo'_res"
 		}
 		matrix colnames `ires' = `ires_nm'
 	}
 
+/*
 	/* All fitted values */
 	tempname yhat
 	if (!`noreflective') & (`isstruct') {
@@ -194,6 +198,7 @@ program plssem_p, rclass sortpreserve
 	else {
 		// nothing to save
 	}
+*/
 	
 	/* Copy quantities in data set */
 	local now "`c(current_date)', `c(current_time)'"
@@ -260,48 +265,13 @@ program plssem_p, rclass sortpreserve
 	}
 	
 	/* Clean up */
-	if (!`noreflective') {
-		mata: mata drop mvs_idx load_var load_idx load_nm nblock mvs_nm
-	}
-	if (`isstruct') {
-		mata: mata drop endo path lvs_endo_nm
-	}
-
+	// mata: mata drop __*
+	
 	/* Return values */
 	if (!`noreflective') | (`isstruct') {
-		return matrix residuals = `res'
-		return matrix fitted = `yhat'
+		return matrix struct_res = `ires'
+		return matrix meas_res = `ores'
+		return matrix struct_fit = `ihat'
+		return matrix meas_fit = `ohat'
 	}
-end
-
-version 10
-mata:
-real matrix scale(real matrix X)
-{
-	/* Description:
-		 ------------
-		 Function that standardizes the columns of a real matrix X.
-	*/
-	
-	/* Arguments:
-		 ----------
-		 - X --> real matrix whose columns must be standardized.
-	*/
-	
-	/* Returned value:
-		 ---------------
-		 - Xstd --> real matrix with columns that have been standardized.
-	*/
-	
-	real matrix m, Xc, sd_inv, Xstd
-	real scalar n
-	
-	n = rows(X)
-	m = J(n, 1, mean(X))
-	Xc = X - m
-	sd_inv = luinv(sqrt(diag(variance(Xc))))
-	Xstd = Xc * sd_inv
-
-	return(Xstd)
-}
 end

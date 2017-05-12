@@ -119,7 +119,7 @@ sets the tolerance value used for checking convergence attainment.
 The default tolerance value is 1e-7. 
 
 {phang}{opt maxiter(#)}
-indicates the maximum number iterations the algorithm runs. The default is
+indicates the maximum number of iterations the algorithm runs. The default is
 1000 iterations. Note that usually the algorithm requires a very limited number of
 iterations to reach convergence, typically less than 10. 
 
@@ -219,6 +219,7 @@ Norwegian University of Science and Technology{break}
 {synopt:{cmd:e(reps)}}number of bootstrap replications{p_end}
 {synopt:{cmd:e(iterations)}}number of iterations to reach convergence{p_end}
 {synopt:{cmd:e(tolerance)}}chosen tolerance value{p_end}
+{synopt:{cmd:e(converged)}}equal to 1 if convergence is achieved; 0 otherwise{p_end}
 
 {synoptset 24 tabbed}{...}
 {p2col 5 24 28 2: Macros}{p_end}
@@ -244,6 +245,8 @@ whether the boostrap has been used and whether the model has a structural part{p
 (available only if the {cmd:boot()} is chosen){p_end}
 {synopt:{cmd:e(loadings_se)}}matrix of the outer loadings standard errors{p_end}
 {synopt:{cmd:e(adj_meas)}}adjacency matrix for the measurement (outer) model{p_end}
+{synopt:{cmd:e(outerweights)}}matrix of outer weights{p_end}
+{synopt:{cmd:e(ow_history)}}matrix of outer weights evolution{p_end}
 {synopt:{cmd:e(relcoef)}}matrix of reliability coefficients{p_end}
 {synopt:{cmd:e(sqcorr)}}matrix of squared correlations among the latent variables{p_end}
 {synopt:{cmd:e(ave)}}vector of average variances extracted{p_end}

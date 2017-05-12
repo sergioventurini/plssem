@@ -1,5 +1,5 @@
-*!mktable version 0.1
-*!Written 10Nov2016
+*!mktable version 0.2.0
+*!Written 12May2017
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -8,7 +8,7 @@ program mktable
 	syntax , matrix(string) [ FIRSTCOLName(string) FIRSTCOLWidth(integer 25) ///
 		COLWidth(integer 15) Title(string) HLines(numlist >0 integer sort) ///
 		NOVLines DIGits(integer 3) Path STats TOTal CORr CUToff(real 0) ///
-		BINary(namelist min=1) ]
+		BINary(namelist min=1) REBus ]
 
 	/* Options:
 	   --------
@@ -27,6 +27,8 @@ program mktable
 		 corr												--> correlation table
 		 cutoff(real 0)							--> do not show correlation smaller than cutoff
 		 binary(namelist min=1)			--> binary indicators/latent variables
+		 rebus											--> indicator that the table refers to REBUS
+																		results
 	 */
 	
 	local skip0 = 0
@@ -40,7 +42,7 @@ program mktable
 	}
 	if (`colwidth' < 9) {
 		display as error "'colwidth' option must be larger than 8 to properly show the table"
-		error 198
+		exit
 	}
 
 	local firstcolwidth_p1 = `firstcolwidth' + 1
@@ -60,7 +62,7 @@ program mktable
 	local usable2 = `colwidth' - 2*`skip2'
 	if (`digits' >= `usable') {
 		display as error "the number of digits chosen is too large"
-		error 198
+		exit
 	}
 	if ("`hlines'" != "") {
 		numlist "`hlines'"
@@ -152,13 +154,13 @@ program mktable
 	local lastline "`lastline'" "`: display "{hline ""`colwidth'""}"'"
 	
 	display
-	display as txt _skip(`skip0') "`title'"
-	display as txt "`firstline'"
+	display as text _skip(`skip0') "`title'"
+	display as text "`firstline'"
 	if (`nulleqnames' < `ncols') {
-		display as txt "`title1_eq'"
+		display as text "`title1_eq'"
 	}
-	display as txt "`title1'"
-	display as txt "`secondline'"
+	display as text "`title1'"
+	display as text "`secondline'"
 	
 	forvalues i = 1/`nrows' {
 		local rownametodisp : word `i' of `matrownames'
@@ -175,7 +177,7 @@ program mktable
 		else {
 			local rownametodisp "`: display _col(`firstcolwidth_p1') "{c |}"'"
 		}
-		display as txt "`rownametodisp'" _continue
+		display as text "`rownametodisp'" _continue
 
 		local rownametodisp : word `i' of `matrownames'
 		local rowtodisp ""
@@ -189,7 +191,12 @@ program mktable
 						}
 					}
 					else {
-						local todisp = strtrim(string(`matrix'[`i', `j'], "%`usable'.`digits'f"))
+						if ("`rebus'" != "") & (`i' == 1) {
+							local todisp = strtrim(string(`matrix'[`i', `j'], "%`usable'.0f"))
+						}
+						else {
+							local todisp = strtrim(string(`matrix'[`i', `j'], "%`usable'.`digits'f"))
+						}
 						if (strlen("`todisp'") > `usable') {
 							local todisp = strtrim(string(`matrix'[`i', `j'], "%`usable'.2e"))
 						}
@@ -198,7 +205,12 @@ program mktable
 					local rowtodisp "`rowtodisp'" "`: display _skip(`skip1') _skip(`tmp_skip') "`todisp'`vlines'"'"
 				}
 				else {
-					local todisp = strtrim(string(`matrix'[`i', `j'], "%`usable2'.`digits'f"))
+					if ("`rebus'" != "") & (`i' == 1) {
+						local todisp = strtrim(string(`matrix'[`i', `j'], "%`usable2'.0f"))
+					}
+					else {
+						local todisp = strtrim(string(`matrix'[`i', `j'], "%`usable2'.`digits'f"))
+					}
 					if (strlen("`todisp'") > `usable2') {
 						local todisp = strtrim(string(`matrix'[`i', `j'], "%`usable2'.2e"))
 					}
@@ -220,7 +232,12 @@ program mktable
 					}
 				}
 				else {
-					local todisp = strtrim(string(`matrix'[`i', `ncols'], "%`usable'.`digits'f"))
+					if ("`rebus'" != "") & (`i' == 1) {
+						local todisp = strtrim(string(`matrix'[`i', `ncols'], "%`usable'.0f"))
+					}
+					else {
+						local todisp = strtrim(string(`matrix'[`i', `ncols'], "%`usable'.`digits'f"))
+					}
 					if (strlen("`todisp'") > `usable') {
 						local todisp = strtrim(string(`matrix'[`i', `ncols'], "%`usable'.2e"))
 					}
@@ -229,7 +246,12 @@ program mktable
 				local rowtodisp "`rowtodisp'" "`: display _skip(`skip1') _skip(`tmp_skip') "`todisp'"'"
 			}
 			else {
-				local todisp = strtrim(string(`matrix'[`i', `ncols'], "%`usable2'.`digits'f"))
+				if ("`rebus'" != "") & (`i' == 1) {
+					local todisp = strtrim(string(`matrix'[`i', `ncols'], "%`usable2'.0f"))
+				}
+				else {
+					local todisp = strtrim(string(`matrix'[`i', `ncols'], "%`usable2'.`digits'f"))
+				}
 				if (strlen("`todisp'") > `usable2') {
 					local todisp = strtrim(string(`matrix'[`i', `ncols'], "%`usable2'.2e"))
 				}
@@ -243,10 +265,10 @@ program mktable
 		foreach num in `hlinestodisp' {
 			if (`num' == `i') {
 				if (`num' < `nrows') {
-					display as txt "`secondline'"
+					display as text "`secondline'"
 				}
 				else if (`num' == `nrows') {
-					display as txt "`lastline'"
+					display as text "`lastline'"
 				}
 			}
 			break
@@ -254,7 +276,7 @@ program mktable
 	}
 	
 	if ("`path'" != "") {
-		display as txt _skip(`skip1') "p-values in parentheses"
+		display as text _skip(`skip1') "p-values in parentheses"
 	}
 
 	if ("`binary'" != "") {
@@ -270,6 +292,6 @@ program mktable
 			local tmpbinary `: word `numbin' of `binary''
 			local new_binary "`new_binary' and `tmpbinary'"
 		}
-		display as txt _skip(`skip1') "results for `new_binary' use a logit model"
+		display as text _skip(`skip1') "results for `new_binary' use a logit model"
 	}
 end

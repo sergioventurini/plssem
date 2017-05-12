@@ -1,5 +1,5 @@
-*!plssem version 0.1
-*!Written 04May2017
+*!plssem version 0.2.0
+*!Written 12May2017
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -46,27 +46,13 @@ program plssem, byable(onecall)
 	}
 
 	local isgroup = strpos(`"`options'"', "gr")
-	local isrebus = strpos(`"`options'"', "reb")
-	if (`isgroup' & `isrebus') {
-		display as error "the 'group()' and 'rebus()' options cannot be used together"
-		error 198
-	}
 	if (`isgroup') {
 		if _by() {
 			display as error "the 'group()' option is not allowed with by"
-			error 198
+			exit
 		}
 		else {
 			`version' Compare `0'  // version is not necessary
-		}
-	}
-	else if (`isrebus') {
-		if _by() {
-			display as error "the 'rebus()' option is not allowed with by"
-			error 198
-		}
-		else {
-			`version' Heterogeneity `0'  // version is not necessary
 		}
 	}
 	else {
@@ -81,7 +67,7 @@ program Estimate, eclass byable(recall)
 		Boot(numlist integer >0 max=1) Seed(numlist max=1) Tol(real 1e-7) ///
 		MAXiter(integer 1000) INIT(string) DIGits(integer 3) noHEADer ///
 		noMEAStable noDISCRIMtable noSTRUCTtable STATs GRoup(string) ///
-		CORRelate(string) RAWsum REBus(string) ]
+		CORRelate(string) RAWsum ]
 	
 	/* Options:
 	   --------
@@ -120,7 +106,6 @@ program Estimate, eclass byable(recall)
 																				specified value
 		 rawsum													--> estimate the latent scores as the raw
 																				sum of the indicators
-		 rebus(string)									--> perform a REBUS analysis
 	 */
 	
 	/* Parse the specified blocks.
@@ -235,17 +220,35 @@ program Estimate, eclass byable(recall)
 	}
 	if !("`wscheme'" == "centroid" | "`wscheme'" == "factorial"  | "`wscheme'" == "path") {
 		display as error "scheme can be either 'centroid', 'factorial', or 'path'"
-		error 198
+		exit
 	}
 	/* End of parsing the inner weight scheme */
 
+	/* Check convergence criteria */
+	if (`maxiter' <= 0) {
+		display as error "maximum number of iterations must be a positive integer"
+		exit
+	}
+	if (`tol' <= 0) {
+		display as error "tolerance must be a strictly positive number"
+		exit
+	}
+	/* End of checking convergence criteria */
+
+	/* Check that digits is nonnegative */
+	if (`digits' < 0) {
+		display as error "number of digits to display must be a nonnegative integer"
+		exit
+	}
+	/* End of checking that digits is nonnegative */
+	
 	/* Parse the binary indicators */
 	if ("`binary'" != "") {
 		foreach var in `binary' {
 			local nind_bin : word count `i`var''
 			if (`nind_bin' > 1) {
 				display as error "latent variables in 'binary()' option must be defined through a single binary indicator"
-				error 198
+				exit
 			}
 		}
 	}
@@ -270,14 +273,14 @@ program Estimate, eclass byable(recall)
 				local cutoff = "``tok_tmp''"
 				if (`cutoff' < 0 | `cutoff' > 1) {
 					display as error "cutoff must be in between 0 and 1"
-					error 198
+					exit
 				}
 			}
 			local ++tok_i
 		}
 		if ("`corrind'" == "" & "`corrlv'" == "" & "`crossload'" == "") {
 			display as error "'correlate()' option requires at least one of 'mv', 'lv' or 'cross'"
-			error 198
+			exit
 		}
 	}
 	/* End of parsing the correlate() option */
@@ -311,16 +314,18 @@ program Estimate, eclass byable(recall)
 	}
 	
 	/* Initialize latents with equal weights (STEP 1) */
+	tempname sd_init
+	mata: st_matrix("`sd_init'", J(1, 0, .))  // empty matrix
 	if ("`init'" == "") {
 		local init "indsum"
 	}
 	if !("`init'" == "eigen" | "`init'" == "indsum") {
 		display as error "initialization method can be either 'eigen' or 'indsum'"
-		error 198
+		exit
 	}
 	if (("`structural'" == "") & ("`init'" != "eigen")) {
 		display as error "'init()' option must be set to 'eigen' when no structural model is provided"
-		error 198
+		exit
 	}
 	
 	if ("`rawsum'" == "") {
@@ -342,6 +347,7 @@ program Estimate, eclass byable(recall)
 				local lv : word `k' of `alllatents'
 				local isbinary : list lv in binary
 				if (!`isbinary') {
+					matrix `sd_init' = (`sd_init', r(sd))
 					quietly replace `LV`k'' = (`LV`k'' - r(mean))/r(sd) if `touse' // equation (5)
 				}
 			}
@@ -372,6 +378,7 @@ program Estimate, eclass byable(recall)
 					}
 				}
 				quietly summarize `LV`k'' if `touse'
+				matrix `sd_init' = (`sd_init', r(sd))
 				quietly replace `LV`k'' = (`LV`k'' - r(mean))/r(sd) if `touse' // equation (5)
 			}
 		}
@@ -398,6 +405,7 @@ program Estimate, eclass byable(recall)
 			local lv : word `k' of `alllatents'
 			local isbinary : list lv in binary
 			if (!`isbinary') {
+				matrix `sd_init' = (`sd_init', r(sd))
 				quietly replace `LV`k'' = (`LV`k'' - r(mean))/r(sd) if `touse' // equation (5)
 			}
 		}
@@ -416,7 +424,7 @@ program Estimate, eclass byable(recall)
 				gettoken depvar : inter
 				if (strpos("`depvar'", "*")) {
 					display as error "`depvar': interactions cannot involve a dependent variable"
-					error 197
+					exit
 				}
 				local new_tok "`depvar'"
 				gettoken blk inter : inter
@@ -431,7 +439,7 @@ program Estimate, eclass byable(recall)
 						gettoken var2 toadd : toadd, parse("*")
 						if (strpos("`toadd'", "*")) {
 							display as error "interactions can involve only two variables"
-							error 197
+							exit
 						}
 
 						local internm = "`var1'`var2'"
@@ -452,7 +460,7 @@ program Estimate, eclass byable(recall)
 						local int_in_modeB : list internm in modeB
 						if (`int_in_modeB') {
 							display as error "interactions of latent variables must be reflective"
-							error 197
+							exit
 						}
 
 						// Generate the product indicators
@@ -482,6 +490,7 @@ program Estimate, eclass byable(recall)
 							// quietly tabulate `var' if `touse'
 							// if (r(r) > 2) {
 								quietly summarize `var' if `touse'
+								matrix `sd_init' = (`sd_init', r(sd))
 								quietly generate std`var' = (`var' - r(mean))/r(sd) if `touse'
 							// }
 							// else {
@@ -510,6 +519,7 @@ program Estimate, eclass byable(recall)
 								gettoken init_var init_tmp : init_tmp
 							}
 							quietly summarize `LV`num_lv'' if `touse'
+							matrix `sd_init' = (`sd_init', r(sd))
 							quietly replace `LV`num_lv'' = (`LV`num_lv'' - r(mean))/r(sd) if `touse' // equation (5)
 						}
 						else if ("`init'" == "eigen") {
@@ -537,6 +547,7 @@ program Estimate, eclass byable(recall)
 								}
 							}
 							quietly summarize `LV`num_lv'' if `touse'
+							matrix `sd_init' = (`sd_init', r(sd))
 							quietly replace `LV`num_lv'' = (`LV`num_lv'' - r(mean))/r(sd) if `touse' // equation (5)
 						}
 						
@@ -577,7 +588,7 @@ program Estimate, eclass byable(recall)
 		foreach var in `alllatents' {
 			if ("`r`var''`c`var''" == "") {
 				display as error "latent `var' is not adjacent to any other latent"
-				error 198
+				exit
 			}
 			
 			local regest`var' : list uniq regest`var'
@@ -595,14 +606,32 @@ program Estimate, eclass byable(recall)
 		}
 	}
 	
-	/* Start of the PLS algorithm */	
-	tempname converged iteration reldiff
+	/* Start of the PLS algorithm */
+	tempname converged iter reldiff
 	
 	scalar `converged' = 0
-	scalar `iteration' = 0
+	scalar `iter' = 1
 	
+	tempname C W outerW Whistory sd_tmp X y bcoef Wold mv lv sd_inv mat0 ///
+		matreldiff
+
 	if ("`structural'" != "") {
-		tempname C W Wold mat0 matreldiff
+		local num_ind : word count `allindicators'
+		matrix `Whistory' = J(1, `num_ind', 1)
+		matrix `sd_tmp' = J(1, `num_ind', 1)
+		local ilv = 1
+		local icol = 1
+		foreach var in `alllatents' {
+			foreach var2 in `allindicators' {
+				if (`: list var2 in i`var'') {
+					matrix `sd_tmp'[1, `icol'] = `sd_init'[1, `ilv']
+					local ++icol
+				}
+			}
+			local ++ilv
+		}
+		mata: st_matrix("`Whistory'", ///
+			st_matrix("`Whistory'") :/ st_matrix("`sd_tmp'"))
 		
 		if ("`rawsum'" == "") {
 			while (!`converged') {
@@ -654,7 +683,11 @@ program Estimate, eclass byable(recall)
 				// (STEP 3&4)
 				// Store weights in matrix. These are unscaled and only used for
 				// convergence check
-				matrix `W' = 1
+				// mata: st_matrix("`W'", J(1, 0, .))  // empty matrix
+				matrix `outerW' = J(`: word count `allindicators'', ///
+					`: word count `alllatents'', 0)  // matrix of outer weights
+				local i = 1
+				local j = 1
 				
 				/* Outer estimation (Mode A) */
 				foreach var in `modeA' {
@@ -662,22 +695,40 @@ program Estimate, eclass byable(recall)
 					foreach var2 in `istd`var'' {
 						quietly correlate `t`var'' `var2' if `touse' // equation (7)
 						matrix `C' = r(C)
-						matrix `W' = (`W', `C'[1, 2])
+						// matrix `W' = (`W', `C'[1, 2])
+						matrix `outerW'[`i', `j'] = `C'[1, 2]
 						quietly replace `var' = `var' + `var2' * `C'[1, 2] ///
 							if `touse' // equation (9) for mode A LVs
+						local ++i
 					}
+					local ++j
 				}
 				
 				/* Outer estimation (Mode B) */
 				foreach var in `modeB' {
 					tempvar tv
-					quietly regress `t`var'' `istd`var'' if `touse' // equation (8)
-					matrix `W' = (`W', e(b))
-					quietly predict `tv' if `touse'
+					// quietly regress `t`var'' `istd`var'' if `touse', noconstant // equation (8)
+					// matrix `W' = (`W', e(b))
+					// quietly predict `tv' if `touse'
+					mata: st_view(`X' = ., ., "`istd`var''", "`touse'")
+					mata: st_view(`y' = ., ., "`t`var''", "`touse'")
+					mata: st_matrix("`bcoef'", qrsolve(cross(`X', `X'), cross(`X', `y'))')
+					// matrix `W' = (`W', `bcoef')
+					quietly generate `tv' = .
+					mata: st_store(., "`tv'", "`touse'", `X' * st_matrix("`bcoef'")')
 					quietly replace `var' = `tv' if `touse' // equation (9) for mode B LVs
 					quietly drop `tv'
+					matrix `outerW'[`i', `j'] = `bcoef''
+					local i = `i' + colsof(`bcoef')
+					local ++j
 				}
 
+				/* Rescale the outer weights according to the LVs scale */
+				mata: st_view(`mv' = ., ., "`allindicators'", "`touse'")
+				mata: st_view(`lv' = ., ., "`alllatents'", "`touse'")
+				mata: `sd_inv' = J(cols(`mv'), 1, 1:/(sqrt(diagonal(variance(`lv'))))')
+				mata: st_matrix("`outerW'", st_matrix("`outerW'") :* `sd_inv')
+				
 				/* Standardize the LVs */
 				foreach var of varlist `alllatents' {
 					local isbinary : list var in binary
@@ -691,38 +742,32 @@ program Estimate, eclass byable(recall)
 				// Convergence check: compare new weights (W) with those from previous
 				// iteration (Wold)
 
-				if (`tol' <= 0) {
-					display as error "tolerance must be a strictly positive number"
-					error 197
-				}
-				if (`iteration' == 0) {
+				mata: st_matrix("`W'", rowsum(st_matrix("`outerW'"))')
+				mata: st_matrix("`Whistory'", ///
+					(st_matrix("`Whistory'") \ st_matrix("`W'")))
+				if (`iter' == 1) {
 					matrix `mat0' = J(1, colsof(`W'), 0)
 					scalar `reldiff' = mreldif(`W', `mat0')
 					matrix `matreldiff' = `reldiff'
 				}
-				if (`iteration' > 0) {
+				else {
 					scalar `reldiff' = mreldif(`W', `Wold')
 					matrix `matreldiff' = (`matreldiff', `reldiff')
-					scalar `converged' = `reldiff' < `tol' // equation (11)
+					scalar `converged' = (`reldiff' < `tol') // equation (11)
 				}
 				matrix `Wold' = `W'
-			
-				scalar `iteration' = `iteration' + 1
 
-				/* No convergence */
-				if (`maxiter' <= 0) {
-					display as error "maximum number of iterations must be a positive integer"
-					error 197
-				}
-				if (`iteration' > `maxiter') {
-					error 430
+				scalar `iter' = `iter' + 1
+
+				/* Maximum number of iterations reached */
+				if (`iter' > `maxiter') {
+					continue, break
+					// error 430
 				}
 			}
 		}
 	}
 	else {
-		tempname C
-		
 		/* Outer estimation (Mode A) */
 		foreach var in `modeA' {
 			tempvar t`var'
@@ -753,8 +798,13 @@ program Estimate, eclass byable(recall)
 				quietly replace `t`var'' = `var' if `touse'
 			}
 			tempvar tv
-			quietly regress `t`var'' `istd`var'' if `touse' // equation (8)
-			quietly predict `tv' if `touse'
+			// quietly regress `t`var'' `istd`var'' if `touse', noconstant // equation (8)
+			// quietly predict `tv' if `touse'
+			mata: st_view(`X' = ., ., "`istd`var''", "`touse'")
+			mata: st_view(`y' = ., ., "`t`var''", "`touse'")
+			mata: st_matrix("`bcoef'", qrsolve(cross(`X', `X'), cross(`X', `y'))')
+			quietly generate `tv' = .
+			mata: st_store(., "`tv'", "`touse'", `X' * st_matrix("`bcoef'")')
 			quietly replace `var' = `tv' if `touse' // equation (9) for mode B LVs
 			quietly drop `tv'
 		}
@@ -819,6 +869,11 @@ program Estimate, eclass byable(recall)
 	}
 	matrix rownames `loadings' = `loadrownames'
 	matrix colnames `loadings' = `loadcolnames'
+	if ("`structural'" != "") & ("`rawsum'" == "") {
+		matrix rownames `outerW' = `loadrownames'
+		matrix colnames `outerW' = `loadcolnames'
+		matrix colnames `Whistory' = `loadrownames'
+	}
 	if ("`boot'" != "") {
 		matrix rownames `loadings_bs' = `loadrownames'
 		matrix colnames `loadings_bs' = `loadcolnames'
@@ -1132,7 +1187,7 @@ program Estimate, eclass byable(recall)
 		local num_ind_A = `: word count `i`var'''
 		local sqsumload = 0
 		if (`num_ind_A' > 1) {
-			quietly alpha `i`var'' if `touse', std
+			quietly alpha `i`var'' if `touse', std asis
 			matrix `relcoef'[1, `rr'] = r(alpha)
 		}
 		else {
@@ -1282,13 +1337,15 @@ program Estimate, eclass byable(recall)
 	}
 	if ("`structural'" != "") {
 		if ("`rawsum'" == "") {
-			ereturn scalar iterations = `iteration' - 1
+			ereturn scalar iterations = `iter' - 1
 		}
 		else {
 			ereturn scalar iterations = 0
 		}
 		ereturn scalar tolerance = `tol'
 	}
+	ereturn scalar converged = `converged'
+
 	ereturn local struct_eqs `"`reg3eqs'"'
 	ereturn local formative `"`modeB'"'
 	ereturn local reflective `"`modeA'"'
@@ -1299,12 +1356,16 @@ program Estimate, eclass byable(recall)
 	ereturn local title "Partial least squares structural equation modeling"
 	ereturn local predict plssem_p
 	ereturn local estat_cmd "plssem_estat"
-	ereturn local cmdline `"`cmdline'"'
+	ereturn local cmdline "plssem `cmdline'"
 	ereturn local cmd "plssem"
 
 	if ("`structural'" != "") {
 		if ("`rawsum'" == "") {
 			ereturn matrix reldiff = `matreldiff'
+			if ("`structural'" != "") {
+				ereturn matrix ow_history =  `Whistory'
+				ereturn matrix outerweights =  `outerW'
+			}
 		}
 		if (`num_lv_A' > 0) {
 			ereturn matrix assessment = `mod_assessment'
@@ -1351,6 +1412,7 @@ program Estimate, eclass byable(recall)
 			quietly drop rs_`var'
 		}
 	}
+	// mata: mata drop __*
 	
 	/* Display results */
 	if (("`display'" == "") & ("`group'" == "")) {  // this saves some time when used with 'group' 
@@ -1367,6 +1429,14 @@ program Estimate, eclass byable(recall)
 			`header' `meastable' `nodiscrim' `structtable' `stats' `corrind' ///
 			`corrlv' `crossload' cutoff(`cutoff') binary(`binary') `rawsum'
 	}
+
+	/* Maximum number of iterations reached */
+	if (`iter' > `maxiter') {
+		display as error "warning: convergence not achieved ==> " _continue
+		display as error "maximum number of iterations reached"
+		display as error "the solution provided may not be acceptable; " _continue
+		display as error "try to increase the 'maxiter' option"
+	}
 end
 
 program Compare, eclass sortpreserve
@@ -1376,7 +1446,7 @@ program Compare, eclass sortpreserve
 		Boot(numlist integer >0 max=1) Seed(numlist max=1) Tol(real 1e-7) ///
 		MAXiter(integer 1000) INIT(string) DIGits(integer 3) noHEADer ///
 		noMEAStable noDISCRIMtable noSTRUCTtable STATs GRoup(string) ///
-		CORRelate(string) RAWsum REBus(string) ]
+		CORRelate(string) RAWsum ]
 
 	/* Options:
 	   --------
@@ -1415,7 +1485,6 @@ program Compare, eclass sortpreserve
 																				specified value
 		 rawsum													--> estimates the latent scores as the raw
 																				sum of the indicators
-		 rebus(string)									--> perform a REBUS analysis
 	 */
 	
 	/* Warning */
@@ -1425,6 +1494,12 @@ program Compare, eclass sortpreserve
 		exit
 	}
 	
+	/* Check that digits is nonnegative */
+	if (`digits' < 0) {
+		display as error "number of digits to display must be a nonnegative integer"
+		exit
+	}
+
 	/* Set obs to use */
 	marksample touse
 	
@@ -1441,7 +1516,7 @@ program Compare, eclass sortpreserve
 	local ngroupvars : word count `1'
 	if (`ngroupvars' > 1) {
 		display as error "a single variable allowed in the 'group()' option"
-		error 198
+		exit
 	}
 	local groupvar `"`1'"'
 	local rest `"`3'"'
@@ -1454,7 +1529,7 @@ program Compare, eclass sortpreserve
 				local reps = int(``tok_tmp'')
 				if (`reps' < 2) {
 					display as error "'reps()' suboption requires an integer larger than 1"
-					error 198
+					exit
 				}
 			}
 			else if ("``tok_i''" == "method") {
@@ -1462,7 +1537,7 @@ program Compare, eclass sortpreserve
 				local method = "``tok_tmp''"
 				if (("`method'" != "normal") & ("`method'" != "permutation") & ("`method'" != "bootstrap")) {
 					display as error "'method()' suboption accepts either 'permutation', 'bootstrap' or 'normal'"
-					error 198
+					exit
 				}
 			}
 			else if ("``tok_i''" == "plot") {
@@ -1473,7 +1548,7 @@ program Compare, eclass sortpreserve
 				local alpha = ``tok_tmp''
 				if (`alpha' <= 0 | `alpha' >= 1) {
 					display as error "'alpha()' suboption requires a real scalar in between 0 and 1"
-					error 198
+					exit
 				}
 			}
 			else if ("``tok_i''" == "groupseed") {
@@ -1481,7 +1556,7 @@ program Compare, eclass sortpreserve
 				local groupseed = ``tok_tmp''
 				if (`groupseed' < 0 | `groupseed' >  2^31-1) {
 					display as error "'groupseed()' suboption requires a value between 0 and 2^31-1"
-					error 198
+					exit
 				}
 			}
 			else if ("``tok_i''" == "what") {
@@ -1489,7 +1564,7 @@ program Compare, eclass sortpreserve
 				local what = "``tok_tmp''"
 				if (("`what'" != "path") & ("`what'" != "loadings")) {
 					display as error "'what()' suboption accepts either 'path' or 'loadings'"
-					error 198
+					exit
 				}
 			}
 		}
@@ -1509,7 +1584,7 @@ program Compare, eclass sortpreserve
 	}
 	if (("`structural'" == "") & ("`what'" == "path")) {
 		display as error "choosing 'what(path)' requires a structural part"
-		error 198
+		exit
 	}
 	/* End of parsing the group() option */
 	
@@ -1522,7 +1597,7 @@ program Compare, eclass sortpreserve
 	local ngroups = rowsof(`groupvar_m')
 	if (`ngroups' == 1) {
 		display as error "the group() option requires at least two groups to compare"
-		error 198
+		exit
 	}
 	matrix `groupvals' = `groupvar_m'[1..., 1]
 	matrix `groupsizes' = `groupvar_m'[1..., 2]
@@ -1648,8 +1723,9 @@ program Compare, eclass sortpreserve
 				quietly generate `__id__' = _n if `touse'
 				quietly generate `__group__' = . if `touse'
 
-				noisily display as text "Permutation replications (" ///
-					as result string(`reps') as text ")"
+				noisily display as text "Permutation replications (" _continue
+				noisily display as result string(`reps') _continue
+				noisily display as text ")"
 				noisily display as text ///
 					"{hline 4}{c +}{hline 3}" " 1 " ///
 					"{hline 3}{c +}{hline 3}" " 2 " ///
@@ -1751,8 +1827,9 @@ program Compare, eclass sortpreserve
 					matrix `strbok_var_`ng'' = J(1, `neff', .)
 				}
 				
-				noisily display as text "Bootstrap replications (" ///
-					as result string(`reps') as text ")"
+				noisily display as text "Bootstrap replications (" _continue
+				noisily display as result string(`reps') _continue
+				noisily display as text ")"
 				noisily display as text ///
 					"{hline 4}{c +}{hline 3}" " 1 " ///
 					"{hline 3}{c +}{hline 3}" " 2 " ///
@@ -1925,22 +2002,22 @@ program Compare, eclass sortpreserve
 		title(`title') firstcolwidth(``maxlen'') colwidth(`colw') hlines(`neff') ///
 		novlines total
 	if ("`method'" != "normal") {
-		display as txt _skip(`skip1') "number of replications: `reps'"
+		display as text _skip(`skip1') "number of replications: `reps'"
 	}
 	if (`ngroups' > 2) {
-		display as txt _skip(`skip1') "legend:"
-		display as txt _skip(`skip3') "AD: absolute difference"
-		display as txt _skip(`skip3') "S: statistic"
-		display as txt _skip(`skip3') "P: p-value"
+		display as text _skip(`skip1') "legend:"
+		display as text _skip(`skip3') "AD: absolute difference"
+		display as text _skip(`skip3') "S: statistic"
+		display as text _skip(`skip3') "P: p-value"
 	}
-	display as txt _skip(`skip1') "group labels:"
+	display as text _skip(`skip1') "group labels:"
 	local grplbl : value label `groupvar'
 	forvalues ng = 1/`ngroups' {
 		local grpvarlbl`ng' = `groupvals'[`ng', 1]
 		if ("`grplbl'" != "") {
 			local grpvarlbl`ng' : label `grplbl' `grpvarlbl`ng''
 		}
-		display as txt _skip(`skip3') "Group `ng': `grpvarlbl`ng''"
+		display as text _skip(`skip3') "Group `ng': `grpvarlbl`ng''"
 	}
 	
 	if ("`plot'" != "") {
@@ -1996,74 +2073,6 @@ program Compare, eclass sortpreserve
 	// ereturn matrix comparison = `results'
 end
 
-program Heterogeneity, eclass
-	version 10
-	syntax anything(id="Indicator blocks" name=blocks equalok) [if] [in], ///
-		[ STRuctural(string) Wscheme(string) BINary(namelist min=1) ///
-		Boot(numlist integer >0 max=1) Seed(numlist max=1) Tol(real 1e-7) ///
-		MAXiter(integer 1000) INIT(string) DIGits(integer 3) noHEADer ///
-		noMEAStable noDISCRIMtable noSTRUCTtable STATs GRoup(string) ///
-		CORRelate(string) RAWsum REBus(string) ]
-
-	/* Options:
-	   --------
-		 structural(string)							--> structural model specification
-		 wscheme(string)								--> weighting scheme ("centroid", "factorial"
-																				or "path")
-		 binary(namelist min=1)					--> indicators to fit using logit
-		 boot(numlist integer >0 max=1)	--> bootstrap estimation (# of repetions)
-		 seed(numlist max=1)						--> bootstrap seed number
-		 tol(real 1e-7)									--> tolerance (default 1e-7)
-		 maxiter(integer 1000)					--> maximum number of iterations (default
-																				1000)
-		 init(string)										--> initialization method ("eigen" or "indsum")
-		 digits(integer 3)							--> number of digits to display (default 3)
-		 noheader												--> do not show the header
-		 nomeastable										--> do not show the measurement table
-		 nodiscrimtable									--> do not show the discriminant validity
-																				table
-		 nostructtable									--> do not show the structural table
-		 stats													--> print a table of summary statistics for
-																				the indicators
-		 group(string)									--> performs multigroup analysis; accepts
-																				the suboptions reps(#), method(), plot,
-																				alpha, what() and groupseed(numlist max=1);
-																				method() accepts either 'permutation',
-																				'bootstrap' or 'normal'; groupseed(numlist
-																				max=1) accepts an optional seed for
-																				multigroup analysis; what() accepts either
-																				'path' or 'loadings'
-		 correlate(string)							--> reports the correlation among the
-																				indicators, the LVs as well as the cross
-																				loadings; accepts any combination of 'mv',
-																				'lv' and 'cross' (i.e. cross-loadings);
-																				suboption 'cutoff()' can be used to avoid
-																				showing correlations smaller than the
-																				specified value
-		 rawsum													--> estimates the latent scores as the raw
-																				sum of the indicators
-		 rebus(string)									--> perform a REBUS analysis
-	 */
-	
-	/* Warning */
-	if ("`boot'" != "") {
-		display as error "using the 'boot()' option together with 'rebus()' will slow down excessively the calculation"
-		display as error "try removing 'boot()'"
-		exit
-	}
-	
-	/* Set obs to use */
-	marksample touse
-	
-	quietly count if `touse'
-	if (r(N) == 0) {
-		error 2000
-	}
-	
-	display
-	display "REBUS will be available soon!"
-end
-
 program Display
 	version 10
 	syntax [, noSTRuctural DIGits(integer 3) noHEADer noMEAStable ///
@@ -2071,8 +2080,8 @@ program Display
 		CUToff(real 0) BINary(namelist min=1) RAWsum * ]
 	
 	if (`digits' < 0) {
-		display as error "number of digits must be a nonnegative integer"
-		error 197
+		display as error "number of digits to display must be a nonnegative integer"
+		exit
 	}
 	
 	local props = e(properties)

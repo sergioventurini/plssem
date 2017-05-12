@@ -1,5 +1,5 @@
-*!plssemplot version 0.1
-*!Written 04May2017
+*!plssemplot version 0.2.0
+*!Written 05May2017
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 

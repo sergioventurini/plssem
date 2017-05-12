@@ -33,10 +33,12 @@ The following postestimation commands are of special interest after
 	total effects{p_end}
 {p2coldent:* {helpb plssem postestimation##vif:estat vif}}variance inflation
 	factors for the structural model equations sample{p_end}
+{p2coldent:* {helpb plssem postestimation##unobshet:estat unobshet}}unobserved
+	heterogeneity assessment{p_end}
 {synoptline}
 {p2colreset}{...}
 {p 4 6 2}
-* {cmd:estat vif} is not available after models fitted using bootstrap.
+* {cmd:estat vif} and {cmd:estat unobshet} are not available after models fitted using bootstrap.
 {p_end}
 
 {pstd}
@@ -80,6 +82,18 @@ Display the variance inflation factors for the structural model equations
 [{cmd:,} {opt dig:its(#)}]
 
 
+{marker unobshet}{...}
+{pstd}
+Display the variance inflation factors for the structural model equations
+
+{p 8 14 2}
+{cmd:estat} {cmdab:un:obshet},
+{cmdab:m:ethod(}{it:methodname}{cmd:)} [{opt n:umclass(#)} {opt maxcl:ass(#)}
+{opt d:endrogram} {opt maxit:er(#)} {opt s:top(#)}  {opt t:est} {opt r:eps(#)}
+{opt se:ed(#)} {opt p:lot} {cmdab:name(}{it:varname}{cmd:)}
+{opt dig:its(#)}]
+
+
 {marker desc_estat}{...}
 {title:Description for estat}
 
@@ -110,6 +124,11 @@ the number decimals digits reported by setting the sub-option {cmd:digits(#)}.
 computes the variance inflation factors (VIFs) for the independent variables
 of the equations in the structural part of a PLS-SEM model. With the
 {cmd:digit(#)} sub-option you change the number decimals digits displayed.
+
+{pstd} {cmd:estat unobshet}
+assesses the presence of unobserved heterogeneity in the fitted PLS-SEM model
+using the {it:methodname} approach. Currently, only the REBUS approach
+({help plssem_postestimation##Trinchera2007:Trinchera 2007}) is implemented.
  
  
 {marker options_estat}{...}
@@ -138,6 +157,67 @@ specifies the number of decimal digits to display in the output; default is {cmd
 {opt plot},
 an option used with {cmd:estat total}, provides a graphical representation of
 the total effects decomposition.
+
+{phang}
+{opt numclass(#)},
+an option used with {cmd:estat unobshet}, allows to manually set the number of
+classes to use in the REBUS analysis; minimum is 2. If not specified, the number of classes
+is automatically chosen based on the Calinski-Harabasz pseudo-F index stopping
+rule as implemented in {helpb cluster stop:cluster stop}. In this case, a Ward
+hierarchical clustering algorithm is used.
+
+{phang}
+{opt maxclass(#)},
+an option used with {cmd:estat unobshet}, allows to set the maximum number of
+classes for which the automatic stopping rule is to be computed when
+{cmd: numclass(#)} is not specified; default is {cmd:20}.
+
+{phang}
+{opt dendrogram},
+an option used with {cmd:estat unobshet}, allows to visualize the dendrogram
+for a Ward hierarchical clustering algorithm on the base of the residuals of
+the global model. The dendrogram allow to assess the quality of choice for the
+number of classes.
+
+{phang}
+{opt maxiter(#)},
+an option used with {cmd:estat unobshet}, allows to set the maximum number
+of iterations the REBUS algorithm runs; default is {cmd:50}.
+
+{phang}
+{opt stop(#)},
+an option used with {cmd:estat unobshet}, allows to set the stopping rule for
+the REBUS algorithm; this refers to the stability on class composition from one
+iteration to the other. More specifically, the rule involves the percentage of
+units changing class from one iteration to the other; default is {cmd:0.005}
+(i.e. 0.5%).
+
+{phang}
+{opt test},
+an option used with {cmd:estat unobshet}, allows to specify whether a
+permutation test for the Global Quality Index (GQI) of a REBUS solution must
+be performed.
+
+{phang}
+{opt reps(#)},
+an option used with {cmd:estat unobshet}, allows to set the number of replications
+of the permutation test on the GQI; default is {cmd:50}.
+
+{phang}
+{opt seed(#)},
+an option used with {cmd:estat unobshet}, allows to set the seed for the
+permutation test on the GQI.
+
+{phang}
+{opt plot},
+an option used with {cmd:estat unobshet}, allows to visualize the empirical
+distribution (i.e. the histogram) corresponding to the replications of the
+permutation test on the GQI.
+
+{phang}
+{cmdab:name(}{it:varname}{cmd:)},
+an option used with {cmd:estat unobshet}, allows to set the name of the variable
+that will contain the final classification obtained with the REBUS algorithm.
 
 
 {marker syntax_predict}{...}
@@ -224,6 +304,10 @@ are not saved in the data set.
 {phang}
 {stata describe *_hat *_res}{p_end}
 
+{phang}
+{stata estat unobshet, test reps(20) plot}{p_end}
+{phang}
+{stata table rebus_class}{p_end}
 
 {marker authors}{...}
 {title:Authors}
@@ -257,6 +341,10 @@ Hair, J. F., Hult, G. T. M., Ringle, C. M., and Sarstedt, M. 2017. {it:A Primer 
 {phang}
 Sobel, M. N. 1982. Asymptotic Confidence Intervals for Indirect Effects in Structural Equations
 Models. In Leinhart, S. (ed.), {it:Sociological Methodology}, pp. 290-312. Jossey-Bass.
+
+{marker Trinchera2007}{...}
+{phang}
+Trinchera, L. 2007. {it:Unobserved Heterogeneity in Structural Equation Models: a new approach to latent class detection in PLS Path Modeling}. Ph.D. Thesis.
 
 {marker VanderWeele2015}{...}
 {phang}

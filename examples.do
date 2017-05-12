@@ -113,7 +113,7 @@ estat teffects, nototal nodirect stand
 /* Example 10 */
 /* ---------- */
 use ./data/ecsimobi, clear
-* pause on
+
 generate group = 1
 replace group = 0 in 1/125
 * keep if group == 1
@@ -154,7 +154,7 @@ replace group = 0 in 1/125
 /* Example 13 */
 /* ---------- */
 use ./data/ecsimobi, clear
-pause on
+
 set seed 123
 generate BIN1 = rbinomial(1, .4)
 generate BIN2 = rbinomial(1, .6)
@@ -242,7 +242,6 @@ plssem (Expectation > CUEX1-CUEX3) (Satisfaction > CUSA1-CUSA3) ///
 /* [From Sanchez, G. (2013) PLS Path Modeling with R (Section 6.2.3)] */
 use ./data/college, clear
 
-pause on
 set seed 123
 plssem (HighSchool > HS_GPA SAT_Verbal SAT_Math) ///
 	(Intro > Biology1 Chemistry1 Math1 Physics1) ///
@@ -256,7 +255,7 @@ plssem (HighSchool > HS_GPA SAT_Verbal SAT_Math) ///
 /* Example 18 */
 /* ---------- */
 use ./data/ecsimobi, clear
-pause on
+
 /* generate group = 1
 replace group = 0 in 1/125
 bysort group: */ plssem (Expectation > CUEX1-CUEX3) (Satisfaction > CUSA1-CUSA3) ///
@@ -266,7 +265,6 @@ bysort group: */ plssem (Expectation > CUEX1-CUEX3) (Satisfaction > CUSA1-CUSA3)
 
 /* Example 19 */
 /* ---------- */
-pause on
 use ./data/ecsimobi, clear
 plssem (Expectation > CUEX1-CUEX3) (Satisfaction > CUSA1-CUSA3) ///
 	(Complaints > CUSCO) (Loyalty > CUSL1-CUSL3) (Image > IMAG1-IMAG5) ///
@@ -278,7 +276,6 @@ plssem (Expectation > CUEX1-CUEX3) (Satisfaction > CUSA1-CUSA3) ///
 
 /* Example 20 */
 /* ---------- */
-pause on
 use ./data/ecsimobi, clear
 set seed 123
 generate group = rbinomial(2, .5) + 1
@@ -298,7 +295,6 @@ plssem (Expectation > CUEX1-CUEX3) (Satisfaction > CUSA1-CUSA3) ///
 /* ---------- */
 /* [From Sanchez, G. (2013) PLS Path Modeling with R (Section 7.3.1)] */
 /* Product indicator approach */
-pause on
 use ./data/satisfaction, clear
 forvalues i = 1/3 {
 	forvalues j = 1/3 {
@@ -317,7 +313,6 @@ plssem (Image > imag1-imag3) (Satisfaction > sat1-sat3) ///
 	// group(gender, reps(50) method(normal) plot alpha(0.1) what(loadings))
 
 /* Two-stage path modeling approach */
-pause on
 use ./data/satisfaction, clear
 // Stage 1
 plssem (Image > imag1-imag3) (Satisfaction > sat1-sat3) ///
@@ -332,7 +327,6 @@ plssem (Image > imag1-imag3) (Satisfaction > sat1-sat3) ///
 	wscheme("centroid") digits(5) tol(1e-6) //boot(200)
 
 /* Two-stage regression approach */
-pause on
 use ./data/satisfaction, clear
 // Stage 1
 plssem (Image > imag1-imag3) (Satisfaction > sat1-sat3) ///
@@ -345,7 +339,6 @@ regress Loyalty Image ImageSatisfaction Satisfaction
 
 /* Example 22 */
 /* ---------- */
-pause on
 use ./data/ecsimobi, clear
 set seed 123
 generate group = rbinomial(1, .5) + 1
@@ -365,7 +358,6 @@ plssem (Expectation > CUEX1-CUEX3) (Satisfaction > CUSA1-CUSA3) ///
 /* ---------- */
 /* [From Sanchez, G. (2013) PLS Path Modeling with R (Section 8.1.3)] */
 /* Repeated indicators approach */
-pause on
 use ./data/offense, clear
 plssem (Special < FieldGoals OtherTDs) (Scoring > PointsGame OffensTD TDGame) ///
 	(Passing > YardsPassComp PassYards PassFirstDown) ///
@@ -376,7 +368,6 @@ plssem (Special < FieldGoals OtherTDs) (Scoring > PointsGame OffensTD TDGame) //
 
 /* Example 24 */
 /* ---------- */
-pause on
 use ./data/ecsimobi, clear
 generate group = rbinomial(1, .5) + 1
 label define group_lbl 1 "Low" 2 "High"
@@ -394,7 +385,6 @@ plssem (Expectation > CUEX1-CUEX3) (Satisfaction > CUSA1-CUSA3) ///
 /* ---------- */
 /* [From Sanchez, G. (2013) PLS Path Modeling with R (Section 8.1.3)] */
 /* Repeated indicators approach */
-pause on
 use ./data/offense, clear
 plssem (Special < FieldGoals OtherTDs) (Scoring > PointsGame OffensTD TDGame) ///
 	(Passing > YardsPassComp PassYards PassFirstDown) ///
@@ -406,7 +396,6 @@ plssem (Special < FieldGoals OtherTDs) (Scoring > PointsGame OffensTD TDGame) //
 /* Example 26 */
 /* ---------- */
 /* [From Sanchez, G. (2013) PLS Path Modeling with R (Chapter 4)] */
-pause on
 use ./data/spainfoot, clear
 generate NGCH = -1*GCH
 generate NGCA = -1*GCA
@@ -438,7 +427,6 @@ plssem (HighSchool > HS_GPA SAT_Verbal SAT_Math) ///
 /* [From Sanchez, G. (2013) PLS Path Modeling with R (Section 6.2.3)] */
 use ./data/college, clear
 
-pause on
 plssem (HighSchool > HS_GPA SAT_Verbal SAT_Math) ///
 	(Intro > Biology1 Chemistry1 Math1 Physics1) ///
 	(Medium < Biology2 Chemistry2 Math2 Physics2) (Graduation > FinalGPA), ///
@@ -452,7 +440,6 @@ plssem (HighSchool > HS_GPA SAT_Verbal SAT_Math) ///
 /* Product indicator approach */
 use ./data/satisfaction, clear
 
-pause on
 plssem (Image > imag1-imag3) (Satisfaction > sat1-sat3) ///
 	(Loyalty > loy1-loy3), structural(Loyalty Image*Satisfaction) ///
 	wscheme("centroid") digits(5) tol(1e-6) ///
@@ -485,7 +472,7 @@ bysort group: */ plssem (Expectation > CUEX1-CUEX3) (Satisfaction > CUSA1-CUSA3)
 /* Example 32 */
 /* ---------- */
 use ./data/ecsimobi, clear
-pause on
+
 plssem (Expectation > CUEX1-CUEX3) (Satisfaction > CUSA1-CUSA3) ///
 	(Image > IMAG1-IMAG4), ///
 	structural(Expectation Image, Satisfaction Expectation Image) ///
@@ -558,7 +545,7 @@ reg Satisfaction Expectation Image, beta // the coefs in the table are not stand
 
 /* Example 36 */
 /* ---------- */
-import excel "./data/REBUS/rebus_data.xlsx", firstrow clear
+import excel "./data/rebus_data.xlsx", firstrow clear
 
 rename ServMøte1 Service
 rename CSmat1 Food
@@ -573,24 +560,9 @@ keep Service Food Hygiene Lively Lighting Positive_talk Recommend Gender Rebus_g
 
 plssem (Tangible > Service Food Hygiene) (Atmospheric > Lively Lighting) ///
 	(Loyalty > Positive_talk Recommend), structural(Loyalty Tangible Atmospheric) ///
-	group(Rebus_gr, method(permutation) reps(100) plot seed(101)) */
+	group(Rebus_gr, method(permutation) reps(100) plot seed(101))
 
 /* Example 37 */
-/* ---------- */
-/* [From Sanchez, G. (2013) PLS Path Modeling with R (Chapter 9)] */
-
-use ./data/futbol, clear
-
-* Global PLS Path Model
-plssem (Attack > GSH GSA SSH SSA) (Defense > NGCH NGCA CSH CSA) ///
-	(Success > WMH WMA), structural(Success Attack Defense) ///
-	wscheme(centroid) tol(1e-06)
-
-predict, xb residuals
-return list
-describe
-
-/* Example 38 */
 /* ---------- */
 use ./data/workout2, clear
 
@@ -599,3 +571,49 @@ plssem (Attractive > face sexy) (Appearance > body appear attract) ///
 	structural(Appearance Attractive, Muscle Appearance, Weight Appearance)
 
 predict, xb residuals
+
+/* Example 38 */
+/* ---------- */
+/* [From Sanchez, G. (2013) PLS Path Modeling with R (Chapter 9)] */
+
+use ./data/futbol, clear
+
+plssem (Attack > GSH GSA SSH SSA) (Defense > NGCH NGCA CSH CSA) ///
+	(Success > WMH WMA), structural(Success Attack Defense) ///
+	wscheme(centroid) tol(1e-06) digits(7)
+
+* Cluster Analysis on Scores
+/*
+cluster wardslinkage Attack Defense Success, name(plssem_ward)
+cluster dendrogram plssem_ward, labels(Team) xlabel(, angle(90) labsize(*.65))
+cluster generate member = gr(4), name(plssem_ward)
+table member
+twoway (scatter Success Attack if member == 1, mlabel(Team) mlabposition(0) msize(0)) ///
+	(scatter Success Attack if member == 2, mlabel(Team) mlabposition(0) msize(0)) ///
+	(scatter Success Attack if member == 3, mlabel(Team) mlabposition(0) msize(0)) ///
+	(scatter Success Attack if member == 4, mlabel(Team) mlabposition(0) msize(0)), ///
+	legend(off)
+*/
+
+* REBUS solution
+estat unobshet
+// estat unobshet, numclass(5) stop(.05) dendro name("rebus_cluster")
+// estat unobshet, numclass(6)
+// estat unobshet, test reps(300) plot seed(123)
+
+plssem (Attack > GSH GSA SSH SSA) (Defense > NGCH NGCA CSH CSA) ///
+	(Success > WMH WMA), structural(Success Attack Defense) ///
+	wscheme(centroid) tol(1e-06) ///
+	group(rebus_class, reps(50) method(normal) plot)
+
+/* Example 39 */
+/* ---------- */
+use ./data/workout2, clear
+
+plssem (Attractive > face sexy) (Appearance > body appear attract) ///
+	(Muscle > muscle strength endur) ///
+	(Weight > lweight calories cweight), ///
+	structural(Appearance Attractive, Muscle Appearance, Weight Appearance) ///
+	tol(1e-06)
+
+estat unobshet, test reps(30) plot

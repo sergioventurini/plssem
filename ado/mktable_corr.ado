@@ -1,4 +1,4 @@
-*!mktable_corr version 0.1
+*!mktable_corr version 0.1.0
 *!Written 09Sept2016
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
@@ -17,7 +17,7 @@ program mktable_corr
 	local skip0 = 0
 
 	display
-	display as txt _skip(`skip0') "`title'"
+	display as text _skip(`skip0') "`title'"
 
 	local allvars : rownames `matrix'
 	tokenize `allvars'
@@ -27,17 +27,17 @@ program mktable_corr
 		local j1 = min(`j0' + 9, `nvar')
 		local j = `j0'
 		local l = 9*(`j1' - `j0' + 1)
-		display as txt "{hline 13}{c TT}{hline `l'}"
-		display as txt _skip(13) "{c |}" _continue
+		display as text "{hline 13}{c TT}{hline `l'}"
+		display as text _skip(13) "{c |}" _continue
 		while (`j' <= `j1') {
-			display as txt %9s abbrev("``j''", 8) _continue
+			display as text %9s abbrev("``j''", 8) _continue
 			local j = `j' + 1
 		}
-		display as txt _newline "{hline 13}{c +}{hline `l'}"
+		display as text _newline "{hline 13}{c +}{hline `l'}"
 
 		local i = `j0'
 		while (`i' <= `nvar') {
-			display as txt %12s abbrev("``i''", 12) " {c |} " _continue
+			display as text %12s abbrev("``i''", 12) " {c |} " _continue
 			local j = `j0'
 			while (`j' <= min(`j1', `i')) {
 				if (!missing(`matrix'[`i', `j']) & abs(`matrix'[`i', `j']) < `cutoff') {
@@ -62,6 +62,6 @@ program mktable_corr
 			local i = `i' + 1
 		}
 		local j0 = `j0' + 10
-		display as txt "{hline 13}{c BT}{hline `l'}"
+		display as text "{hline 13}{c BT}{hline `l'}"
 	}
 end
