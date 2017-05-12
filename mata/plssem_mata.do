@@ -1,19 +1,8 @@
-* set trace on
-
-	/* TO DO:
-		 1. 
-	*/
-
-	/* ISSUES:
-		 1. 
-	*/
-
 *!plssem_mata version 0.1.0
 *!Written 09May2017
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
-capture mata: mata drop scale()
 version 10
 mata:
 real matrix scale(real matrix X, |real rowvector center, real rowvector scale)
@@ -60,7 +49,6 @@ real matrix scale(real matrix X, |real rowvector center, real rowvector scale)
 }
 end
 
-capture mata: mata drop sd()
 version 10
 mata:
 real rowvector sd(real matrix X)
@@ -84,7 +72,6 @@ real rowvector sd(real matrix X)
 }
 end
 
-capture mata: mata drop which()
 version 10
 mata:
 real vector which(real matrix X, |string scalar minmax)
@@ -137,7 +124,6 @@ real vector which(real matrix X, |string scalar minmax)
 }
 end
 
-capture mata: mata drop rebus_cm()
 version 10
 mata:
 real colvector rebus_cm(real matrix e, real matrix f, real matrix loads, ///
@@ -184,7 +170,6 @@ real colvector rebus_cm(real matrix e, real matrix f, real matrix loads, ///
 }
 end
 
-capture mata: mata drop rebus_gqi()
 version 10
 mata:
 real scalar rebus_gqi(real matrix ind, real matrix lat, real matrix e, ///
