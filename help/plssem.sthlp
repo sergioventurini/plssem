@@ -219,6 +219,7 @@ Norwegian University of Science and Technology{break}
 {synopt:{cmd:e(reps)}}number of bootstrap replications{p_end}
 {synopt:{cmd:e(iterations)}}number of iterations to reach convergence{p_end}
 {synopt:{cmd:e(tolerance)}}chosen tolerance value{p_end}
+{synopt:{cmd:e(maxiter)}}maximum number of iterations allowed{p_end}
 {synopt:{cmd:e(converged)}}equal to 1 if convergence is achieved; 0 otherwise{p_end}
 
 {synoptset 24 tabbed}{...}
@@ -230,6 +231,7 @@ Norwegian University of Science and Technology{break}
 {synopt:{cmd:e(title)}}title in estimation output{p_end}
 {synopt:{cmd:e(mvs)}}list of manifest variables (indicators) used{p_end}
 {synopt:{cmd:e(lvs)}}list of latent variables used{p_end}
+{synopt:{cmd:e(binarylvs)}}sublist of binary latent variables only{p_end}
 {synopt:{cmd:e(datasignaturevars)}}variables used in calculation of checksum {p_end}
 {synopt:{cmd:e(datasignature)}}the checksum{p_end}
 {synopt:{cmd:e(reflective)}}list of latent variables measured in a reflective way{p_end}

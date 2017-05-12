@@ -1337,6 +1337,7 @@ program Estimate, eclass byable(recall)
 	}
 	if ("`structural'" != "") {
 		if ("`rawsum'" == "") {
+			ereturn scalar maxiter = `maxiter'
 			ereturn scalar iterations = `iter' - 1
 		}
 		else {
@@ -1349,6 +1350,9 @@ program Estimate, eclass byable(recall)
 	ereturn local struct_eqs `"`reg3eqs'"'
 	ereturn local formative `"`modeB'"'
 	ereturn local reflective `"`modeA'"'
+	if ("`binary'" != "") {
+		ereturn local binarylvs `"`binary'"'
+	}
 	ereturn local lvs `"`alllatents'"'
 	ereturn local mvs `"`allindicators'"'
 	local varlist `e(mvs)' `e(lvs)'

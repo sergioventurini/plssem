@@ -459,6 +459,10 @@ program unobshet, rclass
 	if ("`name'" == "") {
 		local name "rebus_class"
 	}
+	if ("`e(binarylvs)'" != "") {
+		display as error "currently the REBUS approach implementation doesn't allow for binary latent variables"
+		exit
+	}
 
 	/* Global model */
 	tempname globalmodel gof_global
@@ -528,37 +532,56 @@ program unobshet, rclass
 	gettoken cmdline options : cmdline, parse(",")
 	gettoken trash options : options, parse(",")
 
-	local mm_start = strpos("`cmdline'", "(")
-	if (strpos("`cmdline'", "if")) {
-		local mm_end = strpos("`cmdline'", "if") - `mm_start' - 1
+	local mm_start = strpos(`"`cmdline'"', "(")
+	if (strpos(`"`cmdline'"', "if")) {
+		local mm_end = strpos(`"`cmdline'"', "if") - `mm_start' - 1
 	}
 	else {
-		local mm_end = strlen("`cmdline'")
+		local mm_end = strlen(`"`cmdline'"')
 	}
-	local mm = substr("`cmdline'", `mm_start', `mm_end')
+	local mm = substr(`"`cmdline'"', `mm_start', `mm_end')
 	local mm : list clean mm
 
 	tokenize `"`options'"', parse(")")
 	local tok_i = 1
-	while (substr("``tok_i''", 1, 3) != "str") & ("``tok_i''" != "") {
-		display "``tok_i''"
+	while (substr(`"``tok_i''"', 1, 3) != "str") & (`"``tok_i''"' != "") {
 		local ++tok_i
 	}
-	local sm_full = "``tok_i''" + ")"
+	local sm_full = `"``tok_i''"' + ")"
 	tokenize `"``tok_i''"', parse("(")
-	local sm = "`3'"
+	local sm = `"`3'"'
 	local sm : list clean sm
 	local options : list options - sm_full
 	local options : list clean options
 
+	// the following code doesn't work
+	/*
 	tokenize `"`options'"', parse(")")
 	local tok_i = 1
-	while (substr("``tok_i''", 1, 3) != "dig") & ("``tok_i''" != "") {
+	while (substr(`"``tok_i''"', 1, 3) != "dig") & (`"``tok_i''"' != "") {
 		local ++tok_i
 	}
-	local options_digits = "``tok_i''" + ")"
+	local options_digits = `"``tok_i''"' + ")"
 	local options : list options - options_digits
 	local options : list clean options
+	*/
+	local options "tol(`e(tolerance)') maxiter(`e(maxiter)') wscheme("
+	local ws_centroid "centroid"
+	local ws_factor "factor"
+	local ws_path "path"
+	if (`: list ws_centroid in props') {
+		local scheme "centroid"
+	}
+	else if (`: list ws_factor in props') {
+		local scheme "factor"
+	}
+	else if (`: list ws_path in props') {
+		local scheme "path"
+	}
+	local options "`options'`scheme')"
+	if ("`e(binarylvs)'" != "") {
+		local options "`options' binary(`e(binarylvs)')"
+	}
 	
 	/* Set temporary variables */
 	local allindicators = e(mvs)
@@ -588,7 +611,6 @@ program unobshet, rclass
 
 			mata: `cm' = J(strtoreal(st_local("N")), 0, .)
 			forvalues k = 1/`numclass' {
-				// display as result " - Local model "`k'
 				tempname localmodel_`k'
 				quietly plssem `mm' if (`rebus_class' == `k' & `__touse__'), ///
 					structural(`sm') `options'
@@ -650,7 +672,7 @@ program unobshet, rclass
 		}
 	}
 	if (_rc != 0) {
-		if (mod(`iter' - 1, 5) == 0) {
+		if (mod(`iter', 5) == 0) {
 			display as error " aborting"
 		}
 		else {
