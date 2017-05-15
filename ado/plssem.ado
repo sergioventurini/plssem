@@ -1,5 +1,5 @@
 *!plssem version 0.2.0
-*!Written 12May2017
+*!Written 15May2017
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -348,6 +348,7 @@ program Estimate, eclass byable(recall)
 				local isbinary : list lv in binary
 				if (!`isbinary') {
 					matrix `sd_init' = (`sd_init', r(sd))
+					local sd_init_cn `sd_init_cn' `LV`k''
 					quietly replace `LV`k'' = (`LV`k'' - r(mean))/r(sd) if `touse' // equation (5)
 				}
 			}
@@ -379,6 +380,7 @@ program Estimate, eclass byable(recall)
 				}
 				quietly summarize `LV`k'' if `touse'
 				matrix `sd_init' = (`sd_init', r(sd))
+				local sd_init_cn `sd_init_cn' `LV`k''
 				quietly replace `LV`k'' = (`LV`k'' - r(mean))/r(sd) if `touse' // equation (5)
 			}
 		}
@@ -406,6 +408,7 @@ program Estimate, eclass byable(recall)
 			local isbinary : list lv in binary
 			if (!`isbinary') {
 				matrix `sd_init' = (`sd_init', r(sd))
+				local sd_init_cn `sd_init_cn' `LV`k''
 				quietly replace `LV`k'' = (`LV`k'' - r(mean))/r(sd) if `touse' // equation (5)
 			}
 		}
@@ -491,6 +494,7 @@ program Estimate, eclass byable(recall)
 							// if (r(r) > 2) {
 								quietly summarize `var' if `touse'
 								matrix `sd_init' = (`sd_init', r(sd))
+								local sd_init_cn `sd_init_cn' `LV`k''
 								quietly generate std`var' = (`var' - r(mean))/r(sd) if `touse'
 							// }
 							// else {
@@ -520,6 +524,7 @@ program Estimate, eclass byable(recall)
 							}
 							quietly summarize `LV`num_lv'' if `touse'
 							matrix `sd_init' = (`sd_init', r(sd))
+							local sd_init_cn `sd_init_cn' `LV`k''
 							quietly replace `LV`num_lv'' = (`LV`num_lv'' - r(mean))/r(sd) if `touse' // equation (5)
 						}
 						else if ("`init'" == "eigen") {
@@ -548,6 +553,7 @@ program Estimate, eclass byable(recall)
 							}
 							quietly summarize `LV`num_lv'' if `touse'
 							matrix `sd_init' = (`sd_init', r(sd))
+							local sd_init_cn `sd_init_cn' `LV`k''
 							quietly replace `LV`num_lv'' = (`LV`num_lv'' - r(mean))/r(sd) if `touse' // equation (5)
 						}
 						
@@ -604,6 +610,7 @@ program Estimate, eclass byable(recall)
 				local r`var' ""
 			}
 		}
+		matrix colnames `sd_init' = `sd_init_cn'
 	}
 	
 	/* Start of the PLS algorithm */
@@ -612,28 +619,31 @@ program Estimate, eclass byable(recall)
 	scalar `converged' = 0
 	scalar `iter' = 1
 	
-	tempname C W outerW Whistory sd_tmp X y bcoef Wold mv lv sd_inv mat0 ///
-		matreldiff
+	tempname C W outerW Whistory Whist_mata X y bcoef Wold lv sd_lv mat0 matreldiff
 
 	if ("`structural'" != "") {
 		local num_ind : word count `allindicators'
-		matrix `Whistory' = J(1, `num_ind', 1)
-		matrix `sd_tmp' = J(1, `num_ind', 1)
-		local ilv = 1
-		local icol = 1
-		foreach var in `alllatents' {
-			foreach var2 in `allindicators' {
-				if (`: list var2 in i`var'') {
-					matrix `sd_tmp'[1, `icol'] = `sd_init'[1, `ilv']
-					local ++icol
-				}
+		matrix `Whistory' = J(1, `num_ind', .)
+		mata: `Whist_mata' = J(0, strtoreal(st_local("num_ind")), .)
+		local count_sd = 1
+		foreach var in `modeA' {
+			local nmi : list posof "`var'" in sd_init_cn
+			foreach var2 in `i`var'' {
+				matrix `Whistory'[1, `count_sd'] = 1/`sd_init'[1, `nmi']
+				local ++count_sd
 			}
-			local ++ilv
 		}
-		mata: st_matrix("`Whistory'", ///
-			st_matrix("`Whistory'") :/ st_matrix("`sd_tmp'"))
-		
+		foreach var in `modeB' {
+			local nmi : list posof "`var'" in sd_init_cn
+			foreach var2 in `i`var'' {
+				matrix `Whistory'[1, `count_sd'] = 1/`sd_init'[1, `nmi']
+				local ++count_sd
+			}
+		}
+
 		if ("`rawsum'" == "") {
+			matrix `outerW' = J(`: word count `allindicators'', ///
+				`: word count `alllatents'', 0)  // matrix of outer weights
 			while (!`converged') {
 				// Inner estimation. The three commonly used schemes are:
 				// - centroid	==> sign of correlations
@@ -642,6 +652,8 @@ program Estimate, eclass byable(recall)
 				
 				// Update the latents as weighted sums of adjacent latents
 				// These are stored as separate temporary variables
+				
+				mata: `sd_lv' = J(1, 0, .)  // vector of latent variable standard deviations
 				
 				// (STEP 2)
 				foreach var in `alllatents' {
@@ -684,8 +696,6 @@ program Estimate, eclass byable(recall)
 				// Store weights in matrix. These are unscaled and only used for
 				// convergence check
 				// mata: st_matrix("`W'", J(1, 0, .))  // empty matrix
-				matrix `outerW' = J(`: word count `allindicators'', ///
-					`: word count `alllatents'', 0)  // matrix of outer weights
 				local i = 1
 				local j = 1
 				
@@ -693,41 +703,60 @@ program Estimate, eclass byable(recall)
 				foreach var in `modeA' {
 					quietly replace `var' = 0 if `touse'
 					foreach var2 in `istd`var'' {
-						quietly correlate `t`var'' `var2' if `touse' // equation (7)
-						matrix `C' = r(C)
-						// matrix `W' = (`W', `C'[1, 2])
-						matrix `outerW'[`i', `j'] = `C'[1, 2]
-						quietly replace `var' = `var' + `var2' * `C'[1, 2] ///
-							if `touse' // equation (9) for mode A LVs
-						local ++i
+						if (`: word count `istd`var''' == 1) {
+							matrix `outerW'[`i', `j'] = 1
+							quietly replace `var' = `var2' if `touse'
+							local ++i
+							continue, break
+						}
+						else {
+							quietly correlate `t`var'' `var2' if `touse' // equation (7)
+							matrix `C' = r(C)
+							// matrix `W' = (`W', `C'[1, 2])
+							matrix `outerW'[`i', `j'] = `C'[1, 2]
+							quietly replace `var' = `var' + `var2' * `C'[1, 2] ///
+								if `touse' // equation (9) for mode A LVs
+							local ++i
+						}
 					}
 					local ++j
+					mata: st_view(`lv' = ., ., "`var'", "`touse'")
+					mata: `sd_lv' = (`sd_lv', sqrt(variance(`lv')))
 				}
 				
 				/* Outer estimation (Mode B) */
 				foreach var in `modeB' {
 					tempvar tv
-					// quietly regress `t`var'' `istd`var'' if `touse', noconstant // equation (8)
-					// matrix `W' = (`W', e(b))
-					// quietly predict `tv' if `touse'
-					mata: st_view(`X' = ., ., "`istd`var''", "`touse'")
-					mata: st_view(`y' = ., ., "`t`var''", "`touse'")
-					mata: st_matrix("`bcoef'", qrsolve(cross(`X', `X'), cross(`X', `y'))')
-					// matrix `W' = (`W', `bcoef')
-					quietly generate `tv' = .
-					mata: st_store(., "`tv'", "`touse'", `X' * st_matrix("`bcoef'")')
-					quietly replace `var' = `tv' if `touse' // equation (9) for mode B LVs
+					if (`: word count `istd`var''' == 1) {
+						matrix `outerW'[`i', `j'] = 1
+						quietly generate `tv' = `istd`var'' if `touse'
+						quietly replace `var' = `tv' if `touse' // equation (9) for mode B LVs
+						local ++i
+						local ++j
+						continue
+					}
+					else {
+						// quietly regress `t`var'' `istd`var'' if `touse', noconstant // equation (8)
+						// matrix `W' = (`W', e(b))
+						// quietly predict `tv' if `touse'
+						mata: st_view(`X' = ., ., "`istd`var''", "`touse'")
+						mata: st_view(`y' = ., ., "`t`var''", "`touse'")
+						mata: st_matrix("`bcoef'", qrsolve(cross(`X', `X'), cross(`X', `y'))')
+						// matrix `W' = (`W', `bcoef')
+						quietly generate `tv' = .
+						mata: st_store(., "`tv'", "`touse'", `X' * st_matrix("`bcoef'")')
+						quietly replace `var' = `tv' if `touse' // equation (9) for mode B LVs
+						matrix `outerW'[`i', `j'] = `bcoef''
+						local i = `i' + colsof(`bcoef')
+						local ++j
+					}
 					quietly drop `tv'
-					matrix `outerW'[`i', `j'] = `bcoef''
-					local i = `i' + colsof(`bcoef')
-					local ++j
+					mata: st_view(`lv' = ., ., "`var'", "`touse'")
+					mata: `sd_lv' = (`sd_lv', sqrt(variance(`lv')))
 				}
-
+				
 				/* Rescale the outer weights according to the LVs scale */
-				mata: st_view(`mv' = ., ., "`allindicators'", "`touse'")
-				mata: st_view(`lv' = ., ., "`alllatents'", "`touse'")
-				mata: `sd_inv' = J(cols(`mv'), 1, 1:/(sqrt(diagonal(variance(`lv'))))')
-				mata: st_matrix("`outerW'", st_matrix("`outerW'") :* `sd_inv')
+				mata: st_matrix("`outerW'", st_matrix("`outerW'") :/ `sd_lv')
 				
 				/* Standardize the LVs */
 				foreach var of varlist `alllatents' {
@@ -743,8 +772,7 @@ program Estimate, eclass byable(recall)
 				// iteration (Wold)
 
 				mata: st_matrix("`W'", rowsum(st_matrix("`outerW'"))')
-				mata: st_matrix("`Whistory'", ///
-					(st_matrix("`Whistory'") \ st_matrix("`W'")))
+				mata: `Whist_mata' = (`Whist_mata' \ st_matrix("`W'"))
 				if (`iter' == 1) {
 					matrix `mat0' = J(1, colsof(`W'), 0)
 					scalar `reldiff' = mreldif(`W', `mat0')
@@ -765,6 +793,7 @@ program Estimate, eclass byable(recall)
 					// error 430
 				}
 			}
+		mata: st_matrix("`Whistory'", (st_matrix("`Whistory'") \ `Whist_mata'))
 		}
 	}
 	else {

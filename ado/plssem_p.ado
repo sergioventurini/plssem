@@ -27,7 +27,7 @@ program plssem_p, rclass sortpreserve
 	quietly generate `__touse__' = 1
 	
 	// check that estimation sample has not changed
-	checkestimationsample
+	// checkestimationsample
 
 	if ("`e(formative)'" != "") {
 		display as txt "(fitted values and residuals computed only " _continue

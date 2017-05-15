@@ -166,6 +166,8 @@ bysort group: */ plssem (Expectation > CUEX1-CUEX3) (Satisfaction > CUSA1-CUSA3)
 	structural(Quality Expectation Virtual Virtual2, Satisfaction Expectation Quality Image, ///
 	Image Expectation Quality, Virtual Image, Virtual2 Quality) wscheme("path") ///
 	seed(123) digits(5) binary(Virtual Virtual2) //boot(50)
+	
+estat unobshet
 
 /* Example 14 */
 /* ---------- */
@@ -361,10 +363,11 @@ plssem (Expectation > CUEX1-CUEX3) (Satisfaction > CUSA1-CUSA3) ///
 /* [From Sanchez, G. (2013) PLS Path Modeling with R (Section 8.1.3)] */
 /* Repeated indicators approach */
 use ./data/offense, clear
-plssem (Special < FieldGoals OtherTDs) (Scoring > PointsGame OffensTD TDGame) ///
-	(Passing > YardsPassComp PassYards PassFirstDown) ///
+plssem (Special < FieldGoals OtherTDs) ///
 	(Rushing > YardsRushAtt RushYards RushFirstDown) ///
-	(Offense > YardsPassComp PassYards PassFirstDown YardsRushAtt RushYards RushFirstDown), ///
+	(Passing > YardsPassComp PassYards PassFirstDown) ///
+	(Offense > YardsPassComp PassYards PassFirstDown YardsRushAtt RushYards RushFirstDown) ///
+	(Scoring > PointsGame OffensTD TDGame), ///
 	structural(Scoring Special Offense, Offense Passing Rushing) ///
 	wscheme("centroid") digits(5) tol(1e-6) //boot(200)
 

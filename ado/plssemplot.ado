@@ -1,5 +1,5 @@
 *!plssemplot version 0.2.0
-*!Written 05May2017
+*!Written 15May2017
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -34,7 +34,7 @@ program _plssemplot
 	quietly generate `__touse__' = e(sample)
 
 	// check that estimation sample has not changed
-	checkestimationsample
+	// checkestimationsample
 	
 	if ("`innermodel'" != "") {
 		tempname adjmat
