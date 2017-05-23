@@ -1,5 +1,5 @@
 *!plssem_estat version 0.2.0
-*!Written 12May2017
+*!Written 23May2017
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -468,7 +468,19 @@ program unobshet, rclass
 	tempname globalmodel gof_global
 	_estimates hold `globalmodel', copy
 	preserve
-	quietly predict, residuals
+	capture quietly predict, residuals
+	if (_rc == 908) {
+		display as error "matsize too small"
+    display as error "    The command has attempted to create a matrix "  _continue
+		display as error "with more than 400 rows or columns."
+    display as error "    To run the command increase matsize by using the " _continue
+    display as result "set matsize" _continue
+		display as error " command; see help " _continue
+		display as smcl "{help matsize}" _continue
+		display as error "."
+		restore
+		exit
+	}
 	local todrop "`: colnames r(meas_res)' `: colnames r(struct_res)'"
 
 	// collect results for later to display

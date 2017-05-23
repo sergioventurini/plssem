@@ -567,6 +567,14 @@ plssem (Tangible > Service Food Hygiene) (Atmospheric > Lively Lighting) ///
 	(Loyalty > Positive_talk Recommend), structural(Loyalty Tangible Atmospheric) ///
 	group(Rebus_gr, method(permutation) reps(100) plot seed(101))
 
+// REBUS SOLUTION
+plssem (Tangible > Service Food Hygiene) (Atmospheric > Lively Lighting) ///
+	(Loyalty > Positive_talk Recommend), structural(Loyalty Tangible Atmospheric) ///
+	wscheme(centroid) tol(1e-06) digits(7)
+
+estat unobshet // a posteriori approach
+estat unobshet, numclass(2) // a priori approach
+
 /* Example 37 */
 /* ---------- */
 use ./data/workout2, clear
@@ -601,10 +609,12 @@ twoway (scatter Success Attack if member == 1, mlabel(Team) mlabposition(0) msiz
 */
 
 * REBUS solution
-estat unobshet
+estat unobshet // a posteriori approach
 // estat unobshet, numclass(5) stop(.05) dendro name("rebus_cluster")
 // estat unobshet, numclass(6)
 // estat unobshet, test reps(300) plot seed(123)
+
+estat unobshet, numclass(2) // a priori approach
 
 plssem (Attack > GSH GSA SSH SSA) (Defense > NGCH NGCA CSH CSA) ///
 	(Success > WMH WMA), structural(Success Attack Defense) ///
@@ -621,4 +631,4 @@ plssem (Attractive > face sexy) (Appearance > body appear attract) ///
 	structural(Appearance Attractive, Muscle Appearance, Weight Appearance) ///
 	tol(1e-06)
 
-estat unobshet, test reps(30) plot
+estat unobshet, test reps(100) plot

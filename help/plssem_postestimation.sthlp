@@ -84,7 +84,7 @@ Display the variance inflation factors for the structural model equations
 
 {marker unobshet}{...}
 {pstd}
-Display the variance inflation factors for the structural model equations
+Display the assessment for the presence of unobserved heterogeneity
 
 {p 8 14 2}
 {cmd:estat} {cmdab:un:obshet},
