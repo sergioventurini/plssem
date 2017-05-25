@@ -306,6 +306,7 @@ forvalues i = 1/3 {
 		generate inter`ninter' = imag`i'*sat`j'
 	}
 }
+
 plssem (Image > imag1-imag3) (Satisfaction > sat1-sat3) ///
 	(Loyalty > loy1-loy3) (Inter > inter1-inter9), ///
 	structural(Loyalty Image Satisfaction Inter) ///
@@ -318,6 +319,7 @@ plssem (Image > imag1-imag3) (Satisfaction > sat1-sat3) ///
 
 /* Two-stage path modeling approach */
 use ./data/satisfaction, clear
+
 // Stage 1
 plssem (Image > imag1-imag3) (Satisfaction > sat1-sat3) ///
 	(Loyalty > loy1-loy3), structural(Loyalty Image Satisfaction) ///
@@ -344,10 +346,12 @@ regress Loyalty Image ImageSatisfaction Satisfaction
 /* Example 22 */
 /* ---------- */
 use ./data/ecsimobi, clear
+
 set seed 123
 generate group = rbinomial(1, .5) + 1
 label define group_lbl 1 "Low" 2 "High"
 label value group group_lbl
+
 plssem (Expectation > CUEX1-CUEX3) (Satisfaction > CUSA1-CUSA3) ///
 	(Complaints > CUSCO) (Loyalty > CUSL1-CUSL3) (Image > IMAG1-IMAG5) ///
 	(Quality > PERQ1-PERQ7) (Value > PERV1-PERV2), ///
@@ -355,14 +359,17 @@ plssem (Expectation > CUEX1-CUEX3) (Satisfaction > CUSA1-CUSA3) ///
 	Satisfaction Value Quality Image*Expectation, Complaints Satisfaction, ///
 	Loyalty Complaints Satisfaction Image) ///
 	wscheme("path") digits(4) tol(1e-6) ///
-	group(group, reps(50) method(normal) plot alpha(0.1) what(loadings)) ///
+	//group(group, reps(50) method(normal) plot alpha(0.1) what(loadings)) ///
 	//boot(50)
+
+plssemplot, outerweights
 
 /* Example 23 */
 /* ---------- */
 /* [From Sanchez, G. (2013) PLS Path Modeling with R (Section 8.1.3)] */
 /* Repeated indicators approach */
 use ./data/offense, clear
+
 plssem (Special < FieldGoals OtherTDs) ///
 	(Rushing > YardsRushAtt RushYards RushFirstDown) ///
 	(Passing > YardsPassComp PassYards PassFirstDown) ///
@@ -370,6 +377,8 @@ plssem (Special < FieldGoals OtherTDs) ///
 	(Scoring > PointsGame OffensTD TDGame), ///
 	structural(Scoring Special Offense, Offense Passing Rushing) ///
 	wscheme("centroid") digits(5) tol(1e-6) //boot(200)
+
+plssemplot, outerweights
 
 /* Example 24 */
 /* ---------- */
@@ -492,6 +501,7 @@ mat list e(pathcoef_bs)
 /* ---------- */
 /* This is the application included in the JSS paper */
 use ./data/workout2, clear
+
 plssem (Attractive > face sexy) ///
 			(Appearance > body appear attract) ///
 			(Muscle > muscle strength endur) ///
@@ -629,6 +639,52 @@ plssem (Attractive > face sexy) (Appearance > body appear attract) ///
 	(Muscle > muscle strength endur) ///
 	(Weight > lweight calories cweight), ///
 	structural(Appearance Attractive, Muscle Appearance, Weight Appearance) ///
-	tol(1e-06)
+	tol(1e-06) wscheme(centroid)
 
 estat unobshet, test reps(100) plot
+
+/* Example 40 */
+/* ---------- */
+/* Comparison of results of plssem without structural part with those of factor
+	 analysis */
+use ./data/workout2, clear
+
+plssem (Attractive > face sexy) (Appearance > body appear attract) ///
+	(Muscle > muscle strength endur) (Weight > lweight calories cweight), init(eigen)
+
+// Using orthogonal rotation
+factor face sexy body appear attract muscle strength endur lweight calories cweight, ///
+	factors(4) pcf
+rotate
+predict f1 f2 f3 f4, regression
+
+graph matrix Attractive-Weight f1-f4, half
+correlate Attractive-Weight f1-f4
+
+// Using oblique rotation
+factor face sexy body appear attract muscle strength endur lweight calories cweight, ///
+	factors(4) pcf
+rotate, oblique oblimin
+predict fo1 fo2 fo3 fo4, regression
+
+graph matrix Attractive-Weight fo1-fo4, half
+correlate Attractive-Weight fo1-fo4
+
+twoway (scatter Attractive fo4) (function y = x, range(-4 4))
+twoway (scatter Appearance fo1) (function y = x, range(-4 4))
+twoway (scatter Muscle fo3) (function y = x, range(-4 4))
+twoway (scatter Weight fo2) (function y = x, range(-4 4))
+
+/* Example 41 */
+/* --------- */
+use ./data/ecsimobi, clear
+
+plssem (Expectation > CUEX1-CUEX3) (Satisfaction > CUSA1-CUSA3) ///
+	(Complaints > CUSCO) (Loyalty > CUSL1-CUSL3) (Image > IMAG1-IMAG5) ///
+	(Quality > PERQ1-PERQ7) (Value > PERV1-PERV2), ///
+	structural(Expectation Image, Quality Expectation, Value Expectation Quality, ///
+	Satisfaction Value Quality Image Expectation, Complaints Satisfaction, ///
+	Loyalty Complaints Satisfaction Image) ///
+	wscheme("path") digits(4)
+
+plssemplot, outerweights

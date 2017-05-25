@@ -1,5 +1,5 @@
 *!plssem version 0.2.0
-*!Written 15May2017
+*!Written 25May2017
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -493,8 +493,6 @@ program Estimate, eclass byable(recall)
 							// quietly tabulate `var' if `touse'
 							// if (r(r) > 2) {
 								quietly summarize `var' if `touse'
-								matrix `sd_init' = (`sd_init', r(sd))
-								local sd_init_cn `sd_init_cn' `LV`k''
 								quietly generate std`var' = (`var' - r(mean))/r(sd) if `touse'
 							// }
 							// else {
@@ -524,7 +522,7 @@ program Estimate, eclass byable(recall)
 							}
 							quietly summarize `LV`num_lv'' if `touse'
 							matrix `sd_init' = (`sd_init', r(sd))
-							local sd_init_cn `sd_init_cn' `LV`k''
+							local sd_init_cn `sd_init_cn' `LV`num_lv''
 							quietly replace `LV`num_lv'' = (`LV`num_lv'' - r(mean))/r(sd) if `touse' // equation (5)
 						}
 						else if ("`init'" == "eigen") {
@@ -553,7 +551,7 @@ program Estimate, eclass byable(recall)
 							}
 							quietly summarize `LV`num_lv'' if `touse'
 							matrix `sd_init' = (`sd_init', r(sd))
-							local sd_init_cn `sd_init_cn' `LV`k''
+							local sd_init_cn `sd_init_cn' `LV`num_lv''
 							quietly replace `LV`num_lv'' = (`LV`num_lv'' - r(mean))/r(sd) if `touse' // equation (5)
 						}
 						
@@ -630,6 +628,7 @@ program Estimate, eclass byable(recall)
 			local nmi : list posof "`var'" in sd_init_cn
 			foreach var2 in `i`var'' {
 				matrix `Whistory'[1, `count_sd'] = 1/`sd_init'[1, `nmi']
+				local Whistcolnames `Whistcolnames' "`var2':`var'"
 				local ++count_sd
 			}
 		}
@@ -637,6 +636,7 @@ program Estimate, eclass byable(recall)
 			local nmi : list posof "`var'" in sd_init_cn
 			foreach var2 in `i`var'' {
 				matrix `Whistory'[1, `count_sd'] = 1/`sd_init'[1, `nmi']
+				local Whistcolnames `Whistcolnames' "`var2':`var'"
 				local ++count_sd
 			}
 		}
@@ -733,7 +733,6 @@ program Estimate, eclass byable(recall)
 						quietly replace `var' = `tv' if `touse' // equation (9) for mode B LVs
 						local ++i
 						local ++j
-						continue
 					}
 					else {
 						// quietly regress `t`var'' `istd`var'' if `touse', noconstant // equation (8)
@@ -901,7 +900,7 @@ program Estimate, eclass byable(recall)
 	if ("`structural'" != "") & ("`rawsum'" == "") {
 		matrix rownames `outerW' = `loadrownames'
 		matrix colnames `outerW' = `loadcolnames'
-		matrix colnames `Whistory' = `loadrownames'
+		matrix colnames `Whistory' = `Whistcolnames'
 	}
 	if ("`boot'" != "") {
 		matrix rownames `loadings_bs' = `loadrownames'
@@ -1359,6 +1358,9 @@ program Estimate, eclass byable(recall)
 	}
 	if ("`structural'" != "") {
 		local props "`props' structural"
+	}
+	if ("`rawsum'" != "") {
+		local props "`props' rawsum"
 	}
 	ereturn post, obs(`nobs') esample(`touse') properties(`props')
 	if ("`boot'" != "") {

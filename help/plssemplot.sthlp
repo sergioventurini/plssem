@@ -22,13 +22,14 @@
 {marker plssemplotopts}{...}
 {synopthdr}
 {synoptline}
-{synopt:{cmdab:i:nnermodel}}plot the structural (inner) model relationships{p_end}
-{synopt:{cmdab:o:utermodel}}plot the measurement (outer) model relationships (not yet implemented){p_end}
+{synopt:{cmdab:in:nermodel}}plot the structural (inner) model relationships{p_end}
+{synopt:{cmdab:out:ermodel}}plot the measurement (outer) model relationships (not yet implemented){p_end}
 {synopt:{opth st:ats(syntax##description_of_varlist:varname)}}produce the scatterplot matrix for the indicators of the selected
 	latent variables{p_end}
 {synopt:{cmdab:sc:ores}}produce the scatterplot matrix of the latent variables scores{p_end}
 {synopt:{cmdab:c:rossloadings}}plot the model's cross loadings{p_end}
 {synopt:{cmdab:l:oadings}}plot the model's outer loadings{p_end}
+{synopt:{cmdab:outerw:eights}}plot the model's outer weights convergence path{p_end}
 {synoptline}
 
 {marker description}{...}
@@ -42,13 +43,27 @@
 {title:Options}
 
 {phang}
+{opt plssemplot, crossloadings} provides bar plots of the loadings of indicators for not only
+their respective but all the other latent variables (i.e. cross loadings).
+
+{phang}
+{opt plssemplot, innermodel} produces a graphical representation version of the structural (inner)
+part of the PLS-SEM model estimated. This command requires the installation of
+the {cmd:nwcommands} suite ({stata net install nwcommands-ado.pkg:click here to install}).
+
+{phang}
 {opt plssemplot, loadings} provides a bar plot of the loadings of indicators for their respective
 latent variables.
 
 {phang}
-{opt plssemplot, crossloadings} provides bar plots of the loadings of indicators for not only
-their respective but all the other latent variables (i.e. cross loadings).
+{opt plssemplot, outermodel} produces a visualized version of the measurement (outer) part of
+the PLS-SEM model estimated. This feature will be available soon.
 
+{phang}
+{opt plssemplot, outerweights} produces a diagram showing the evolution over time of the
+outer weights for the estimated  model. This diagram is useful for assessing convergence of
+the estimation algorithm.
+ 
 {phang}
 {opt plssemplot, scores} provides the scatterplot matrix of the scores for the
 latent variables defined in the PLS-SEM model.
@@ -57,15 +72,6 @@ latent variables defined in the PLS-SEM model.
 {opt plssemplot, stats(LV)} provides the scatterplot matrix for the indicators in
 the block defining the latent variable {cmd:LV}.
 
-{phang}
-{opt plssemplot, innermodel} produces a graphical representation version of the structural (inner)
-part of the PLS-SEM model estimated. This command requires the installation of
-the {cmd:nwcommands} suite ({stata net install nwcommands-ado.pkg:click here to install}).
-
-{phang}
-{opt plssemplot, outermodel} produces a visualized version of the measurement (outer) part of
-the PLS-SEM model estimated. This feature will be available soon.
- 
  
 {marker examples}{...}
 {title:Examples}
@@ -81,6 +87,8 @@ the PLS-SEM model estimated. This feature will be available soon.
 {phang}{stata plssemplot, loadings}{p_end}
 
 {phang}{stata plssemplot, crossloadings}{p_end}
+
+{phang}{stata plssemplot, outerweights}{p_end}
 
 
 {marker authors}{...}

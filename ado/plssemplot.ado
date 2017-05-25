@@ -1,5 +1,5 @@
 *!plssemplot version 0.2.0
-*!Written 15May2017
+*!Written 25May2017
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -26,8 +26,8 @@ program plssemplot
 end
 
 program _plssemplot
-	syntax [, Innermodel Outermodel STats(varlist min=1 max=1) SCores ///
-		Crossloadings Loadings ]
+	syntax [, INnermodel OUTermodel STats(varlist min=1 max=1) SCores ///
+		Crossloadings Loadings OUTERWeights ]
 	local 0 `", `options'"'
 
 	tempvar __touse__
@@ -36,7 +36,18 @@ program _plssemplot
 	// check that estimation sample has not changed
 	// checkestimationsample
 	
+	local struct "structural"
+	local rawsum "rawsum"
+	local props = e(properties)
+	local isstruct : list struct in props
+	local israwsum : list rawsum in props
+
 	if ("`innermodel'" != "") {
+		if (!`isstruct') {
+			display as error "the fitted plssem model includes only the measurement part"
+			exit
+		}
+
 		tempname adjmat
 		mata: `adjmat' = st_matrix("e(adj_struct)")
 		
@@ -45,7 +56,8 @@ program _plssemplot
 		capture quietly nwset, clear
 		if ((_rc != 0) & (_rc != 6001)) {
 			display as error "to use the 'innermodel' option you need to install the nwcommands suite"
-			display as error "type: net install nwcommands-ado.pkg"
+			display as error "type " _continue
+			display as smcl "{stata net install nwcommands-ado.pkg}"
 			exit
 		}
 
@@ -59,7 +71,7 @@ program _plssemplot
 	}
 	
 	if ("`outermodel'" != "") {
-		display as error "this feature will be available soon! ;)"
+		display as error "this feature will be available soon! :)"
 		/* tempname adjmat adjmat_full
 		local nlvs : word count `e(lvs)'
 		local nmvs : word count `e(mvs)'
@@ -215,7 +227,12 @@ program _plssemplot
 	}
 	
 	if ("`scores'" != "") {
-		graph matrix `e(lvs)' if `__touse__', half title("PLS-PM scores") ///
+		if (!`isstruct') {
+			display as error "the fitted plssem model includes only the measurement part"
+			exit
+		}
+		
+		graph matrix `e(lvs)' if `__touse__', half title("PLS-SEM scores") ///
 			maxes(ylab(#6, grid) xlab(#6, grid)) msymbol(Oh) scheme(sj)
 	}
 
@@ -241,8 +258,8 @@ program _plssemplot
 			hlines(`num_ind') novlines corr
 		
 		preserve
-		drop _all
-		quietly svmat `xload', names("lv")
+		quietly drop _all
+		quietly svmat double `xload', names("lv")
 		quietly generate indicator = .
 		quietly generate block = ""
 		quietly generate order = .
@@ -303,7 +320,7 @@ program _plssemplot
 			hlines(`num_ind') novlines
 		
 		tempvar lv indicator
-		quietly svmat `loads', names(`lv')
+		quietly svmat double `loads', names(`lv')
 		quietly generate `indicator' = .
 		local i 1
 		foreach ind in `e(mvs)' {
@@ -333,4 +350,40 @@ program _plssemplot
 			yline(0, lpattern(solid) lwidth(thin)) legend(position(12) rows(1) ///
 			region(style(none)) size(3) keygap(1) symxsize(5)) scheme(sj)
 	}
+	
+	if ("`outerweights'" != "") {
+		if (!`isstruct') {
+			display as error "the fitted plssem model includes only the measurement part"
+			exit
+		}
+		if (`israwsum') {
+			display as error "the plssem model has been fitted using the rawsum option"
+			exit
+		}
+	
+		tempname ow
+		matrix `ow' = e(ow_history)
+		local niter = e(iterations)
+		
+		preserve
+		
+		tempvar iter lv
+		quietly drop _all
+		quietly svmat double `ow', names(eqcol)
+		quietly generate `iter' = _n - 1
+		capture quietly reshape long `e(mvs)', i(`iter') j(`lv') string
+		if (_rc != 0) {
+			display as error "some of the indicators have been used more than once; " _continue
+			display as error "the outer weights diagram can't be displayed"
+			restore
+			exit
+		}
+		// here we use colors (s2gcolor) to emphasize differences
+		twoway (line `e(mvs)' `iter', lpattern(solid)), ///
+			by(`lv', legend(position(3)) title("Outer weights convergence") ///
+			note("")) xtitle("Iteration") ytitle("Outer weights") xlabel(#`niter') ///
+			legend(cols(1) size(vsmall)) scheme(s2gcolor)
+
+		restore
+	}	
 end
