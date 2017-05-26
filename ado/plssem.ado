@@ -1,5 +1,5 @@
 *!plssem version 0.2.0
-*!Written 25May2017
+*!Written 26May2017
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -1627,8 +1627,10 @@ program Compare, eclass sortpreserve
 		set seed `groupseed'
 	}
 	
-	tempname groupvar_m groupvals groupsizes alln
-	mata: st_matrix("`groupvar_m'", uniqrows(st_data(., "`groupvar'", "`touse'"), 1))
+	tempname grpvar_tmp groupvar_m groupvals groupsizes alln
+	mata: `grpvar_tmp' = st_data(., "`groupvar'", "`touse'")
+	mata: st_matrix("`groupvar_m'", ///
+		uniqrows(select(`grpvar_tmp', `grpvar_tmp' :!= .), 1))
 	local ngroups = rowsof(`groupvar_m')
 	if (`ngroups' == 1) {
 		display as error "the group() option requires at least two groups to compare"
@@ -1663,6 +1665,7 @@ program Compare, eclass sortpreserve
 	/* Calculate observed test statistic value */
 	forvalues ng = 1/`ngroups' {
 		preserve
+
 		quietly keep if (`groupvar' == `groupvals'[`ng', 1]) & `touse'
 		quietly Estimate `0'
 		tempname strb_`ng' strvar_`ng' group_`ng'
@@ -1680,6 +1683,7 @@ program Compare, eclass sortpreserve
 //			matrix `tmp' = `tmp'[1..`nind', 1..`nlv_A']
 			matrix `strvar_`ng'' = vec(`tmp')
 		}
+
 		restore
 	}
 	

@@ -18,6 +18,7 @@ estat indirect, effects(Loyalty Satisfaction Image, ///
 
 plssemplot, innermodel
 * plssemplot, outermodel
+plssemplot, outerweights
 
 /* Example 2 */
 /* --------- */
@@ -503,19 +504,37 @@ mat list e(pathcoef_bs)
 use ./data/workout2, clear
 
 plssem (Attractive > face sexy) ///
-			(Appearance > body appear attract) ///
-			(Muscle > muscle strength endur) ///
-			(Weight > lweight calories cweight), ///
-			structural(Appearance Attractive, ///
-	               Muscle Appearance, ///
-	               Weight Appearance) ///
-	    boot(25) seed(123) stats corr(lv)
+			 (Appearance > body appear attract) ///
+			 (Muscle > muscle strength endur) ///
+			 (Weight > lweight calories cweight), ///
+			 structural(Appearance Attractive, ///
+	                Muscle Appearance, ///
+	                Weight Appearance) ///
+	     boot(25) seed(123) stats corr(lv)
 		
 estat indirect, effects(Muscle Appearance Attractive, ///
                         Weight Appearance Attractive) ///
 								boot(25) seed(456)
 
 plssemplot, loadings
+
+/*
+// SEM solution
+sem (Attractive -> face sexy) ///
+		(Appearance -> body appear attract) ///
+		(Muscle -> muscle strength endur) ///
+		(Weight -> lweight calories cweight) ///
+		(Appearance <- Attractive) ///
+		(Muscle <- Appearance) ///
+		(Weight <- Appearance), stand
+
+estat teffects, nototal nodirect stand
+
+predict f*, latent
+
+graph matrix Appearance Muscle Weight Attractive f*, half
+correlate Appearance Muscle Weight Attractive f*
+*/
 
 /* Example 34 */
 /* ---------- */
