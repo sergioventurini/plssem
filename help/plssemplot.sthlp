@@ -49,7 +49,7 @@ their respective but all the other latent variables (i.e. cross loadings).
 {phang}
 {opt plssemplot, innermodel} produces a graphical representation version of the structural (inner)
 part of the PLS-SEM model estimated. This command requires the installation of
-the {cmd:nwcommands} suite ({stata net install nwcommands-ado.pkg:click here to install}).
+the {cmd:nwcommands} suite ({stata nwinstall, all:click here to install}).
 
 {phang}
 {opt plssemplot, loadings} provides a bar plot of the loadings of indicators for their respective
