@@ -707,3 +707,22 @@ plssem (Expectation > CUEX1-CUEX3) (Satisfaction > CUSA1-CUSA3) ///
 	wscheme("path") digits(4)
 
 plssemplot, outerweights
+
+/* Example 42 */
+/* ---------- */
+/* [From https://www.smartpls.com/documentation/sample-corporate-reputation] */
+import excel "./data/Corporate Reputation Data.xlsx", ///
+	sheet("Sheet1") firstrow clear
+mvdecode _all, mv(-99)
+
+plssem (PERF < perf_?) (CSOR < csor_?) (QUAL < qual_?) (ATTR < attr_?) ///
+			 (COMP > comp_?) (LIKE > like_?) (CUSA > cusa) (CUSL > cusl_?), ///
+	structural(CUSL COMP CUSA LIKE, CUSA COMP LIKE, LIKE QUAL PERF CSOR ATTR, ///
+						 COMP QUAL PERF CSOR ATTR) wscheme(path) tol(1e-07)
+
+plssemplot, loadings
+plssemplot, cross
+plssemplot, innermodel
+plssemplot, stats(LIKE)
+
+estat total, plot
