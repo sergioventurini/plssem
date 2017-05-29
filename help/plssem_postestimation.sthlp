@@ -287,27 +287,28 @@ are not saved in the data set.
 {marker examples}{...}
 {title:Examples}
 
-{phang}
-{stata sysuse workout2, clear}{p_end}
+    {hline}
+{pstd}Setup{p_end}
+{phang2}{cmd:. sysuse workout2, clear}{p_end}
 
-{phang}
-{stata plssem (Attractive > face sexy) (Appearance > body appear attract) (Muscle > muscle strength endur) (Weight > lweight calories cweight), structural(Appearance Attractive, Muscle Appearance, Weight Appearance)}{p_end}
+{pstd}Model estimation{p_end}
+{phang2}{cmd:. plssem (Attractive > face sexy) (Appearance > body appear attract) (Muscle > muscle strength endur) (Weight > lweight calories cweight), structural(Appearance Attractive, Muscle Appearance, Weight Appearance)}{p_end}
 
-{phang}
-{stata estat indirect, effects(Muscle Appearance Attractive, Weight Appearance Attractive)}{p_end}
+{pstd}Multicollinearity assessment{p_end}
+{phang2}{cmd:. estat vif}{p_end}
 
-{phang}
-{stata estat total, plot}{p_end}
+{pstd}Indirect effects{p_end}
+{phang2}{cmd:. estat indirect, effects(Muscle Appearance Attractive, Weight Appearance Attractive)}{p_end}
 
-{phang}
-{stata predict, xb residuals}{p_end}
-{phang}
-{stata describe *_hat *_res}{p_end}
+{pstd}Predictions{p_end}
+{phang2}{cmd:. predict, xb residuals}{p_end}
+{phang2}{cmd:. describe *_hat *_res}{p_end}
 
-{phang}
-{stata estat unobshet, test reps(20) plot}{p_end}
-{phang}
-{stata table rebus_class}{p_end}
+{pstd}Assessment of unobserved heterogeneity using REBUS{p_end}
+{phang2}{cmd:. estat unobshet, test reps(20) plot}{p_end}
+
+    {hline}
+
 
 {marker authors}{...}
 {title:Authors}

@@ -76,19 +76,27 @@ the block defining the latent variable {cmd:LV}.
 {marker examples}{...}
 {title:Examples}
 
-{phang}{stata sysuse workout2, clear}{p_end}
+    {hline}
+{pstd}Setup{p_end}
+{phang2}{cmd:. sysuse workout2, clear}{p_end}
 
-{phang}{stata plssem (Attractive > face sexy) (Appearance > body appear attract) (Muscle > muscle strength endur) (Weight > lweight calories cweight), structural(Appearance Attractive, Muscle Appearance, Weight Appearance)}{p_end}
+{pstd}Model estimation{p_end}
+{phang2}{cmd:. plssem (Attractive > face sexy) (Appearance > body appear attract) (Muscle > muscle strength endur) (Weight > lweight calories cweight), structural(Appearance Attractive, Muscle Appearance, Weight Appearance)}{p_end}
 
-{phang}{stata plssemplot, stats(Appearance)}{p_end}
+{pstd}Outer weights evolution{p_end}
+{phang2}{cmd:. plssemplot, outerweights}{p_end}
 
-{phang}{stata plssemplot, scores}{p_end}
+{pstd}Scatterplot matrix for indicators related to a specific latent variable{p_end}
+{phang2}{cmd:. plssemplot, stats(Appearance)}{p_end}
 
-{phang}{stata plssemplot, loadings}{p_end}
+{pstd}Scatterplot matrix of latent variable scores{p_end}
+{phang2}{cmd:. plssemplot, scores}{p_end}
 
-{phang}{stata plssemplot, crossloadings}{p_end}
+{pstd}Plot of loadings and cross-loadings{p_end}
+{phang2}{cmd:. plssemplot, loadings}{p_end}
+{phang2}{cmd:. plssemplot, crossloadings}{p_end}
 
-{phang}{stata plssemplot, outerweights}{p_end}
+    {hline}
 
 
 {marker authors}{...}

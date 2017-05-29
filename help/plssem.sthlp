@@ -180,16 +180,46 @@ For instance, {bf:cutoff(0.3)} will display the correlations above 0.3 in absolu
 {marker examples}{...}
 {title:Examples}
 
-{pstd} {bf:Example 1}
+    {hline}
+{pstd}Setup{p_end}
+{phang2}{cmd:. sysuse workout2, clear}{p_end}
 
-{phang}{stata sysuse workout2, clear}{p_end}
+{pstd}Model estimation{p_end}
+{phang2}{cmd:. plssem (Attractive > face sexy) (Appearance > body appear attract) (Muscle > muscle strength endur) (Weight > lweight calories cweight), structural(Appearance Attractive, Muscle Appearance, Weight Appearance)}{p_end}
 
-{phang}{stata plssem (Attractive > face sexy) (Appearance > body appear attract) (Muscle > muscle strength endur) (Weight > lweight calories cweight), structural(Appearance Attractive, Muscle Appearance, Weight Appearance)}{p_end}
+{pstd}Inner model graph{p_end}
+{phang2}{cmd:. plssemplot, innermodel}{p_end}
 
+{pstd}Outer weights evolution{p_end}
+{phang2}{cmd:. plssemplot, outerweights}{p_end}
 
-{pstd} {bf:Example 2}
+{pstd}Direct, indirect and total effects graph{p_end}
+{phang2}{cmd:. estat total, plot}{p_end}
 
-{phang}{stata plssem (Attractive > face sexy) (Appearance > body appear attract) (Weight > lweight calories cweight), structural(Appearance Attractive, Weight Appearance) group(women, method(bootstrap) reps(50) plot)}{p_end}
+{pstd}Multicollinearity assessment{p_end}
+{phang2}{cmd:. estat vif}{p_end}
+
+{pstd}Multigroup analysis using bootstrap{p_end}
+{phang2}{cmd:. plssem (Attractive > face sexy) (Appearance > body appear attract) (Weight > lweight calories cweight), structural(Appearance Attractive, Weight Appearance) group(women, method(bootstrap) reps(50) plot)}{p_end}
+
+    {hline}
+{pstd}Setup{p_end}
+{phang2}{cmd:. sysuse ecsimobi, clear}{p_end}
+
+{pstd}Model estimation{p_end}
+{phang2}{cmd:. plssem (Expectation > CUEX1-CUEX3) (Satisfaction > CUSA1-CUSA3) (Complaints > CUSCO) (Loyalty > CUSL1-CUSL3) (Image > IMAG1-IMAG5) (Quality > PERQ1-PERQ7) (Value > PERV1-PERV2), structural(Expectation Image, Quality Expectation, Value Expectation Quality, Satisfaction Value Quality Image Expectation, Complaints Satisfaction, Loyalty Complaints Satisfaction Image) wscheme(path) digits(4) correlate(mv lv cross, cutoff(.3))}
+{p_end}
+
+{pstd}Inner model graph{p_end}
+{phang2}{cmd:. plssemplot, innermodel}{p_end}
+
+{pstd}Outer weights evolution{p_end}
+{phang2}{cmd:. plssemplot, outerweights}{p_end}
+
+{pstd}Plot of loadings{p_end}
+{phang2}{cmd:. plssemplot, loadings}{p_end}
+
+    {hline}
 
 
 {marker authors}{...}
