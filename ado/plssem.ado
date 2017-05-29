@@ -738,8 +738,8 @@ program Estimate, eclass byable(recall)
 						// quietly regress `t`var'' `istd`var'' if `touse', noconstant // equation (8)
 						// matrix `W' = (`W', e(b))
 						// quietly predict `tv' if `touse'
-						mata: st_view(`X' = ., ., "`istd`var''", "`touse'")
 						mata: st_view(`y' = ., ., "`t`var''", "`touse'")
+						mata: st_view(`X' = ., ., "`istd`var''", "`touse'")
 						mata: st_matrix("`bcoef'", qrsolve(cross(`X', `X'), cross(`X', `y'))')
 						// matrix `W' = (`W', `bcoef')
 						quietly generate `tv' = .
@@ -828,8 +828,8 @@ program Estimate, eclass byable(recall)
 			tempvar tv
 			// quietly regress `t`var'' `istd`var'' if `touse', noconstant // equation (8)
 			// quietly predict `tv' if `touse'
-			mata: st_view(`X' = ., ., "`istd`var''", "`touse'")
 			mata: st_view(`y' = ., ., "`t`var''", "`touse'")
+			mata: st_view(`X' = ., ., "`istd`var''", "`touse'")
 			mata: st_matrix("`bcoef'", qrsolve(cross(`X', `X'), cross(`X', `y'))')
 			quietly generate `tv' = .
 			mata: st_store(., "`tv'", "`touse'", `X' * st_matrix("`bcoef'")')
@@ -1683,7 +1683,7 @@ program Compare, eclass sortpreserve
 //			matrix `tmp' = `tmp'[1..`nind', 1..`nlv_A']
 			matrix `strvar_`ng'' = vec(`tmp')
 		}
-
+		
 		restore
 	}
 	

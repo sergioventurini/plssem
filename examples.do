@@ -398,18 +398,6 @@ plssem (Expectation > CUEX1-CUEX3) (Satisfaction > CUSA1-CUSA3) ///
 
 /* Example 25 */
 /* ---------- */
-/* [From Sanchez, G. (2013) PLS Path Modeling with R (Section 8.1.3)] */
-/* Repeated indicators approach */
-use ./data/offense, clear
-plssem (Special < FieldGoals OtherTDs) (Scoring > PointsGame OffensTD TDGame) ///
-	(Passing > YardsPassComp PassYards PassFirstDown) ///
-	(Rushing > YardsRushAtt RushYards RushFirstDown) ///
-	(Offense > YardsPassComp PassYards PassFirstDown  YardsRushAtt RushYards RushFirstDown), ///
-	str(Scoring Special Offense, Offense Passing Rushing) ///
-	wscheme("centroid") digits(5) tol(1e-6) //boot(200)
-
-/* Example 26 */
-/* ---------- */
 /* [From Sanchez, G. (2013) PLS Path Modeling with R (Chapter 4)] */
 use ./data/spainfoot, clear
 generate NGCH = -1*GCH
@@ -424,7 +412,7 @@ plssem (Attack > GSH GSA SSH SSA) (Defense > NGCH NGCA CSH CSA) ///
 * plssemplot, loadings
 plssemplot, stats(Attack)
 
-/* Example 27 */
+/* Example 26 */
 /* ---------- */
 /* [From Sanchez, G. (2013) PLS Path Modeling with R (Section 6.2.3)] */
 use ./data/college, clear
@@ -437,7 +425,7 @@ plssem (HighSchool > HS_GPA SAT_Verbal SAT_Math) ///
 	wscheme("centroid") digits(4) tol(1e-6) correlate(mv lv cross, cutoff(.3)) ///
 	group(Gender, plot what(loadings))
 
-/* Example 28 */
+/* Example 27 */
 /* ---------- */
 /* [From Sanchez, G. (2013) PLS Path Modeling with R (Section 6.2.3)] */
 use ./data/college, clear
@@ -449,7 +437,7 @@ plssem (HighSchool > HS_GPA SAT_Verbal SAT_Math) ///
 	Graduation Medium Intro HighSchool) ///
 	digits(4) rawsum
 
-/* Example 29 */
+/* Example 28 */
 /* ---------- */
 /* [From Sanchez, G. (2013) PLS Path Modeling with R (Section 7.3.1)] */
 /* Product indicator approach */
@@ -460,7 +448,7 @@ plssem (Image > imag1-imag3) (Satisfaction > sat1-sat3) ///
 	wscheme("centroid") digits(5) tol(1e-6) ///
 	group(gender, reps(10) method(permutation) groupseed(123))
 
-/* Example 30 */
+/* Example 29 */
 /* ---------- */
 use ./data/ecsimobi, clear
 
@@ -468,7 +456,7 @@ use ./data/ecsimobi, clear
 plssem (Expectation < CUEX1-CUEX3) (Satisfaction < CUSA1-CUSA3), ///
 	structural(Satisfaction Expectation)
 
-/* Example 31 */
+/* Example 30 */
 /* ---------- */
 use ./data/ecsimobi, clear
 
@@ -484,7 +472,7 @@ bysort group: */ plssem (Expectation > CUEX1-CUEX3) (Satisfaction > CUSA1-CUSA3)
 	Image Expectation Quality, Virtual Image) wscheme("path") ///
 	seed(123) digits(5) binary(Virtual) //boot(50)
 
-/* Example 32 */
+/* Example 31 */
 /* ---------- */
 use ./data/ecsimobi, clear
 
@@ -498,7 +486,7 @@ mat list e(loadings_bs)
 mat list e(pathcoef)
 mat list e(pathcoef_bs)
 
-/* Example 33 */
+/* Example 32 */
 /* ---------- */
 /* This is the application included in the JSS paper */
 use ./data/workout2, clear
@@ -536,7 +524,7 @@ graph matrix Appearance Muscle Weight Attractive f*, half
 correlate Appearance Muscle Weight Attractive f*
 */
 
-/* Example 34 */
+/* Example 33 */
 /* ---------- */
 /* From Garson's book */
 use ./data/jobsat, clear
@@ -556,7 +544,7 @@ plssem (SES > OccStat StdEduc) ///
 			group(Gender, what("path")) ///
 	    //boot(25) seed(123) stats corr(lv)
 
-/* Example 35 */
+/* Example 34 */
 /* ---------- */
 use ./data/ecsimobi, clear
 
@@ -577,7 +565,7 @@ corr med_IMAG* Image // the loadings in the measurement part should be equal to 
 reg Expectation Image, beta // the coefs provided in the table are not standardised
 reg Satisfaction Expectation Image, beta // the coefs in the table are not standardised
 
-/* Example 36 */
+/* Example 35 */
 /* ---------- */
 import excel "./data/rebus_data.xlsx", firstrow clear
 
@@ -604,7 +592,7 @@ plssem (Tangible > Service Food Hygiene) (Atmospheric > Lively Lighting) ///
 estat unobshet // a posteriori approach
 estat unobshet, numclass(2) // a priori approach
 
-/* Example 37 */
+/* Example 36 */
 /* ---------- */
 use ./data/workout2, clear
 
@@ -614,7 +602,7 @@ plssem (Attractive > face sexy) (Appearance > body appear attract) ///
 
 predict, xb residuals
 
-/* Example 38 */
+/* Example 37 */
 /* ---------- */
 /* [From Sanchez, G. (2013) PLS Path Modeling with R (Chapter 9)] */
 
@@ -650,7 +638,7 @@ plssem (Attack > GSH GSA SSH SSA) (Defense > NGCH NGCA CSH CSA) ///
 	wscheme(centroid) tol(1e-06) ///
 	group(rebus_class, reps(50) method(normal) plot)
 
-/* Example 39 */
+/* Example 38 */
 /* ---------- */
 use ./data/workout2, clear
 
@@ -662,7 +650,7 @@ plssem (Attractive > face sexy) (Appearance > body appear attract) ///
 
 estat unobshet, test reps(100) plot
 
-/* Example 40 */
+/* Example 39 */
 /* ---------- */
 /* Comparison of results of plssem without structural part with those of factor
 	 analysis */
@@ -694,7 +682,7 @@ twoway (scatter Appearance fo1) (function y = x, range(-4 4))
 twoway (scatter Muscle fo3) (function y = x, range(-4 4))
 twoway (scatter Weight fo2) (function y = x, range(-4 4))
 
-/* Example 41 */
+/* Example 40 */
 /* --------- */
 use ./data/ecsimobi, clear
 
@@ -708,7 +696,7 @@ plssem (Expectation > CUEX1-CUEX3) (Satisfaction > CUSA1-CUSA3) ///
 
 plssemplot, outerweights
 
-/* Example 42 */
+/* Example 41 */
 /* ---------- */
 /* [From https://www.smartpls.com/documentation/sample-corporate-reputation] */
 import excel "./data/Corporate Reputation Data.xlsx", ///

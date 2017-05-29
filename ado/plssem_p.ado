@@ -1,5 +1,5 @@
 *!plssem_p version 0.2.0
-*!Written 05May2017
+*!Written 29May2017
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -104,7 +104,7 @@ program plssem_p, rclass sortpreserve
 			local start = `end' + 1
 			local tmp_nm = ""
 			forvalues j = 1/`nblock' {
-				local tmp_nm "`tmp_nm' `: word `j' of `: colnames `b2use'''_hat"
+				local tmp_nm "`tmp_nm' `var'`: word `j' of `: colnames `b2use'''_hat"
 			}
 			local tmp_nm : list clean tmp_nm
 			local ohat_nm "`ohat_nm' `tmp_nm'"
@@ -112,7 +112,7 @@ program plssem_p, rclass sortpreserve
 		local ohat_nm : list clean ohat_nm
 		matrix colnames `ohat' = `ohat_nm'
 	}
-	
+
 	/*	- inner model */
 	if (`isstruct') {
 		tempname adj_struct path endo path_mata ihat lvs_endo_nm
@@ -145,8 +145,8 @@ program plssem_p, rclass sortpreserve
 		forvalues j = 1/`n_ind' {
 			mata: st_local("ind_nm", `mvs_nm'[`j'])
 			local indvs "`indvs' `ind_nm'"
-			local ores_nm "`ores_nm' `ind_nm'_res"
 		}
+		local ores_nm : subinstr local ohat_nm "_hat" "_res", all
 		matrix colnames `ores' = `ores_nm'
 	}
 

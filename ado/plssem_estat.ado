@@ -630,29 +630,29 @@ program unobshet, rclass
 				quietly drop `__touseloc__'
 				quietly generate byte `__touseloc__' = e(sample)
 
-				mata: st_view(`ind' = ., ., "`allindicators'", "`__touseloc__'")					// split.DM[[k]]
+				mata: st_view(`ind' = ., ., "`allindicators'", "`__touseloc__'")				// split.DM[[k]]
 
-				mata: `ow' = st_matrix("e(outerweights)")																	// w.locals[[k]]
-				mata: `path' = st_matrix("e(pathcoef)")																		// path.locals[[k]]
-				mata: `loads' = st_matrix("e(loadings)")																	// loads.locals[[k]]
+				mata: `ow' = st_matrix("e(outerweights)")																// w.locals[[k]]
+				mata: `path' = st_matrix("e(pathcoef)")																	// path.locals[[k]]
+				mata: `loads' = st_matrix("e(loadings)")																// loads.locals[[k]]
 				mata: `r2' = st_matrix("e(rsquared)")	
-				mata: `r2' = `r2'[., selectindex(`r2' :!= .)]															// R2.locals[[k]]
+				mata: `r2' = `r2'[., selectindex(`r2' :!= .)]														// R2.locals[[k]]
 
-				// mata: `indstd' = scale(`ind') 																					// split.X[[k]]
-				// mata: `y' = `indstd' * `ow'																						// Y.k
+				// mata: `indstd' = scale(`ind') 																				// split.X[[k]]
+				// mata: `y' = `indstd' * `ow'																					// Y.k
 
-				mata: st_view(`ind_all' = ., ., "`allindicators'", "`__touse__'")					// DM
-				mata: `indstd_all' = scale(`ind_all', mean(`ind'), sd(`ind'))							// X.k
-				mata: `y_local' = `indstd_all' * `ow'																			// Y.locals[[k]]
+				mata: st_view(`ind_all' = ., ., "`allindicators'", "`__touse__'")				// DM
+				mata: `indstd_all' = scale(`ind_all', mean(`ind'), sd(`ind'))						// X.k
+				mata: `y_local' = `indstd_all' * `ow'																		// Y.locals[[k]]
 				mata: `out_res' = J(strtoreal(st_local("N")), 0, .)
 				forvalues j = 1/`num_lv' {
-					mata: `block' = selectindex(`loads'[., `j'] :!= .)											// blocklist == j
-					mata: `x_hat' = `y_local'[., `j'] * `loads'[`block', `j']'							// X.hat
-					mata: `out_res' = (`out_res', (`indstd_all'[., `block'] - `x_hat'))			// out.res[, blocklist == j]
+					mata: `block' = selectindex(`loads'[., `j'] :!= .)										// blocklist == j
+					mata: `x_hat' = `y_local'[., `j'] * `loads'[`block', `j']'						// X.hat
+					mata: `out_res' = (`out_res', (`indstd_all'[., `block'] - `x_hat'))		// out.res[, blocklist == j]
 				}
-				mata: `y_hat' = `y_local' * `path'[., selectindex(`endo')]								// Y.hat
-				mata: `inn_res' = `y_local'[., selectindex(`endo')] - `y_hat'							// innres.locals[[k]]
-				mata: `cm' = (`cm', rebus_cm(`out_res', `inn_res', `loads', `r2'))				// CM.locals[, k]
+				mata: `y_hat' = `y_local' * `path'[., selectindex(`endo')]							// Y.hat
+				mata: `inn_res' = `y_local'[., selectindex(`endo')] - `y_hat'						// innres.locals[[k]]
+				mata: `cm' = (`cm', rebus_cm(`out_res', `inn_res', `loads', `r2'))			// CM.locals[, k]
 				
 				_estimates drop `localmodel_`k''
 			}
