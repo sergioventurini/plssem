@@ -715,10 +715,11 @@ import excel "./data/Corporate Reputation Data.xlsx", ///
 	sheet("Sheet1") firstrow clear
 mvdecode _all, mv(-99)
 
-plssem (PERF < perf_?) (CSOR < csor_?) (QUAL < qual_?) (ATTR < attr_?) ///
-			 (COMP > comp_?) (LIKE > like_?) (CUSA > cusa) (CUSL > cusl_?), ///
-	structural(CUSL COMP CUSA LIKE, CUSA COMP LIKE, LIKE QUAL PERF CSOR ATTR, ///
-						 COMP QUAL PERF CSOR ATTR) wscheme(path) tol(1e-07)
+plssem (LIKE > like_?) (COMP > comp_?) (CUSA > cusa) (CUSL > cusl_?) ///
+			 (CSOR < csor_?) (ATTR < attr_?) (PERF < perf_?) (QUAL < qual_?), ///
+			 structural(CUSA COMP, CUSA LIKE, CUSL COMP, CUSL LIKE, CUSL CUSA, ///
+									LIKE QUAL, LIKE CSOR, LIKE PERF, LIKE ATTR, COMP QUAL, ///
+									COMP CSOR, COMP PERF, COMP ATTR)
 
 plssemplot, loadings
 plssemplot, cross
@@ -726,3 +727,5 @@ plssemplot, innermodel
 plssemplot, stats(LIKE)
 
 estat total, plot
+
+plssemplot, outerweights
