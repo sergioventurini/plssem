@@ -81,11 +81,11 @@ subsetting the data directly in the syntax using the {cmd:if} and {cmd:in} quali
 {pstd} {bf:plssem} fits partial least squares structural equation models (PLS-SEM), which is 
 often considered as an alternative to the commonly known covariance-based structural equation 
 modeling (COV-SEM). {bf:plssem} is developed in line with the algorithm provided by 
-Wold (1975) and Lohmöller (1989). {bf:plssem} can be used for modeling the relationship 
+{help plssem##Wold1975:Wold (1975)} and {help plssem##Lohmoller1989:Lohmöller (1989)}. {bf:plssem} can be used for modeling the relationship 
 among single-item observed variables too and not only for latent variable modeling.
  
 {pstd} The algorithm used to estimate a PLS-SEM model consists basically of three sequential stages
-of estimation (see Lohmöller 1989). In the first stage, latent variable scores are estimated for each
+of estimation (see {help plssem##Lohmoller1989:Lohmöller 1989}). In the first stage, latent variable scores are estimated for each
 case. Using these scores, in the second stage, measurement model parameters (weights/loadings)
 are estimated. In the same manner, in the third stage structural model parameters (path
 coefficients) are finally estimated. The first stage is what makes PLS-SEM a novel method
@@ -207,8 +207,8 @@ For instance, {bf:cutoff(0.3)} will display the correlations above 0.3 in absolu
 {phang2}{cmd:. sysuse ecsimobi, clear}{p_end}
 
 {pstd}Model estimation{p_end}
-{phang2}{cmd:. plssem (Expectation > CUEX1-CUEX3) (Satisfaction > CUSA1-CUSA3) (Complaints > CUSCO) (Loyalty > CUSL1-CUSL3) (Image > IMAG1-IMAG5) (Quality > PERQ1-PERQ7) (Value > PERV1-PERV2), structural(Expectation Image, Quality Expectation, Value Expectation Quality, Satisfaction Value Quality Image Expectation, Complaints Satisfaction, Loyalty Complaints Satisfaction Image) wscheme(path) digits(4) correlate(mv lv cross, cutoff(.3))}
-{p_end}
+{phang2}{cmd:. plssem (Expectation > CUEX1-CUEX3) (Satisfaction > CUSA1-CUSA3) (Complaints > CUSCO) (Loyalty > CUSL1-CUSL3) (Image > IMAG1-IMAG5) (Quality > PERQ1-PERQ7) (Value > PERV1-PERV2), }{p_end}
+{p 12 12 2}{cmd: structural(Expectation Image, Quality Expectation, Value Expectation Quality, Satisfaction Value Quality Image Expectation, Complaints Satisfaction, Loyalty Complaints Satisfaction Image) wscheme(path) digits(4) correlate(mv lv cross, cutoff(.3))}
 
 {pstd}Inner model graph{p_end}
 {phang2}{cmd:. plssemplot, innermodel}{p_end}
