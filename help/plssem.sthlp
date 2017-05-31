@@ -208,7 +208,7 @@ For instance, {bf:cutoff(0.3)} will display the correlations above 0.3 in absolu
 
 {pstd}Model estimation{p_end}
 {phang2}{cmd:. plssem (Expectation > CUEX1-CUEX3) (Satisfaction > CUSA1-CUSA3) (Complaints > CUSCO) (Loyalty > CUSL1-CUSL3) (Image > IMAG1-IMAG5) (Quality > PERQ1-PERQ7) (Value > PERV1-PERV2), }{p_end}
-{p 12 12 2}{cmd: structural(Expectation Image, Quality Expectation, Value Expectation Quality, Satisfaction Value Quality Image Expectation, Complaints Satisfaction, Loyalty Complaints Satisfaction Image) wscheme(path) digits(4) correlate(mv lv cross, cutoff(.3))}
+{p 12 12 2}{cmd: structural(Expectation Image, Quality Expectation, Value Expectation Quality, Satisfaction Value Quality Image Expectation, Complaints Satisfaction, Loyalty Complaints Satisfaction Image) wscheme(path) digits(4) correlate(mv lv cross, cutoff(.3))}{p_end}
 
 {pstd}Inner model graph{p_end}
 {phang2}{cmd:. plssemplot, innermodel}{p_end}
