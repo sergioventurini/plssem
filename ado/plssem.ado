@@ -508,12 +508,9 @@ program Estimate, eclass byable(recall)
 	tempname X
 
 	mata: `X' = st_data(., "`allindicators'", "`touse'")
-	capture mata: idx = st_addvar("double", tokens("`allstdindicators'"))
-	if (_rc != 0) {
-		foreach var in `allstdindicators' {
-			capture quietly drop `var'
-		}
-		mata: idx = st_addvar("double", tokens("`allstdindicators'"))
+	foreach var in `allstdindicators' {
+		// capture quietly generate `var' = . if `touse'
+		capture mata: idx = st_addvar("double", "`var'")
 	}
 	if ("`scale'" == "") {
 		mata: st_store(., tokens("`allstdindicators'"), "`touse'", scale(`X'))
@@ -625,17 +622,19 @@ program Estimate, eclass byable(recall)
 	
 	mata: st_numscalar("`converged'", `res'.converged)
 	mata: st_numscalar("`iter'", `res'.niter)
-	mata: st_matrix("`matreldiff'", `res'.diff)
-	mata: st_matrix("`Whistory'", `res'.evo)
-	foreach var in `alllatents' {
-		foreach var2 in `i`var'' {
-			local Whistcolnames `Whistcolnames' "`var2':`var'"
+	if (("`structural'" != "") & ("`rawsum'" == "")) {
+		mata: st_matrix("`matreldiff'", `res'.diff)
+		mata: st_matrix("`Whistory'", `res'.evo)
+		foreach var in `alllatents' {
+			foreach var2 in `i`var'' {
+				local Whistcolnames `Whistcolnames' "`var2':`var'"
+			}
 		}
+		matrix colnames `Whistory' = `Whistcolnames'
+		mata: st_matrix("`outerW'", `res'.outer_weights)
+		matrix rownames `outerW' = `loadrownames'
+		matrix colnames `outerW' = `loadcolnames'
 	}
-	matrix colnames `Whistory' = `Whistcolnames'
-	mata: st_matrix("`outerW'", `res'.outer_weights)
-	matrix rownames `outerW' = `loadrownames'
-	matrix colnames `outerW' = `loadcolnames'
 	
 	/* Label the LVs */
 	local now "`c(current_date)', `c(current_time)'"
@@ -782,7 +781,7 @@ program Estimate, eclass byable(recall)
 	
 	/* Compute the table of structural path coefficients */
 	if ("`structural'" != "") {
-		tempname path path_se rsquared redundancy path_pval pathtab
+		tempname path path_se rsquared redundancy path_pval pathtab path_toteff
 		
 		mata: st_matrix("`path'", `res'.path)
 		matrix rownames `path' = `alllatents'
@@ -830,6 +829,10 @@ program Estimate, eclass byable(recall)
 		}
 		matrix rownames `pathtab' = `pathtab_rownames' "r2_a"
 		matrix colnames `pathtab' = `lv_regest_all'
+
+		mata: st_matrix("`path_toteff'", `res'.total_effects)
+		matrix rownames `path_toteff' = `alllatents'
+		matrix colnames `path_toteff' = `alllatents'
 	}
 	
 	/* Compute the reliability coefficients */
@@ -950,21 +953,24 @@ program Estimate, eclass byable(recall)
 		if ("`rawsum'" == "") {
 			ereturn matrix reldiff = `matreldiff'
 			ereturn matrix outerweights =  `outerW'
-			if ("`structural'" != "") {
-				ereturn matrix ow_history =  `Whistory'
-			}
+			ereturn matrix ow_history =  `Whistory'
 		}
 		if (`num_lv_A' > 0) {
 			ereturn matrix assessment = `mod_assessment'
 			ereturn matrix redundancy = `redundancy'
 			ereturn matrix rsquared = `rsquared'
 		}
+		ereturn matrix total_effects = `path_toteff'
 		ereturn matrix adj_struct = `adj_struct'
 		if ("`boot'" != "") {
 			mata: st_matrix("`path_bs'", editmissing(st_matrix("`path_bs'"), 0))
+			matrix rownames `path_bs' = `alllatents'
+			matrix colnames `path_bs' = `alllatents'
 			ereturn matrix pathcoef_bs = `path_bs'
 		}
 		mata: st_matrix("`path'", editmissing(st_matrix("`path'"), 0))
+		matrix rownames `path' = `alllatents'
+		matrix colnames `path' = `alllatents'
 		ereturn matrix pathcoef = `path'
 		ereturn matrix struct_table = `pathtab'
 		if ("`boot'" == "") {
