@@ -740,8 +740,10 @@ program Estimate, eclass byable(recall)
 	mata: st_matrix("`ave_num'", colsum(st_matrix("`adj_meas'")))
 	mata: `ave_mata' = ///
 		colsum(st_matrix("`loadings'") :^ 2) :/ st_matrix("`ave_num'")
-	mata: `whichB' = colsum(strmatch(tokens("`alllatents'"), tokens("`modeB'")'))
-	mata: `ave_mata'[., selectindex(`whichB')] = .
+	if ("`modeB'" != "") {
+		mata: `whichB' = colsum(strmatch(tokens("`alllatents'"), tokens("`modeB'")'))
+		mata: `ave_mata'[., selectindex(`whichB')] = J(1, sum(`whichB'), .)
+	}
 	mata: st_matrix("`ave'", `ave_mata')
 	matrix colnames `ave_num' = `alllatents'
 	matrix rownames `ave' = "AVE"
