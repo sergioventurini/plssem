@@ -1,5 +1,5 @@
-*!plssem version 0.2.0
-*!Written 26May2017
+*!plssem version 0.3.0
+*!Written 19Aug2017
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -60,6 +60,7 @@ program plssem, byable(onecall)
 	}
 end
 
+capture program drop Estimate
 program Estimate, eclass byable(recall)
 	version 10
 	syntax anything(id="Indicator blocks" name=blocks) [if] [in], ///
@@ -67,7 +68,7 @@ program Estimate, eclass byable(recall)
 		Boot(numlist integer >0 max=1) Seed(numlist max=1) Tol(real 1e-7) ///
 		MAXiter(integer 1000) INIT(string) DIGits(integer 3) noHEADer ///
 		noMEAStable noDISCRIMtable noSTRUCTtable STATs GRoup(string) ///
-		CORRelate(string) RAWsum ]
+		CORRelate(string) RAWsum noSCale CONVcrit(string) ]
 	
 	/* Options:
 	   --------
@@ -106,17 +107,22 @@ program Estimate, eclass byable(recall)
 																				specified value
 		 rawsum													--> estimate the latent scores as the raw
 																				sum of the indicators
+		 noscale												--> manifest variables are not scaled but
+																				only centered
+		 convcrit												--> convergence criterion (either 'relative'
+																				or 'square')
 	 */
 	
 	/* Parse the specified blocks.
 	 * Macros:
-	 * 	LV`i'						- latent variable name
-	 * 	i`i'						- indicators for latent, by latent index
-	 * 	istd`i'					- indicators for latent, by latent index (standardized)
-	 * 	i`LV`i''				- indicators for latent, by latent name
-	 * 	istd`LV`i''			- indicators for latent, by latent name (standardized)
-	 *	allindicators		- all indicators
-	 *	alllatents			- all latents
+	 * 	LV`i'							- latent variable name
+	 * 	i`i'							- indicators for latent, by latent index
+	 * 	istd`i'						- indicators for latent, by latent index (standardized)
+	 * 	i`LV`i''					- indicators for latent, by latent name
+	 * 	istd`LV`i''				- indicators for latent, by latent name (standardized)
+	 *	allindicators			- all indicators
+	 *	allstdindicators	- all standardized indicators
+	 *	alllatents				- all latents
 	 */
 
 	local cmdline : list clean 0
@@ -172,7 +178,7 @@ program Estimate, eclass byable(recall)
 				if (_byindex() == 1) {  // this provides the LVs predictions when by'd
 					capture confirm new variable ``tok_i''
 					if (_rc == 110) {
-						quietly drop ``tok_i''
+						capture quietly drop ``tok_i''
 					}
 				}
 				local LV`j' ``tok_i''
@@ -218,13 +224,13 @@ program Estimate, eclass byable(recall)
 	if ("`wscheme'" == "") {
 		local wscheme "path"
 	}
-	if !("`wscheme'" == "centroid" | "`wscheme'" == "factorial"  | "`wscheme'" == "path") {
+	if !("`wscheme'" == "centroid" | "`wscheme'" == "factorial" | "`wscheme'" == "path") {
 		display as error "scheme can be either 'centroid', 'factorial', or 'path'"
 		exit
 	}
 	/* End of parsing the inner weight scheme */
 
-	/* Check convergence criteria */
+	/* Check convergence parameters */
 	if (`maxiter' <= 0) {
 		display as error "maximum number of iterations must be a positive integer"
 		exit
@@ -233,7 +239,14 @@ program Estimate, eclass byable(recall)
 		display as error "tolerance must be a strictly positive number"
 		exit
 	}
-	/* End of checking convergence criteria */
+	if ("`convcrit'" == "") {
+		local convcrit "relative"
+	}
+	if !("`convcrit'" == "relative" | "`convcrit'" == "square") {
+		display as error "convergence criterion can be either 'relative' or 'square'"
+		exit
+	}
+	/* End of checking convergence parameters */
 
 	/* Check that digits is nonnegative */
 	if (`digits' < 0) {
@@ -242,7 +255,21 @@ program Estimate, eclass byable(recall)
 	}
 	/* End of checking that digits is nonnegative */
 	
-	/* Parse the binary indicators */
+	/* Check the initialization method */
+	if ("`init'" == "") {
+		local init "indsum"
+	}
+	if !("`init'" == "eigen" | "`init'" == "indsum") {
+		display as error "initialization method can be either 'eigen' or 'indsum'"
+		exit
+	}
+	if (("`structural'" == "") & ("`init'" != "eigen")) {
+		display as error "'init()' option must be set to 'eigen' when no structural model is provided"
+		exit
+	}
+	/* End of checking the initialization method */
+
+	/* Parse the binary indicators/latents */
 	if ("`binary'" != "") {
 		foreach var in `binary' {
 			local nind_bin : word count `i`var''
@@ -252,7 +279,7 @@ program Estimate, eclass byable(recall)
 			}
 		}
 	}
-	/* End of parsing the binary indicators */
+	/* End of parsing the binary indicators/latents */
 	
 	/* Parse the correlate() option */
 	if ("`correlate'" != "") {
@@ -285,136 +312,9 @@ program Estimate, eclass byable(recall)
 	}
 	/* End of parsing the correlate() option */
 
-	/* Standardize the indicators */
-	foreach var in `allindicators' {
-		// quietly tabulate `var' if `touse'
-		// if (r(r) > 2) {
-			capture confirm new variable std`var'
-			if (_rc == 0) {
-				quietly summarize `var' if `touse'
-				quietly generate std`var' = (`var' - r(mean))/r(sd) if `touse'
-			}
-		// }
-		// else {
-		// 	capture confirm new variable std`var'
-		// 	if (_rc == 0) {
-		// 		quietly generate std`var' = `var' if `touse'  // do not standardize binary indicators
-		// 	}
-		// }
-		if (_rc == 0) {
-			local allstdindicators "`allstdindicators' std`var'"
-		}
-	}
+	/* Parse inner relationships */
 	local num_lv: word count `alllatents'
-	forvalues k = 1/`num_lv' {
-		foreach var in `i`k'' {
-			local istd`k' "`istd`k'' std`var'"
-			local istd`LV`k'' `istd`k''
-		}
-	}
 	
-	/* Initialize latents with equal weights (STEP 1) */
-	tempname sd_init
-	mata: st_matrix("`sd_init'", J(1, 0, .))  // empty matrix
-	if ("`init'" == "") {
-		local init "indsum"
-	}
-	if !("`init'" == "eigen" | "`init'" == "indsum") {
-		display as error "initialization method can be either 'eigen' or 'indsum'"
-		exit
-	}
-	if (("`structural'" == "") & ("`init'" != "eigen")) {
-		display as error "'init()' option must be set to 'eigen' when no structural model is provided"
-		exit
-	}
-	
-	if ("`rawsum'" == "") {
-		if ("`init'" == "indsum") {
-			foreach k of numlist 1/`num_lv' {
-				tokenize `"`istd`k''"'
-				if (_byindex() > 1) {  // this provides all the LVs predictions when by'd
-					quietly replace `LV`k'' = cond(`1' >= ., 0, `1') if `touse' // equation (4)
-				}
-				else {
-					quietly generate `LV`k'' = cond(`1' >= ., 0, `1') if `touse' // equation (4)
-				}
-				macro shift
-				while ("`1'" != "") {
-					quietly replace `LV`k'' = `LV`k'' + cond(`1' >= ., 0, `1') if `touse'
-					macro shift
-				}
-				quietly summarize `LV`k'' if `touse'
-				local lv : word `k' of `alllatents'
-				local isbinary : list lv in binary
-				if (!`isbinary') {
-					matrix `sd_init' = (`sd_init', r(sd))
-					local sd_init_cn `sd_init_cn' `LV`k''
-					quietly replace `LV`k'' = (`LV`k'' - r(mean))/r(sd) if `touse' // equation (5)
-				}
-			}
-		}
-		else if ("`init'" == "eigen") {
-			tempvar tmpscores
-			foreach k of numlist 1/`num_lv' {
-				if (_byindex() > 1) {  // this provides all the LVs predictions when by'd
-					if (`: word count `istd`k''' > 1) {
-						quietly factor `istd`k'' if `touse', factors(1) pcf
-						quietly predict `tmpscores' if `touse' // factor scores
-						quietly replace `LV`k'' = `tmpscores' if `touse'
-						quietly label variable `LV`k''
-						quietly drop `tmpscores'
-					}
-					else {
-						quietly replace `LV`k'' = `: word 1 of `istd`k''' if `touse'
-					}
-				}
-				else {
-					if (`: word count `istd`k''' > 1) {
-						quietly factor `istd`k'' if `touse', factors(1) pcf
-						quietly predict `LV`k'' if `touse' // component scores
-						quietly label variable `LV`k''
-					}
-					else {
-						quietly generate `LV`k'' = `: word 1 of `istd`k''' if `touse'
-					}
-				}
-				quietly summarize `LV`k'' if `touse'
-				matrix `sd_init' = (`sd_init', r(sd))
-				local sd_init_cn `sd_init_cn' `LV`k''
-				quietly replace `LV`k'' = (`LV`k'' - r(mean))/r(sd) if `touse' // equation (5)
-			}
-		}
-	}
-	else {
-		foreach k of numlist 1/`num_lv' {
-			tokenize `"`i`k''"'
-			if (_byindex() > 1) {  // this provides all the LVs predictions when by'd
-				quietly replace `LV`k'' = cond(`1' >= ., 0, `1') if `touse' // equation (4)
-				// rs_* are the unstandardized versions of the latent variables
-				quietly replace rs_`LV`k'' = cond(`1' >= ., 0, `1') if `touse' // equation (4)
-			}
-			else {
-				quietly generate `LV`k'' = cond(`1' >= ., 0, `1') if `touse' // equation (4)
-				quietly generate rs_`LV`k'' = cond(`1' >= ., 0, `1') if `touse' // equation (4)
-			}
-			macro shift
-			while ("`1'" != "") {
-				quietly replace `LV`k'' = `LV`k'' + cond(`1' >= ., 0, `1') if `touse'
-				quietly replace rs_`LV`k'' = rs_`LV`k'' + cond(`1' >= ., 0, `1') if `touse'
-				macro shift
-			}
-			quietly summarize `LV`k'' if `touse'
-			local lv : word `k' of `alllatents'
-			local isbinary : list lv in binary
-			if (!`isbinary') {
-				matrix `sd_init' = (`sd_init', r(sd))
-				local sd_init_cn `sd_init_cn' `LV`k''
-				quietly replace `LV`k'' = (`LV`k'' - r(mean))/r(sd) if `touse' // equation (5)
-			}
-		}
-	}
-
-	/* Parse inner relationship */
 	if ("`structural'" != "") {
 		tokenize `"`structural'"', parse(",")
 		
@@ -449,11 +349,11 @@ program Estimate, eclass byable(recall)
 						if (_byindex() == 1) {  // this provides the LVs predictions when by'd
 							capture confirm new variable `internm'
 							if (_rc == 110) {
-								quietly drop `internm'
+								capture quietly drop `internm'
 							}
 						}
 
-						// Add the interaction to the list of latent variables
+						// Add the interaction to the list of LVs
 						local alllatents "`alllatents' `internm'"
 						local modeA "`modeA' `internm'"
 						local num_lv: word count `alllatents'
@@ -473,7 +373,7 @@ program Estimate, eclass byable(recall)
 								if (_byindex() == 1) {  // this provides the indicators when by'd
 									capture confirm new variable `indnm'
 									if (_rc == 110) {
-										quietly drop `indnm'
+										capture quietly drop `indnm'
 									}
 									quietly generate `indnm' = `ind1'*`ind2' if `touse'
 								}
@@ -487,74 +387,7 @@ program Estimate, eclass byable(recall)
 						}
 						local i`num_lv' `inter_ind'
 						local i`internm' `inter_ind'
-						
-						// Standardize the product indicators
-						foreach var in `inter_ind' {
-							// quietly tabulate `var' if `touse'
-							// if (r(r) > 2) {
-								quietly summarize `var' if `touse'
-								quietly generate std`var' = (`var' - r(mean))/r(sd) if `touse'
-							// }
-							// else {
-							// 	quietly generate std`var' = `var' if `touse'  // do not standardize binary indicators
-							// }
-							local allstdindicators "`allstdindicators' std`var'"
-						}
-						foreach var in `i`num_lv'' {
-							local istd`num_lv' "`istd`num_lv'' std`var'"
-							local istd`LV`num_lv'' `istd`num_lv''
-						}
-						
-						// Initialize the interactions
-						if ("`init'" == "indsum") {
-							local init_tmp `istd`num_lv''
-							gettoken init_var init_tmp : init_tmp
-							if (_byindex() > 1) {  // this provides all the LVs predictions when by'd
-								quietly replace `LV`num_lv'' = cond(`init_var' >= ., 0, `init_var') if `touse' // equation (4)
-							}
-							else {
-								quietly generate `LV`num_lv'' = cond(`init_var' >= ., 0, `init_var') if `touse' // equation (4)
-							}
-							gettoken init_var init_tmp : init_tmp
-							while ("`init_var'" != "") {
-								quietly replace `LV`num_lv'' = `LV`num_lv'' + cond(`init_var' >= ., 0, `init_var') if `touse'
-								gettoken init_var init_tmp : init_tmp
-							}
-							quietly summarize `LV`num_lv'' if `touse'
-							matrix `sd_init' = (`sd_init', r(sd))
-							local sd_init_cn `sd_init_cn' `LV`num_lv''
-							quietly replace `LV`num_lv'' = (`LV`num_lv'' - r(mean))/r(sd) if `touse' // equation (5)
-						}
-						else if ("`init'" == "eigen") {
-							tempvar tmpscores
-							if (_byindex() > 1) {  // this provides all the LVs predictions when by'd
-								if (`: word count `istd`num_lv''' > 1) {
-									quietly factor `istd`num_lv'' if `touse', factors(1) pcf
-									quietly predict `tmpscores' if `touse' // component scores
-									quietly replace `LV`num_lv'' = `tmpscores' if `touse'
-									quietly label variable `LV`num_lv''
-									quietly drop `tmpscores'
-								}
-								else {
-									quietly replace `LV`num_lv'' = `: word 1 of `istd`num_lv''' if `touse'
-								}
-							}
-							else {
-								if (`: word count `istd`num_lv''' > 1) {
-									quietly factor `istd`num_lv'' if `touse', factors(1) pcf
-									quietly predict `LV`num_lv'' if `touse' // component scores
-									quietly label variable `LV`num_lv''
-								}
-								else {
-									quietly generate `LV`num_lv'' = `: word 1 of `istd`num_lv''' if `touse'
-								}
-							}
-							quietly summarize `LV`num_lv'' if `touse'
-							matrix `sd_init' = (`sd_init', r(sd))
-							local sd_init_cn `sd_init_cn' `LV`num_lv''
-							quietly replace `LV`num_lv'' = (`LV`num_lv'' - r(mean))/r(sd) if `touse' // equation (5)
-						}
-						
+
 						local new_tok "`new_tok' `var1' `var2' `internm'"
 					}
 					else {
@@ -568,14 +401,14 @@ program Estimate, eclass byable(recall)
 				local reg3eqs "`reg3eqs'``tok_i'') ("
 				local 0 ``tok_i''
 			}
-			syntax varlist(min=2)
+			syntax namelist(min=2)
 			
-			// Use macros r`var' and c`latentname' to store whether
-			// the adjacency is treated as directional in path weighting scheme
-			// The regest`var' macro is needed to store the path coefficients
+			// Use macros r`var' and c`latentname' to store whether the adjacency is
+			// treated as directional in path weighting scheme.
+			// The regest`var' macro is needed to store the path coefficients.
 			
-			local dvar : word 1 of `varlist'
-			local ivars : list varlist - dvar
+			local dvar : word 1 of `namelist'
+			local ivars : list namelist - dvar
 			local r`dvar' `r`dvar'' `ivars' // r`dvar' contains the predecessors of each LV
 			local regest`dvar' `regest`dvar'' `ivars'
 			
@@ -588,7 +421,7 @@ program Estimate, eclass byable(recall)
 		local parenthesis = "("
 		local reg3eqs : list reg3eqs - parenthesis
 		local reg3eqs : list clean reg3eqs
-		
+
 		foreach var in `alllatents' {
 			if ("`r`var''`c`var''" == "") {
 				display as error "latent `var' is not adjacent to any other latent"
@@ -608,244 +441,201 @@ program Estimate, eclass byable(recall)
 				local r`var' ""
 			}
 		}
-		matrix colnames `sd_init' = `sd_init_cn'
 	}
 	
-	/* Start of the PLS algorithm */
-	tempname converged iter reldiff
-	
-	scalar `converged' = 0
-	scalar `iter' = 1
-	
-	tempname C W outerW Whistory Whist_mata X y bcoef Wold lv sd_lv mat0 matreldiff
+	/* Create some more utility macros */
+	foreach var in `allindicators' {
+		local allstdindicators "`allstdindicators' std`var'"
+	}
+	local allstdindicators : list clean allstdindicators
+	forvalues k = 1/`num_lv' {
+		foreach var in `i`k'' {
+			local istd`k' "`istd`k'' std`var'"
+			local istd`LV`k'' `istd`k''
+		}
+	}
 
-	if ("`structural'" != "") {
-		local num_ind : word count `allindicators'
-		matrix `Whistory' = J(1, `num_ind', .)
-		mata: `Whist_mata' = J(0, strtoreal(st_local("num_ind")), .)
-		local count_sd = 1
-		foreach var in `modeA' {
-			local nmi : list posof "`var'" in sd_init_cn
-			foreach var2 in `i`var'' {
-				matrix `Whistory'[1, `count_sd'] = 1/`sd_init'[1, `nmi']
-				local Whistcolnames `Whistcolnames' "`var2':`var'"
-				local ++count_sd
+	/* Create the adjacency matrices */
+	tempname modes adj_meas adj_struct
+	local num_ind : word count `allindicators'
+
+	matrix `modes' = J(`num_lv', 1, 1)
+	local i = 1
+	foreach var in `alllatents' {
+		if (`: list var in modeA') {
+			matrix `modes'[`i', 1] = 0
+		}
+		local ++i
+	}
+	
+	matrix `adj_meas' = J(`num_ind', `num_lv', 0)	
+	local i = 1
+	local j = 1
+	foreach var in `alllatents' {
+		foreach var2 in `i`var'' {
+			matrix `adj_meas'[`i', `j'] = 1
+			local ++i
+		}
+		if (`: list var in modeA') {
+			local loadcolnames `loadcolnames' "Reflective:`var'"
+		}
+		else {
+			local loadcolnames `loadcolnames' "Formative:`var'"
+		}
+		local loadrownames `loadrownames' `i`var''
+		local ++j
+	}
+	matrix rownames `adj_meas' = `loadrownames'
+	matrix colnames `adj_meas' = `loadcolnames'
+
+	matrix `adj_struct' = J(`num_lv', `num_lv', 0)
+	local B_j = 1
+	foreach var in `alllatents' {
+		if ("`regest`var''" != "") {
+			forvalues lv_i = 1/`num_lv' {
+				local xn : word `lv_i' of `alllatents'
+				local isthere : list xn in regest`var'
+				if (`isthere') {
+					local B_i : list posof "`xn'" in alllatents
+					matrix `adj_struct'[`B_i', `B_j'] = 1
+				}
 			}
 		}
-		foreach var in `modeB' {
-			local nmi : list posof "`var'" in sd_init_cn
-			foreach var2 in `i`var'' {
-				matrix `Whistory'[1, `count_sd'] = 1/`sd_init'[1, `nmi']
-				local Whistcolnames `Whistcolnames' "`var2':`var'"
-				local ++count_sd
-			}
-		}
+		local ++B_j
+	}
 
-		if ("`rawsum'" == "") {
-			matrix `outerW' = J(`: word count `allindicators'', ///
-				`: word count `alllatents'', 0)  // matrix of outer weights
-			while (!`converged') {
-				// Inner estimation. The three commonly used schemes are:
-				// - centroid	==> sign of correlations
-				// - factor		==> correlations
-				// - path			==> correlations and regresions
-				
-				// Update the latents as weighted sums of adjacent latents
-				// These are stored as separate temporary variables
-				
-				mata: `sd_lv' = J(1, 0, .)  // vector of latent variable standard deviations
-				
-				// (STEP 2)
+	/* Standardize the MVs (if requested) */
+	tempname X
+
+	mata: `X' = st_data(., "`allindicators'", "`touse'")
+	capture mata: idx = st_addvar("double", tokens("`allstdindicators'"))
+	if (_rc != 0) {
+		foreach var in `allstdindicators' {
+			capture quietly drop `var'
+		}
+		mata: idx = st_addvar("double", tokens("`allstdindicators'"))
+	}
+	if ("`scale'" == "") {
+		mata: st_store(., tokens("`allstdindicators'"), "`touse'", scale(`X'))
+	}
+	else {
+		mata: st_store(., tokens("`allstdindicators'"), "`touse'", `X')
+	}
+
+	/* Initialize LVs */
+	tempname Y
+	
+	if ("`rawsum'" == "") {
+		if ("`init'" == "indsum") {
+			mata: `Y' = st_data(., "`allstdindicators'", "`touse'") * st_matrix("`adj_meas'")
+			capture mata: idx = st_addvar("double", tokens("`alllatents'"))
+			if (_rc != 0) {
 				foreach var in `alllatents' {
-					tempvar t`var'
-					
-					/* Inner estimation with regression weights (path) */
-					if ("`r`var''" != "") {
-						quietly regress `var' `r`var'' if `touse'
-						quietly predict `t`var'' if `touse'
+					capture quietly drop `var'
+				}
+				mata: idx = st_addvar("double", tokens("`alllatents'"))
+			}
+			mata: st_store(., tokens("`alllatents'"), "`touse'", scale(`Y'))
+		}
+		else if ("`init'" == "eigen") {
+			tempvar tmpscores
+			foreach k of numlist 1/`num_lv' {
+				if (_byindex() > 1) {  // this provides all the LVs predictions when by'd
+					if (`: word count `istd`k''' > 1) {
+						quietly factor `istd`k'' if `touse', factors(1) pcf
+						quietly predict `tmpscores' if `touse' // factor scores
+						quietly replace `LV`k'' = `tmpscores' if `touse'
+						quietly label variable `LV`k''
+						capture quietly drop `tmpscores'
 					}
 					else {
-						quietly generate `t`var'' = 0 if `touse'
+						quietly replace `LV`k'' = `: word 1 of `istd`k''' if `touse'
 					}
-					
-					/* Inner estimation with correlational weights (all schemes) */
-					foreach var2 in `c`var'' {
-						quietly correlate `var' `var2' if `touse'
-						matrix `C' = r(C)
-						if ("`wscheme'" == "centroid") {
-							quietly replace `t`var'' = `t`var'' + `var2' * `C'[1, 2]/abs(`C'[1, 2]) ///
-								if `touse' // Y~ = Y^*E for centroid scheme + equation (13)
-						}
-						else {
-							quietly replace `t`var'' = `t`var'' + `var2' * `C'[1, 2] ///
-								if `touse' // Y~ = Y^*E for factorial and path schemes + equation (14)
-						}
-					}
-					
-					/* Standardize the LVs */
-					local isbinary : list var in binary
-					if (!`isbinary') {
-						quietly summarize `var' if `touse'
-						quietly replace `var' = (`var' - r(mean))/r(sd) if `touse' // equation (10)
-						quietly summarize `t`var'' if `touse'
-						quietly replace `t`var'' = (`t`var'' - r(mean))/r(sd) if `touse' // equation (10)
-					}
-				}
-				
-				// (STEP 3&4)
-				// Store weights in matrix. These are unscaled and only used for
-				// convergence check
-				// mata: st_matrix("`W'", J(1, 0, .))  // empty matrix
-				local i = 1
-				local j = 1
-				
-				/* Outer estimation (Mode A) */
-				foreach var in `modeA' {
-					quietly replace `var' = 0 if `touse'
-					foreach var2 in `istd`var'' {
-						if (`: word count `istd`var''' == 1) {
-							matrix `outerW'[`i', `j'] = 1
-							quietly replace `var' = `var2' if `touse'
-							local ++i
-							continue, break
-						}
-						else {
-							quietly correlate `t`var'' `var2' if `touse' // equation (7)
-							matrix `C' = r(C)
-							// matrix `W' = (`W', `C'[1, 2])
-							matrix `outerW'[`i', `j'] = `C'[1, 2]
-							quietly replace `var' = `var' + `var2' * `C'[1, 2] ///
-								if `touse' // equation (9) for mode A LVs
-							local ++i
-						}
-					}
-					local ++j
-					mata: st_view(`lv' = ., ., "`var'", "`touse'")
-					mata: `sd_lv' = (`sd_lv', sqrt(variance(`lv')))
-				}
-				
-				/* Outer estimation (Mode B) */
-				foreach var in `modeB' {
-					tempvar tv
-					if (`: word count `istd`var''' == 1) {
-						matrix `outerW'[`i', `j'] = 1
-						quietly generate `tv' = `istd`var'' if `touse'
-						quietly replace `var' = `tv' if `touse' // equation (9) for mode B LVs
-						local ++i
-						local ++j
-					}
-					else {
-						// quietly regress `t`var'' `istd`var'' if `touse', noconstant // equation (8)
-						// matrix `W' = (`W', e(b))
-						// quietly predict `tv' if `touse'
-						mata: st_view(`y' = ., ., "`t`var''", "`touse'")
-						mata: st_view(`X' = ., ., "`istd`var''", "`touse'")
-						mata: st_matrix("`bcoef'", qrsolve(cross(`X', `X'), cross(`X', `y'))')
-						// matrix `W' = (`W', `bcoef')
-						quietly generate `tv' = .
-						mata: st_store(., "`tv'", "`touse'", `X' * st_matrix("`bcoef'")')
-						quietly replace `var' = `tv' if `touse' // equation (9) for mode B LVs
-						matrix `outerW'[`i', `j'] = `bcoef''
-						local i = `i' + colsof(`bcoef')
-						local ++j
-					}
-					quietly drop `tv'
-					mata: st_view(`lv' = ., ., "`var'", "`touse'")
-					mata: `sd_lv' = (`sd_lv', sqrt(variance(`lv')))
-				}
-				
-				/* Rescale the outer weights according to the LVs scale */
-				mata: st_matrix("`outerW'", st_matrix("`outerW'") :/ `sd_lv')
-				
-				/* Standardize the LVs */
-				foreach var of varlist `alllatents' {
-					local isbinary : list var in binary
-					if (!`isbinary') {
-						quietly summarize `var' if `touse'
-						quietly replace `var' = (`var' - r(mean))/r(sd) if `touse' // equation (10)
-					}
-				}
-				
-				// (STEP 5)
-				// Convergence check: compare new weights (W) with those from previous
-				// iteration (Wold)
-
-				mata: st_matrix("`W'", rowsum(st_matrix("`outerW'"))')
-				mata: `Whist_mata' = (`Whist_mata' \ st_matrix("`W'"))
-				if (`iter' == 1) {
-					matrix `mat0' = J(1, colsof(`W'), 0)
-					scalar `reldiff' = mreldif(`W', `mat0')
-					matrix `matreldiff' = `reldiff'
 				}
 				else {
-					scalar `reldiff' = mreldif(`W', `Wold')
-					matrix `matreldiff' = (`matreldiff', `reldiff')
-					scalar `converged' = (`reldiff' < `tol') // equation (11)
-				}
-				matrix `Wold' = `W'
-
-				scalar `iter' = `iter' + 1
-
-				/* Maximum number of iterations reached */
-				if (`iter' > `maxiter') {
-					continue, break
-					// error 430
+					if (`: word count `istd`k''' > 1) {
+						quietly factor `istd`k'' if `touse', factors(1) pcf
+						quietly predict `LV`k'' if `touse' // component scores
+						quietly label variable `LV`k''
+					}
+					else {
+						quietly generate `LV`k'' = `: word 1 of `istd`k''' if `touse'
+					}
 				}
 			}
-		mata: st_matrix("`Whistory'", (st_matrix("`Whistory'") \ `Whist_mata'))
+			mata: `Y' = st_data(., "`alllatents'", "`touse'")
+			mata: st_store(., tokens("`alllatents'"), "`touse'", scale(`Y'))
 		}
 	}
 	else {
-		/* Outer estimation (Mode A) */
-		foreach var in `modeA' {
-			tempvar t`var'
-			capture confirm new variable `t`var''
-			if (_rc == 0) {
-				quietly generate `t`var'' = `var' if `touse'
+		foreach k of numlist 1/`num_lv' {
+			tokenize `"`i`k''"'
+			if (_byindex() > 1) {  // this provides the LVs scores when by'd
+				quietly replace `LV`k'' = cond(`1' >= ., 0, `1') if `touse'
+				// rs_* are the unstandardized LVs (to use with 'rawsum')
+				quietly replace rs_`LV`k'' = cond(`1' >= ., 0, `1') if `touse'
 			}
 			else {
-				quietly replace `t`var'' = `var' if `touse'
+				quietly generate `LV`k'' = cond(`1' >= ., 0, `1') if `touse'
+				quietly generate rs_`LV`k'' = cond(`1' >= ., 0, `1') if `touse'
 			}
-			quietly replace `var' = 0 if `touse'
-			foreach var2 in `istd`var'' {
-				quietly correlate `t`var'' `var2' if `touse' // equation (7)
-				matrix `C' = r(C)
-				quietly replace `var' = `var' + `var2' * `C'[1, 2] ///
-					if `touse' // equation (9) for mode A LVs
+			macro shift
+			while ("`1'" != "") {
+				quietly replace `LV`k'' = `LV`k'' + cond(`1' >= ., 0, `1') if `touse'
+				quietly replace rs_`LV`k'' = rs_`LV`k'' + cond(`1' >= ., 0, `1') if `touse'
+				macro shift
 			}
 		}
-		
-		/* Outer estimation (Mode B) */
-		foreach var in `modeB' {
-			tempvar t`var'
-			capture confirm new variable `t`var''
-			if (_rc == 0) {
-				quietly generate `t`var'' = `var' if `touse'
-			}
-			else {
-				quietly replace `t`var'' = `var' if `touse'
-			}
-			tempvar tv
-			// quietly regress `t`var'' `istd`var'' if `touse', noconstant // equation (8)
-			// quietly predict `tv' if `touse'
-			mata: st_view(`y' = ., ., "`t`var''", "`touse'")
-			mata: st_view(`X' = ., ., "`istd`var''", "`touse'")
-			mata: st_matrix("`bcoef'", qrsolve(cross(`X', `X'), cross(`X', `y'))')
-			quietly generate `tv' = .
-			mata: st_store(., "`tv'", "`touse'", `X' * st_matrix("`bcoef'")')
-			quietly replace `var' = `tv' if `touse' // equation (9) for mode B LVs
-			quietly drop `tv'
-		}
+		mata: `Y' = st_data(., "`alllatents'", "`touse'")
+		mata: st_store(., tokens("`alllatents'"), "`touse'", scale(`Y'))
+	}
 
-		/* Standardize the LVs */
-		foreach var of varlist `alllatents' {
-			local isbinary : list var in binary
-			if (!`isbinary') {
-				quietly summarize `var' if `touse'
-				quietly replace `var' = (`var' - r(mean))/r(sd) if `touse' // equation (10)
-			}
+	/* Start the PLS algorithm */
+	tempname rawsum_sc struct_sc converged res outerW iter matreldiff Whistory
+	
+	if ("`rawsum'" == "") {
+		scalar `rawsum_sc' = 0
+	}
+	else {
+		scalar `rawsum_sc' = 1
+	}
+	if ("`structural'" == "") {
+		scalar `struct_sc' = 0
+	}
+	else {
+		scalar `struct_sc' = 1
+	}
+		
+	mata: `res' = ///
+		plssem_base( ///
+			st_data(., "`allstdindicators'", "`touse'"), ///
+			st_data(., "`alllatents'", "`touse'"), ///
+			st_matrix("`adj_meas'"), ///
+			st_matrix("`adj_struct'"), ///
+			st_matrix("`modes'"), ///
+			"`alllatents'", ///
+			"`binary'", ///
+			strtoreal("`tol'"), ///
+			strtoreal("`maxiter'"), ///
+			"`touse'", ///
+			"`wscheme'", ///
+			"`convcrit'", ///
+			st_numscalar("`struct_sc'"), ///
+			st_numscalar("`rawsum_sc'"))
+	
+	mata: st_numscalar("`converged'", `res'.converged)
+	mata: st_numscalar("`iter'", `res'.niter)
+	mata: st_matrix("`matreldiff'", `res'.diff)
+	mata: st_matrix("`Whistory'", `res'.evo)
+	foreach var in `alllatents' {
+		foreach var2 in `i`var'' {
+			local Whistcolnames `Whistcolnames' "`var2':`var'"
 		}
 	}
+	matrix colnames `Whistory' = `Whistcolnames'
+	mata: st_matrix("`outerW'", `res'.outer_weights)
+	matrix rownames `outerW' = `loadrownames'
+	matrix colnames `outerW' = `loadcolnames'
 	
 	/* Label the LVs */
 	local now "`c(current_date)', `c(current_time)'"
@@ -854,240 +644,111 @@ program Estimate, eclass byable(recall)
 		label variable `var' "Scores of `var' latent variable [`now']"
 	}
 
-	/* Make the binary latent equal to 0 or 1 */
-	foreach var in `binary' {
-		quietly summarize `var' if `touse'
-		local minval r(min)
-		local maxval r(max)
-		if (`minval' < `maxval') {
-			quietly replace `var' = 0 if (`var' == `minval') & `touse'
-			quietly replace `var' = 1 if (`var' == `maxval') & `touse'
-		}
-		else {
-			quietly replace `var' = 1 if (`var' == `minval') & `touse'
-			quietly replace `var' = 0 if (`var' == `maxval') & `touse'
+	/* Compute the model parameters' variances */
+	tempname xload_v res_bs path_v
+
+	if ("`boot'" == "") {
+		mata: `xload_v' = ///
+			plssem_lv( ///
+				st_data(., "`allstdindicators'", "`touse'"), ///
+				st_data(., "`alllatents'", "`touse'"), ///
+				"`alllatents'", ///
+				"`binary'")
+		if ("`structural'" != "") {
+			mata: `path_v' = `res'.path_v
 		}
 	}
-	
+	else {
+		mata: `res_bs' = ///
+			plssem_boot( ///
+				st_data(., "`allstdindicators'", "`touse'"), ///
+				st_data(., "`alllatents'", "`touse'"), ///
+				st_matrix("`adj_meas'"), ///
+				st_matrix("`adj_struct'"), ///
+				st_matrix("`modes'"), ///
+				"`alllatents'", ///
+				"`binary'", ///
+				strtoreal("`tol'"), ///
+				strtoreal("`maxiter'"), ///
+				"`touse'", ///
+				"`wscheme'", ///
+				"`convcrit'", ///
+				st_numscalar("`struct_sc'"), ///
+				st_numscalar("`rawsum_sc'"), ///
+				strtoreal("`boot'"), ///
+				strtoreal("`seed'"), ///
+				1)
+		mata: `xload_v' = `res_bs'.xloadings_v
+		if ("`structural'" != "") {
+			mata: `path_v' = `res_bs'.path_v
+		}
+	}
+
 	/* Compute the table of measurement loadings */
-	tempname loadings loadings_se adj_meas Cor Cor_var ave ave_num
-	if ("`boot'" != "") {
-		tempname loadings_bs Cor_bs
-	}
-	local num_ind: word count `allindicators'
-	local num_lv_A: word count `modeA'
-	local num_lv_B: word count `modeB'
-	matrix `loadings' = J(`num_ind', `num_lv', .)
-	if ("`boot'" != "") {
-		matrix `loadings_bs' = J(`num_ind', `num_lv', .)
-	}
-	matrix `loadings_se' = J(`num_ind', `num_lv', .)
-	matrix `adj_meas' = J(`num_ind', `num_lv', 0)
-	if (`num_lv_A' > 0) {
-		matrix `ave' = J(1, `num_lv_A', .)
-		matrix `ave_num' = J(1, `num_lv_A', .)
-	}
-	foreach var in `modeA' {
-		local loadcolnames `loadcolnames' "Reflective:`var'"
-		local loadrownames `loadrownames' `i`var''
-	}
-	foreach var in `modeB' {
-		local loadcolnames `loadcolnames' "Formative:`var'"
-		local loadrownames `loadrownames' `i`var''
-	}
+	tempname loadings xloadings annihilate_se loadings_se xloadings_se
+
+	mata: st_matrix("`loadings'", `res'.loadings)
 	matrix rownames `loadings' = `loadrownames'
 	matrix colnames `loadings' = `loadcolnames'
-	if ("`structural'" != "") & ("`rawsum'" == "") {
-		matrix rownames `outerW' = `loadrownames'
-		matrix colnames `outerW' = `loadcolnames'
-		matrix colnames `Whistory' = `Whistcolnames'
-	}
+
+	mata: st_matrix("`xloadings'", `res'.xloadings)
+	matrix rownames `xloadings' = `loadrownames'
+	matrix colnames `xloadings' = `loadcolnames'
+
 	if ("`boot'" != "") {
+		tempname loadings_bs xloadings_bs
+		
+		mata: st_matrix("`loadings_bs'", `res_bs'.loadings_bs)
 		matrix rownames `loadings_bs' = `loadrownames'
 		matrix colnames `loadings_bs' = `loadcolnames'
+
+		mata: st_matrix("`xloadings_bs'", `res_bs'.xloadings_bs)
+		matrix rownames `xloadings_bs' = `loadrownames'
+		matrix colnames `xloadings_bs' = `loadcolnames'
 	}
-	matrix rownames `adj_meas' = `loadrownames'
-	matrix colnames `adj_meas' = `loadcolnames'
-	if (`num_lv_A' > 0) {
-		matrix rownames `ave' = "AVE"
-		matrix colnames `ave' = `modeA'
-		matrix colnames `ave_num' = `modeA'
-	}
-	
-	local start = 1
-	local i = 1
-	tempname ave_tmp
-	tempvar var_std
-	quietly generate `var_std' = . if `touse'
-	foreach var in `modeA' {
-		scalar `ave_tmp' = 0
-		local to_use: word count `i`var''
-		local isbinary : list var in binary
-		foreach var2 in `istd`var'' {
-			if ("`boot'" == "") {
-				if ("`rawsum'" == "") {
-					quietly regress `var' `var2' if `touse'
-				}
-				else {
-					quietly summarize `var' if `touse'
-					quietly replace `var_std' = (`var' - r(mean))/r(sd) if `touse'
-					quietly regress `var_std' `var2' if `touse'
-				}
-				matrix `Cor' = e(b)
-				matrix `Cor_var' = e(V)
-			}
-			else {
-				if ("`rawsum'" == "") {
-					quietly bootstrap, reps(`boot') seed(`seed'): regress `var' `var2' if `touse'
-				}
-				else {
-					quietly summarize `var' if `touse'
-					quietly replace `var_std' = (`var' - r(mean))/r(sd) if `touse'
-					quietly bootstrap, reps(`boot') seed(`seed'): regress `var_std' `var2' if `touse'
-				}
-				matrix `Cor' = e(b)
-				if ("`boot'" != "") {
-					matrix `Cor_bs' = e(b_bs)
-				}
-				matrix `Cor_var' = e(V)
-			}
-			if (!`isbinary') {
-				matrix `loadings'[`start', `i'] = `Cor'[1, 1]
-				if ("`boot'" != "") {
-					matrix `loadings_bs'[`start', `i'] = `Cor_bs'[1, 1]
-				}
-				matrix `loadings_se'[`start', `i'] = `Cor_var'[1, 1]
-			}
-			else {
-				matrix `loadings'[`start', `i'] = 1
-				if ("`boot'" != "") {
-					matrix `loadings_bs'[`start', `i'] = 1
-				}
-				matrix `loadings_se'[`start', `i'] = 0
-			}
-			local ++start
-*			if (!`isbinary') {
-				scalar `ave_tmp' = `ave_tmp' + `Cor'[1, 1]^2/`to_use'
-*			}
-*			else {
-*				scalar `ave_tmp' = 1
-*			}
-		}
-		matrix `ave_num'[1, `i'] = `to_use'
-		matrix `ave'[1, `i'] = `ave_tmp'
-		local end = `start' + `to_use' - 1
-		local ++i
-	}
-	
-	tempname modeB_b modeB_var
-	if ("`boot'" != "") {
-		tempname modeB_b_bs
-	}
-	foreach var in `modeB' {
-		local isbinary : list var in binary
-		if ("`boot'" == "") {
-			if ("`rawsum'" == "") {
-				quietly regress `var' `istd`var'' if `touse'
-			}
-			else {
-				quietly summarize `var' if `touse'
-				quietly replace `var_std' = (`var' - r(mean))/r(sd) if `touse'
-				quietly regress `var_std' `istd`var'' if `touse'
-			}
-			matrix `modeB_b' = e(b)
-			matrix `modeB_var' = e(V)
-		}
-		else {
-			if ("`rawsum'" == "") {
-				quietly bootstrap, reps(`boot') seed(`seed'): regress `var' `istd`var'' if `touse'
-			}
-			else {
-				quietly summarize `var' if `touse'
-				quietly replace `var_std' = (`var' - r(mean))/r(sd) if `touse'
-				quietly bootstrap, reps(`boot') seed(`seed'): regress `var_std' `istd`var'' if `touse'
-			}
-			matrix `modeB_b' = e(b)
-			matrix `modeB_b_bs' = e(b_bs)
-			matrix `modeB_var' = e(V)
-		}
-		local to_use: word count `i`var''
-		local end = `start' + `to_use' - 1
-		matrix `modeB_b' = `modeB_b''
-		if ("`boot'" != "") {
-			matrix `modeB_b_bs' = `modeB_b_bs''
-		}
-		matrix `modeB_var' = vecdiag(`modeB_var')
-		matrix `modeB_var' = `modeB_var''
-		if (!`isbinary') {
-			matrix `loadings'[`start', `i'] = `modeB_b'[1..`to_use', 1]
-			if ("`boot'" != "") {
-				matrix `loadings_bs'[`start', `i'] = `modeB_b_bs'[1..`to_use', 1]
-			}
-			matrix `loadings_se'[`start', `i'] = `modeB_var'[1..`to_use', 1]
-		}
-		else {
-			matrix `loadings'[`start', `i'] = 1
-			if ("`boot'" != "") {
-				matrix `loadings_bs'[`start', `i'] = 1
-			}
-			matrix `loadings_se'[`start', `i'] = 0
-		}
-		local start = `end' + 1
-		local ++i
-	}
-	mata: st_matrix("`loadings_se'", sqrt(st_matrix("`loadings_se'")))
+
+	mata: `annihilate_se' = editvalue(st_matrix("`adj_meas'"), 0, .)
+	mata: st_matrix("`loadings_se'", sqrt(`xload_v') :* `annihilate_se')
 	matrix rownames `loadings_se' = `loadrownames'
 	matrix colnames `loadings_se' = `loadcolnames'
 
-	forvalues i = 1/`num_ind' {
-		forvalues j = 1/`num_lv' {
-			if (!missing(`loadings'[`i', `j'])) {
-				matrix `adj_meas'[`i', `j'] = 1
-			}
-		}
-	}
+	mata: st_matrix("`xloadings_se'", sqrt(`xload_v'))
+	matrix rownames `xloadings_se' = `loadrownames'
+	matrix colnames `xloadings_se' = `loadcolnames'
 	
 	/* Compute the table of average variance extracted */
+	local num_ind: word count `allindicators'
+	local num_lv_A: word count `modeA'
+	
 	if (`num_lv_A' > 0) {
 		tempname sqcorr
-		matrix `sqcorr' = J(`num_lv_A', `num_lv_A', .)
-		local count = 2
-		local j = 1
-		foreach var in `modeA' {
-			local isbinary : list var in binary
-			local resttmp `resttmp' `var'
-			local rest : list modeA - resttmp
-			local i = `count'
-			foreach var2 in `rest' {
-				if ("`boot'" == "") {
-					quietly regress `var' `var2' if `touse'
-					matrix `Cor' = e(b)
-				}
-				else {
-					quietly bootstrap, reps(`boot') seed(`seed'): regress `var' `var2' if `touse'
-					matrix `Cor' = e(b)
-				}
-				matrix `Cor' = `Cor'[1, 1]
-	*			if (!`isbinary') {
-					matrix `sqcorr'[`i', `j'] = `Cor'[1, 1]^2
-	*			}
-	*			else {
-	*				matrix `sqcorr'[`i', `j'] = 1
-	*			}
-				local ++i
-			}
-			local ++j
-			local ++count
-		}
-		forvalues ii = 1/`num_lv_A' {
-			matrix `sqcorr'[`ii', `ii'] = 1
-		}
+		
+		/*
+		mata: st_matrix("`sqcorr'", ///
+			correlation(st_data(., "`modeA'", "`touse'")) :^ 2)
 		matrix rownames `sqcorr' = `modeA'
 		matrix colnames `sqcorr' = `modeA'
+		*/
+		mata: st_matrix("`sqcorr'", ///
+			correlation(st_data(., "`alllatents'", "`touse'")) :^ 2)
+		matrix rownames `sqcorr' = `alllatents'
+		matrix colnames `sqcorr' = `alllatents'
 	}
+
+	tempname ave_num ave_mata whichB ave
+	
+	mata: st_matrix("`ave_num'", colsum(st_matrix("`adj_meas'")))
+	mata: `ave_mata' = ///
+		colsum(st_matrix("`loadings'") :^ 2) :/ st_matrix("`ave_num'")
+	mata: `whichB' = colsum(strmatch(tokens("`alllatents'"), tokens("`modeB'")'))
+	mata: `ave_mata'[., selectindex(`whichB')] = .
+	mata: st_matrix("`ave'", `ave_mata')
+	matrix colnames `ave_num' = `alllatents'
+	matrix rownames `ave' = "AVE"
+	matrix colnames `ave' = `alllatents'
 	
 	/* Compute the table of summary statistics for indicators */
-	// ("if `touse'" is not used here to correctly count missing values)
+	// ("if `touse'" is not used here to correctly account for the missing values)
 	if ("`stats'" != "") {
 		tempname indstats
 		local k = 1
@@ -1119,212 +780,98 @@ program Estimate, eclass byable(recall)
 	
 	/* Compute the table of structural path coefficients */
 	if ("`structural'" != "") {
-		foreach var in `alllatents' {
-			if ("`regest`var''" != "") {
-				local lv_regest_all `lv_regest_all' `var'
-			}
-			local regest_all `regest_all' `regest`var''
+		tempname path path_se rsquared redundancy path_pval pathtab
+		
+		mata: st_matrix("`path'", `res'.path)
+		matrix rownames `path' = `alllatents'
+		matrix colnames `path' = `alllatents'
+
+		if ("`boot'" != "") {
+			tempname path_bs
+			
+			mata: st_matrix("`path_bs'", `res_bs'.path_bs)
+			matrix rownames `path_bs' = `alllatents'
+			matrix colnames `path_bs' = `alllatents'
 		}
-		local lv_regest_all : list uniq lv_regest_all
-		local regest_all : list uniq regest_all
-		local regest_all = strtrim("`regest_all'")
+		
+		mata: st_matrix("`path_se'", sqrt(`path_v'))
+		matrix rownames `path_se' = `alllatents'
+		matrix colnames `path_se' = `alllatents'
+
+		mata: st_matrix("`rsquared'", `res'.r2)
+		matrix rownames `rsquared' = "r2"
+		matrix colnames `rsquared' = `alllatents'
+		
+		mata: st_matrix("`redundancy'", `res'.r2 :* st_matrix("`ave'"))
+		matrix rownames `redundancy' = "redundancy"
+		matrix colnames `redundancy' = `alllatents'
+		
+		mata: st_local("regest_all", ///
+			invtokens(tokens("`alllatents'")[selectindex(rowsum(`res'.S))]))
+		mata: st_local("lv_regest_all", ///
+			invtokens(tokens("`alllatents'")[selectindex(colsum(`res'.S))]))
+		local num_lv_path : word count `lv_regest_all'
+		
+		mata: `path_pval' = ///
+			plssem_pval( ///
+				st_matrix("`path'"), ///
+				st_matrix("`path_se'"), ///
+				"`alllatents'", ///
+				"`binary'", ///
+				strtoreal("`nobs'"), ///
+				("`boot'" != ""))
+
+		mata: st_matrix("`pathtab'", ///
+			plssem_pathtab(st_matrix("`path'"), `path_pval', `res'.r2_a))
 		foreach var in `regest_all' {
 			local pathtab_rownames "`pathtab_rownames' `var' ."
 		}
-		local num_lv_path : word count `lv_regest_all'
-		local num_path : word count `regest_all'
-		tempname pathtab rsquared redundancy tmp_b tmp_var tmp_se tmp_df
-		if ("`boot'" != "") {
-			tempname tmp_b_bs
-		}
-		matrix `pathtab' = J(2*`num_path' + 1, `num_lv_path', .)
-		if (`num_lv_A' > 0) {
-			matrix `rsquared' = J(1, `num_lv_A', .)
-			matrix `redundancy' = J(1, `num_lv_A', .)
-		}
-		local lv_j = 1
-		foreach var in `alllatents' {
-			local isbinary : list var in binary
-			if ("`regest`var''" != "") {
-				local numind_lv : word count `regest`var''
-				if ("`boot'" == "") {
-					if (!`isbinary') {
-						quietly regress `var' `regest`var'' if `touse'
-					}
-					else {
-						quietly logit `i`var'' `regest`var'' if `touse'
-					}
-					matrix `tmp_b' = e(b)
-				}
-				else {
-					if (!`isbinary') {
-						quietly bootstrap, reps(`boot') seed(`seed'): regress `var' `regest`var'' if `touse'
-					}
-					else {
-						quietly bootstrap, reps(`boot') seed(`seed'): logit `i`var'' `regest`var'' if `touse'
-					}
-					matrix `tmp_b' = e(b)
-					matrix `tmp_b_bs' = e(b_bs)
-				}
-				matrix `tmp_var' = e(V)
-				scalar `tmp_df' = e(N) - e(df_m) - 1
-				local b_colnames : colnames `tmp_b'
-				forvalues lv_i = 1/`numind_lv' {
-					local xn : word `lv_i' of `b_colnames'
-					local xi : list posof "`xn'" in pathtab_rownames
-					matrix `pathtab'[`xi', `lv_j'] = `tmp_b'[1, `lv_i']
-					matrix `pathtab'[`xi' + 1, `lv_j'] = 2*ttail(`tmp_df', ///
-						abs(`tmp_b'[1, `lv_i']/sqrt(`tmp_var'[`lv_i', `lv_i'])))
-				}
-				if (!`isbinary') {
-					matrix `pathtab'[2*`num_path' + 1, `lv_j'] = e(r2_a)
-				}
-				else {
-					matrix `pathtab'[2*`num_path' + 1, `lv_j'] = e(r2_p)
-				}
-				local ismodeA : list var in modeA
-				local isbinary : list var in binary
-				if (`ismodeA' & !`isbinary') {
-					if (`num_lv_A' > 0) {
-					local vari : list posof "`var'" in modeA
-					matrix `rsquared'[1, `vari'] = e(r2)
-					matrix `redundancy'[1, `vari'] = `ave'[1, `vari'] * `rsquared'[1, `vari']
-					}
-				}
-				estimates store `var'
-				local regest_tbl `regest_tbl' `var'
-				local ++lv_j
-			}
-		}
 		matrix rownames `pathtab' = `pathtab_rownames' "r2_a"
 		matrix colnames `pathtab' = `lv_regest_all'
-		if (`num_lv_A' > 0) {
-			matrix rownames `rsquared' = "r2"
-			matrix colnames `rsquared' = `modeA'
-			matrix rownames `redundancy' = "redundancy"
-			matrix colnames `redundancy' = `modeA'
-		}
 	}
 	
-	/* Compute reliability coefficients */
-	local rr = 1
-	tempname dgnum dgden relcoef
-	matrix `relcoef' = J(2, `num_lv', .)
-	local start = 1
-	foreach var in `modeA' {
-		local num_ind_A = `: word count `i`var'''
-		local sqsumload = 0
-		if (`num_ind_A' > 1) {
-			quietly alpha `i`var'' if `touse', std asis
-			matrix `relcoef'[1, `rr'] = r(alpha)
-		}
-		else {
-			matrix `relcoef'[1, `rr'] = 1
-		}
-		forvalues hh = 1/`num_ind_A' {
-			local sqsumload = `sqsumload' + `loadings'[`start' + `hh' - 1, `rr']
-		}
-		scalar `dgnum' = `sqsumload'^2
-		scalar `dgden' = `dgnum' + `num_ind_A'*(1 - `ave'[1, `rr'])
-		matrix `relcoef'[2, `rr'] = `dgnum'/`dgden'
-		local start = `start' + `num_ind_A'
-		local ++rr
-	}
+	/* Compute the reliability coefficients */
+	tempname relcoef
+	
+	mata: st_matrix("`relcoef'", ///
+		plssem_reliability( ///
+			st_data(., "`allindicators'", "`touse'"), ///
+			st_matrix("`loadings'"), ///
+			st_matrix("`ave'"), ///
+			st_matrix("`modes'")))
 	matrix rownames `relcoef' = "Cronbach" "DG"
 	matrix colnames `relcoef' = `loadcolnames'
 	
-	/* Setup the table of structural coefficients */
+	/* Setup the tables of structural coefficients */
 	if ("`structural'" != "") {
-		tempname strcoef_tmp strcoef strse strstats strvif B adj_struct
-		if ("`boot'" != "") {
-			tempname B_bs
+		tempname path_mata strcoef path_se_mata strse path_vif_mata strvif
+		
+		mata: `path_mata' = st_matrix("`path'")
+		mata: st_matrix("`strcoef'", ///
+			`path_mata'[selectindex(rownonmissing(`path_mata')), ///
+				selectindex(colnonmissing(`path_mata'))])
+		foreach var in `regest_all' {
+			local struct_rownames "`struct_rownames' `var'"
 		}
-		quietly estimates table `regest_tbl', b(%12.`digits'f) p(%12.`digits'f) ///
-			drop(_cons)
-		matrix `strcoef_tmp' = r(coef)
-		matrix `strstats' = r(stats)
-		local struct_rownames : rownames `strcoef_tmp'
-		local num_reg_coef = rowsof(`strcoef_tmp')
-		local num_col_coef = colsof(`strcoef_tmp')
-		local g = 1
-		local q = 1
-		matrix `strcoef' = J(`num_reg_coef', `num_lv_path', .)
 		matrix rownames `strcoef' = `struct_rownames'
 		matrix colnames `strcoef' = `lv_regest_all'
-		matrix `strse' = J(`num_reg_coef', `num_lv_path', .)
+		
+		mata: `path_se_mata' = st_matrix("`path_se'")
+		mata: st_matrix("`strse'", ///
+			`path_se_mata'[selectindex(rownonmissing(`path_se_mata')), ///
+				selectindex(colnonmissing(`path_se_mata'))])
 		matrix rownames `strse' = `struct_rownames'
 		matrix colnames `strse' = `lv_regest_all'
-		forvalues j = 1/`num_col_coef' {
-			forvalues h = 1/`num_reg_coef' {
-				if (mod(`j', 2) != 0) {
-					if (!missing(`strcoef_tmp'[`h', `j'])) {
-						matrix `strcoef'[`h', `g'] = `strcoef_tmp'[`h', `j']
-					}
-				}
-				else {
-					if (!missing(`strcoef_tmp'[`h', `j'])) {
-						matrix `strse'[`h', `q'] = sqrt(`strcoef_tmp'[`h', `j'])
-					}
-				}
-			}
-			if (mod(`j', 2) != 0) {
-				local ++g
-			}
-			else {
-				local ++q
-			}
-		}
-		matrix `strvif' = J(`num_reg_coef', `num_lv_path', .)
+		
+		mata: `path_vif_mata' = ///
+			plssem_vif( ///
+				st_data(., "`alllatents'", "`touse'"), ///
+				st_matrix("`adj_struct'"))
+		mata: st_matrix("`strvif'", ///
+			`path_vif_mata'[selectindex(rownonmissing(`path_vif_mata')), ///
+				selectindex(colnonmissing(`path_vif_mata'))])
 		matrix rownames `strvif' = `struct_rownames'
 		matrix colnames `strvif' = `lv_regest_all'
-		matrix `B' = J(`num_lv', `num_lv', 0)
-		matrix rownames `B' = `alllatents'
-		matrix colnames `B' = `alllatents'
-		if ("`boot'" != "") {
-			matrix `B_bs' = J(`num_lv', `num_lv', 0)
-			matrix rownames `B_bs' = `alllatents'
-			matrix colnames `B_bs' = `alllatents'
-		}
-		matrix `adj_struct' = J(`num_lv', `num_lv', 0)
-		matrix rownames `adj_struct' = `alllatents'
-		matrix colnames `adj_struct' = `alllatents'
-		local lv_j = 1
-		local B_j = 1
-		foreach var in `alllatents' {
-			local isbinary : list var in binary
-			if ("`regest`var''" != "" & !`isbinary') {
-				quietly estimates restore `var'
-				matrix `tmp_b' = e(b)
-				if ("`boot'" != "") {
-					matrix `tmp_b_bs' = e(b_bs)
-				}
-				local b_colnames : colnames `tmp_b'
-				if ("`boot'" == "") {
-					local numind_lv : word count `regest`var''
-					quietly estat vif
-					forvalues lv_i = 1/`numind_lv' {
-						local xn : word `lv_i' of `b_colnames'
-						local xi : list posof "`xn'" in struct_rownames
-						matrix `strvif'[`xi', `lv_j'] = ${S_`lv_i'}
-					}
-					local ++lv_j
-				}
-				forvalues lv_i = 1/`num_lv' {
-					local xn : word `lv_i' of `alllatents'
-					local isthere : list xn in b_colnames
-					if (`isthere') {
-						local B_i : list posof "`xn'" in alllatents
-						local xi : list posof "`xn'" in b_colnames
-						matrix `B'[`B_i', `B_j'] = `tmp_b'[1, `xi']
-						if ("`boot'" != "") {
-							matrix `B_bs'[`B_i', `B_j'] = `tmp_b_bs'[1, `xi']
-						}
-						matrix `adj_struct'[`B_i', `B_j'] = 1
-					}
-				}
-			}
-			local ++B_j
-		}
 	}
 	
 	/* Calculate model assessment indexes (GOF, etc.) */
@@ -1362,6 +909,12 @@ program Estimate, eclass byable(recall)
 	if ("`rawsum'" != "") {
 		local props "`props' rawsum"
 	}
+	if ("`scale'" == "") {
+		local props "`props' scaled"
+	}
+	else {
+		local props "`props' unscaled"
+	}
 	ereturn post, obs(`nobs') esample(`touse') properties(`props')
 	if ("`boot'" != "") {
 		ereturn scalar reps = `boot'
@@ -1369,10 +922,7 @@ program Estimate, eclass byable(recall)
 	if ("`structural'" != "") {
 		if ("`rawsum'" == "") {
 			ereturn scalar maxiter = `maxiter'
-			ereturn scalar iterations = `iter' - 1
-		}
-		else {
-			ereturn scalar iterations = 0
+			ereturn scalar iterations = `iter'
 		}
 		ereturn scalar tolerance = `tol'
 	}
@@ -1397,9 +947,9 @@ program Estimate, eclass byable(recall)
 	if ("`structural'" != "") {
 		if ("`rawsum'" == "") {
 			ereturn matrix reldiff = `matreldiff'
+			ereturn matrix outerweights =  `outerW'
 			if ("`structural'" != "") {
 				ereturn matrix ow_history =  `Whistory'
-				ereturn matrix outerweights =  `outerW'
 			}
 		}
 		if (`num_lv_A' > 0) {
@@ -1409,9 +959,11 @@ program Estimate, eclass byable(recall)
 		}
 		ereturn matrix adj_struct = `adj_struct'
 		if ("`boot'" != "") {
-			ereturn matrix pathcoef_bs = `B_bs'
+			mata: st_matrix("`path_bs'", editmissing(st_matrix("`path_bs'"), 0))
+			ereturn matrix pathcoef_bs = `path_bs'
 		}
-		ereturn matrix pathcoef = `B'
+		mata: st_matrix("`path'", editmissing(st_matrix("`path'"), 0))
+		ereturn matrix pathcoef = `path'
 		ereturn matrix struct_table = `pathtab'
 		if ("`boot'" == "") {
 			ereturn matrix struct_vif = `strvif'
@@ -1425,6 +977,11 @@ program Estimate, eclass byable(recall)
 		ereturn matrix relcoef = `relcoef'
 	}
 	ereturn matrix adj_meas = `adj_meas'
+	ereturn matrix cross_loadings_se = `xloadings_se'
+	if ("`boot'" != "") {
+		ereturn matrix cross_loadings_bs = `xloadings_bs'
+	}
+	ereturn matrix cross_loadings = `xloadings'
 	ereturn matrix loadings_se = `loadings_se'
 	if ("`boot'" != "") {
 		ereturn matrix loadings_bs = `loadings_bs'
@@ -1436,15 +993,12 @@ program Estimate, eclass byable(recall)
 	
 	/* Clean up */
 	foreach var in `allstdindicators' {
-		quietly drop `var'
-	}
-	if ("`structural'" != "") {
-		estimates drop `regest_tbl'
+		capture quietly drop `var'
 	}
 	if ("`rawsum'" != "") {
 		foreach var in `alllatents' {
 			quietly replace `var' = rs_`var'
-			quietly drop rs_`var'
+			capture quietly drop rs_`var'
 		}
 	}
 	// mata: mata drop __*
@@ -1466,11 +1020,13 @@ program Estimate, eclass byable(recall)
 	}
 
 	/* Maximum number of iterations reached */
-	if (`iter' > `maxiter') {
-		display as error "warning: convergence not achieved ==> " _continue
-		display as error "maximum number of iterations reached"
-		display as error "the solution provided may not be acceptable; " _continue
-		display as error "try to increase the 'maxiter' option"
+	if (("`structural'" != "") & ("`rawsum'" == "")) {
+		if (!`converged') {
+			display as error "warning: convergence not achieved --> " _continue
+			display as error "maximum number of iterations reached"
+			display as error _skip(9) "the solution provided may not be acceptable; " _continue
+			display as error "try to increase the 'maxiter' option"
+		}
 	}
 end
 

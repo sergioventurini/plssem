@@ -34,7 +34,7 @@
 {synopt:{opth s:eed(numlist)}}bootstrap seed number{p_end}
 {synopt:{opt t:ol(#)}}tolerance; default is {cmd:1e-7}{p_end}
 {synopt:{opt max:iter(#)}}maximum number of iterations; default is {cmd:1000}{p_end}
-{synopt:{cmdab:init(eigen)}}initialize the latent variables using {help: factor}{p_end}
+{synopt:{cmdab:init(eigen)}}initialize the latent variables using {helpb factor}{p_end}
 {synopt:{cmdab:init(indsum)}}initialize the latent variables using the sum of indicators; the default{p_end}
 {synopt:{opt dig:its(#)}}number of digits to display; default is {cmd:3}{p_end}
 {synopt:{cmd:no}{cmdab:head:er}}suppress display of output header{p_end}
@@ -45,6 +45,9 @@
 {synopt:{opt gr:oup()}}perform multigroup analysis; see {help plssem##options:{it:Options}} for details{p_end}
 {synopt:{opt corr:elate()}}report the correlation among indicators, latent variables and cross loadings; see {help plssem##options:{it:Options}} for details{p_end}
 {synopt:{opt raw:sum}}estimate the latent scores as the raw sum of the indicators{p_end}
+{synopt:{cmd:no}{cmdab:sc:ale}}manifest variables are not standardized before running the algorithm{p_end}
+{synopt:{cmdab:conv:crit(relative)}}relative convergence criterion; the default{p_end}
+{synopt:{cmdab:conv:crit(square)}}square convergence criterion{p_end}
 {synoptline}
 
 {p 4 6 2}
@@ -128,12 +131,6 @@ lets the user choose between two options for initialization. These
 are {bf:indsum} (default) and {bf:eigen}. The {bf:eigen} option also allows the user estimate only the
 measurement part of the model.
 
-{phang}{opt rawsum}
-uses the sum of the raw indicators and the resulting aggregated scores (also called
-summated scales) are used directly for estimating the structural part. In this sense, {cmd:rawsum}
-is an alternative procedure to the PLS-algorithm for estimating the latent variable
-scores. 
-
 {phang}{opt digits(#)}
 sets the number of decimals to display the model estimates. The default is 3. 
 
@@ -175,6 +172,19 @@ or manifest variables ({bf:mv}), latent variables ({bf:lv}) as well as cross-loa
 between the indicators and latent variables. When doing so, the user can also set a certain
 cut-off value for the correlations to be displayed by using the suboption {bf:cutoff(#)}.
 For instance, {bf:cutoff(0.3)} will display the correlations above 0.3 in absolute terms.
+
+{phang}{opt rawsum}
+uses the sum of the raw indicators and the resulting aggregated scores (also called
+summated scales) are used directly for estimating the structural part. In this sense, {cmd:rawsum}
+is an alternative procedure to the PLS-algorithm for estimating the latent variable
+scores. 
+
+{phang}{opt noscale}
+the manifest variables are not standardized before running the algorithm.
+
+{phang}{opt convcrit(convergence criterion)}
+the convergence criterion to use. Alternative choices are {bf:relative} or {bf:square}. The
+default is {bf:relative}.
 
 
 {marker examples}{...}
@@ -269,14 +279,19 @@ Norwegian University of Science and Technology{break}
 {synopt:{cmd:e(formative)}}list of latent variables measured in a formative way{p_end}
 {synopt:{cmd:e(struct_eqs)}}equations defining the structural model{p_end}
 {synopt:{cmd:e(properties)}}choices of initialization, weighting scheme,
-whether the boostrap has been used and whether the model has a structural part{p_end}
+whether the boostrap has been used, if the model has a structural part, if the
+{cmd:rawsum} option has been used if the manifest variables have been scaled or not{p_end}
 
 {synoptset 24 tabbed}{...}
 {p2col 5 24 28 2: Matrices}{p_end}
 {synopt:{cmd:e(loadings)}}outer loadings matrix{p_end}
-{synopt:{cmd:e(loadings_bs)}}bootstrap-based outer loadings matrix
-(available only if the {cmd:boot()} is chosen){p_end}
+{synopt:{cmd:e(loadings_bs)}}bootstrap-based outer loadings matrix (available only
+if the {cmd:boot()} option is chosen){p_end}
 {synopt:{cmd:e(loadings_se)}}matrix of the outer loadings standard errors{p_end}
+{synopt:{cmd:e(cross_loadings)}}cross loadings matrix{p_end}
+{synopt:{cmd:e(cross_loadings_bs)}}bootstrap-based cross loadings matrix (available only
+if the {cmd:boot()} option is chosen){p_end}
+{synopt:{cmd:e(cross_loadings_se)}}matrix of the cross loadings standard errors{p_end}
 {synopt:{cmd:e(adj_meas)}}adjacency matrix for the measurement (outer) model{p_end}
 {synopt:{cmd:e(outerweights)}}matrix of outer weights{p_end}
 {synopt:{cmd:e(ow_history)}}matrix of outer weights evolution{p_end}
@@ -288,7 +303,7 @@ whether the boostrap has been used and whether the model has a structural part{p
 {synopt:{cmd:e(struct_table)}}table combining estimation results for the structural (inner) model{p_end}
 {synopt:{cmd:e(pathcoef)}}path coefficients matrix (extended form){p_end}
 {synopt:{cmd:e(pathcoef_bs)}}bootstrap-based path coefficients matrix (extended form; available only
-if the {cmd:boot()} is chosen){p_end}
+if the {cmd:boot()} option is chosen){p_end}
 {synopt:{cmd:e(adj_struct)}}adjacency matrix for the structural (inner) model{p_end}
 {synopt:{cmd:e(rsquared)}}vector of r-squared for reflective latent variables{p_end}
 {synopt:{cmd:e(redundancy)}}vector of redundancies{p_end}
