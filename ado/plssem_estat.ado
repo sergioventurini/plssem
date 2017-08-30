@@ -733,10 +733,11 @@ program unobshet, rclass
 	mata: `out_res_st' = J(0, strtoreal("`num_ind'"), .)
 	mata: `inn_res_st' = J(0, sum(`endo'), .)
 	mata: `class_st' = J(0, 1, .)
+	local donotcleanup "nocleanup"
 	forvalues k = 1/`numclass' {
 		tempname localmodel_`k'
-		quietly plssem `mm' if (`rebus_class' == `k' & `__touse__'), ///
-			structural(`sm') `options'
+		plssem `mm' if (`rebus_class' == `k' & `__touse__'), ///
+			structural(`sm') `options' `donotcleanup'
 		_estimates hold `localmodel_`k'', copy
 		quietly drop `__touseloc__'
 		quietly generate byte `__touseloc__' = e(sample)
@@ -1027,4 +1028,7 @@ program unobshet, rclass
 		display as error "the solution provided may not be acceptable; " _continue
 		display as error "try to relax any of the stopping criteria"
 	}
+	
+	/* Clean up */
+	capture mata: cleanup()
 end

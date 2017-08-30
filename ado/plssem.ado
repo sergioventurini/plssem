@@ -67,7 +67,7 @@ program Estimate, eclass byable(recall)
 		Boot(numlist integer >0 max=1) Seed(numlist max=1) Tol(real 1e-7) ///
 		MAXiter(integer 100) INIT(string) DIGits(integer 3) noHEADer ///
 		noMEAStable noDISCRIMtable noSTRUCTtable STATs GRoup(string) ///
-		CORRelate(string) RAWsum noSCale CONVcrit(string) ]
+		CORRelate(string) RAWsum noSCale CONVcrit(string) noCLeanup ]
 	
 	/* Options:
 	   --------
@@ -110,6 +110,8 @@ program Estimate, eclass byable(recall)
 																				only centered
 		 convcrit												--> convergence criterion (either 'relative'
 																				or 'square')
+		 nocleanup											--> Mata temporary objects are not removed
+																				(undocumented)
 	 */
 	
 	/* Parse the specified blocks.
@@ -971,19 +973,6 @@ program Estimate, eclass byable(recall)
 	}
 	/* End of returning values */
 	
-	/* Clean up */
-	foreach var in `allstdindicators' {
-		capture quietly drop `var'
-	}
-	if ("`rawsum'" != "") {
-		foreach var in `alllatents' {
-			quietly replace `var' = rs_`var'
-			capture quietly drop rs_`var'
-		}
-	}
-	// mata: mata drop __*
-	/* End of cleaning up */
-	
 	/* Display results */
 	if (("`display'" == "") & ("`group'" == "")) {  // this saves some time when used with 'group' 
 		if ("`structural'" == "") {
@@ -1008,7 +997,23 @@ program Estimate, eclass byable(recall)
 			display as error "maximum number of iterations reached"
 			display as error _skip(9) "the solution provided may not be acceptable; " _continue
 			display as error "try to increase the 'maxiter' option"
+	}
+	/* End of 'convergence not attained' message */
+	
+	/* Clean up */
+	foreach var in `allstdindicators' {
+		capture quietly drop `var'
+	}
+	if ("`rawsum'" != "") {
+		foreach var in `alllatents' {
+			quietly replace `var' = rs_`var'
+			capture quietly drop rs_`var'
 		}
+	}
+	if ("`cleanup'" == "") {
+		capture mata: cleanup()
+	}
+	/* End of cleaning up */
 	}
 end
 
@@ -1019,7 +1024,7 @@ program Compare, eclass sortpreserve
 		Boot(numlist integer >0 max=1) Seed(numlist max=1) Tol(real 1e-7) ///
 		MAXiter(integer 100) INIT(string) DIGits(integer 3) noHEADer ///
 		noMEAStable noDISCRIMtable noSTRUCTtable STATs GRoup(string) ///
-		CORRelate(string) RAWsum noSCale CONVcrit(string) ]
+		CORRelate(string) RAWsum noSCale CONVcrit(string) noCLeanup ]
 
 	/* Options:
 	   --------
@@ -1062,6 +1067,8 @@ program Compare, eclass sortpreserve
 																				only centered
 		 convcrit												--> convergence criterion (either 'relative'
 																				or 'square')
+		 nocleanup											--> Mata temporary objects are not removed
+																				(undocumented)
 	 */
 	
 	/* Warning */
@@ -1697,7 +1704,9 @@ program Compare, eclass sortpreserve
 			capture quietly drop rs_`var'
 		}
 	}
-	// mata: mata drop __*
+	if ("`cleanup'" == "") {
+		capture mata: cleanup()
+	}
 
 	/* Return */
 	// ereturn local method = "`method'"

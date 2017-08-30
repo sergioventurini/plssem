@@ -32,7 +32,8 @@ capture mata: mata drop ///
 	rebus_gqi() ///
 	plssem_struct_rebus() ///
 	plssem_rebus() ///
-	plssem_rebus_ptest()
+	plssem_rebus_ptest() ///
+	cleanup()
 
 version 14.2
 mata:
@@ -2330,6 +2331,33 @@ real colvector plssem_rebus_ptest(real matrix X, real matrix M, real matrix S,
 	
 	return(gqi_perm)
 }
+
+void cleanup()
+{
+	/* Description:
+		 ------------
+		 Function that cleans up Mata from temporary objects 
+	*/
+	
+	/* Arguments:
+		 ----------
+		 - void				--> no argument passed
+	*/
+	
+	/* Returned value:
+		 ---------------
+		 - void 			--> no object returned
+	*/
+
+	string colvector names
+	real scalar i
+	
+	names = direxternal("__*")
+
+	for (i = 1; i <= rows(names); i++) {
+		rmexternal(names[i])
+	}
+}
 end
 
 ********************************************************************************
@@ -2363,3 +2391,4 @@ mata: mata mosave rebus_gqi(), dir(PERSONAL) replace
 mata: mata mosave plssem_struct_rebus(), dir(PERSONAL) replace
 mata: mata mosave plssem_rebus(), dir(PERSONAL) replace
 mata: mata mosave plssem_rebus_ptest(), dir(PERSONAL) replace
+mata: mata mosave cleanup(), dir(PERSONAL) replace
