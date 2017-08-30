@@ -9,7 +9,7 @@ plssem (Expectation > CUEX1-CUEX3) (Satisfaction > CUSA1-CUSA3) ///
 	structural(Expectation Image, Quality Expectation, Value Expectation Quality, ///
 	Satisfaction Value Quality Image Expectation, Complaints Satisfaction, ///
 	Loyalty Complaints Satisfaction Image) ///
-	wscheme("path") digits(4) correlate(mv lv cross, cutoff(.3)) ///
+	wscheme("path") digits(7) correlate(mv lv cross, cutoff(.3)) ///
 	//noheader nomeastable nodiscrimtable nostructtable //boot(50)
 
 estat indirect, effects(Loyalty Satisfaction Image, ///
@@ -29,7 +29,7 @@ plssem (Expectation > CUEX1-CUEX3) (Satisfaction > CUSA1-CUSA3) ///
 	structural(Expectation Image, Quality Expectation, Value Expectation Quality, ///
 	Satisfaction Value Quality Image Expectation, Complaints Satisfaction, ///
 	Loyalty Complaints Satisfaction Image) ///
-	wscheme("centroid")
+	wscheme("centroid") digits(7)
 
 /* Example 3 */
 /* --------- */
@@ -85,7 +85,7 @@ plssem (CUEX > CUEX1) (Expectation > CUEX2-CUEX3) (Satisfaction > CUSA1-CUSA3) /
 	structural(CUEX Expectation Image CUSA1, Quality Expectation, Value Expectation Quality, ///
 	Satisfaction Value Quality Image Expectation, Complaints Satisfaction, ///
 	Loyalty Complaints Satisfaction Image) ///
-	wscheme("path") digits(5) stats //boot(50)
+	wscheme("path") digits(5) stats boot(500)
 
 /* Example 8 */
 /* --------- */
@@ -167,7 +167,7 @@ bysort group: */ plssem (Expectation > CUEX1-CUEX3) (Satisfaction > CUSA1-CUSA3)
 	structural(Quality Expectation Virtual Virtual2, Satisfaction Expectation Quality Image, ///
 	Image Expectation Quality, Virtual Image, Virtual2 Quality) wscheme("path") ///
 	seed(123) digits(5) binary(Virtual Virtual2) //boot(50)
-	
+
 estat unobshet
 
 /* Example 14 */
@@ -238,7 +238,7 @@ plssem (Expectation > CUEX1-CUEX3) (Satisfaction > CUSA1-CUSA3) ///
 	Satisfaction Value Quality Image Expectation, Complaints Satisfaction, ///
 	Loyalty Complaints Satisfaction Image) ///
 	wscheme("path") digits(7) tol(1e-5) ///
-	group(group, reps(20) method(permutation) plot) //boot(50)
+	group(group, reps(200) method(permutation) plot) //boot(50)
 
 /* Example 17 */
 /* ---------- */
@@ -252,7 +252,7 @@ plssem (HighSchool > HS_GPA SAT_Verbal SAT_Math) ///
 	structural(Intro HighSchool, Medium Intro HighSchool, ///
 	Graduation Medium Intro HighSchool) ///
 	wscheme("centroid") digits(4) tol(1e-6) correlate(mv lv cross, cutoff(.3)) ///
-	group(Gender, reps(100) method(permutation) plot alpha(0.1) what(path)) ///
+	group(Gender, reps(200) method(permutation) plot alpha(0.1) what(path)) ///
 	//boot(50)
 
 /* Example 18 */
@@ -277,7 +277,7 @@ plssem (Expectation > CUEX1-CUEX3) (Satisfaction > CUSA1-CUSA3) ///
 	Loyalty Complaints Satisfaction Image) ///
 	wscheme("path") digits(4) correlate(mv lv cross, cutoff(.3)) //boot(50)
 
-estat unobshet
+estat unobshet, test reps(300) plot
 	
 /* Example 20 */
 /* ---------- */
@@ -293,7 +293,7 @@ plssem (Expectation > CUEX1-CUEX3) (Satisfaction > CUSA1-CUSA3) ///
 	Satisfaction Value Quality Image Expectation, Complaints Satisfaction, ///
 	Loyalty Complaints Satisfaction Image) ///
 	wscheme("path") digits(4) ///
-	group(group, reps(50) method(bootstrap) plot alpha(0.1) what(path)) ///
+	group(group, reps(200) method(bootstrap) plot alpha(0.1) what(path)) ///
 	// boot(50)
 
 /* Example 21 */
@@ -322,12 +322,12 @@ plssem (Image > imag1-imag3) (Satisfaction > sat1-sat3) ///
 use ./data/satisfaction, clear
 
 // Stage 1
-plssem (Image > imag1-imag3) (Satisfaction > sat1-sat3) ///
+quietly plssem (Image > imag1-imag3) (Satisfaction > sat1-sat3) ///
 	(Loyalty > loy1-loy3), structural(Loyalty Image Satisfaction) ///
 	wscheme("centroid") digits(5) tol(1e-6) //boot(200)
 
 // Stage 2
-generate ImageSatisfaction = Image*Satisfaction
+quietly generate ImageSatisfaction = Image*Satisfaction
 plssem (Image > imag1-imag3) (Satisfaction > sat1-sat3) ///
 	(Loyalty > loy1-loy3) (Inter > ImageSatisfaction), ///
 	structural(Loyalty Image Satisfaction Inter) ///
@@ -336,12 +336,12 @@ plssem (Image > imag1-imag3) (Satisfaction > sat1-sat3) ///
 /* Two-stage regression approach */
 use ./data/satisfaction, clear
 // Stage 1
-plssem (Image > imag1-imag3) (Satisfaction > sat1-sat3) ///
+quietly plssem (Image > imag1-imag3) (Satisfaction > sat1-sat3) ///
 	(Loyalty > loy1-loy3), structural(Loyalty Image Satisfaction) ///
 	wscheme("centroid") digits(5) tol(1e-6) //boot(200)
 
 // Stage 2
-generate ImageSatisfaction = Image*Satisfaction
+quietly generate ImageSatisfaction = Image*Satisfaction
 regress Loyalty Image ImageSatisfaction Satisfaction
 
 /* Example 22 */
@@ -379,7 +379,7 @@ plssem (Special < FieldGoals OtherTDs) ///
 	structural(Scoring Special Offense, Offense Passing Rushing) ///
 	wscheme("centroid") digits(5) tol(1e-6) //boot(200)
 
-plssemplot, outerweights
+// plssemplot, outerweights // currently this does not work 
 
 /* Example 24 */
 /* ---------- */
@@ -446,7 +446,7 @@ use ./data/satisfaction, clear
 plssem (Image > imag1-imag3) (Satisfaction > sat1-sat3) ///
 	(Loyalty > loy1-loy3), structural(Loyalty Image*Satisfaction) ///
 	wscheme("centroid") digits(5) tol(1e-6) ///
-	group(gender, reps(10) method(permutation) groupseed(123))
+	group(gender, reps(100) method(permutation) groupseed(123))
 
 /* Example 29 */
 /* ---------- */
@@ -498,11 +498,11 @@ plssem (Attractive > face sexy) ///
 			 structural(Appearance Attractive, ///
 	                Muscle Appearance, ///
 	                Weight Appearance) ///
-	     boot(25) seed(123) stats corr(lv)
+	     boot(200) seed(123) stats correlate(lv)
 		
 estat indirect, effects(Muscle Appearance Attractive, ///
                         Weight Appearance Attractive) ///
-								boot(25) seed(456)
+								boot(200) seed(456)
 
 plssemplot, loadings
 
@@ -520,8 +520,8 @@ estat teffects, nototal nodirect stand
 
 predict f*, latent
 
-graph matrix Appearance Muscle Weight Attractive f*, half
-correlate Appearance Muscle Weight Attractive f*
+graph matrix Appearance Muscle Weight Attractive f1-f4, half
+correlate Appearance Muscle Weight Attractive f1-f4
 */
 
 /* Example 33 */
@@ -605,7 +605,7 @@ predict, xb residuals
 /* Example 37 */
 /* ---------- */
 /* [From Sanchez, G. (2013) PLS Path Modeling with R (Chapter 9)] */
-
+pause on
 use ./data/futbol, clear
 
 plssem (Attack > GSH GSA SSH SSA) (Defense > NGCH NGCA CSH CSA) ///
@@ -631,12 +631,17 @@ estat unobshet // a posteriori approach
 // estat unobshet, numclass(6)
 // estat unobshet, test reps(300) plot seed(123)
 
-estat unobshet, numclass(2) // a priori approach
+estat unobshet, numclass(4) // a priori approach
 
 plssem (Attack > GSH GSA SSH SSA) (Defense > NGCH NGCA CSH CSA) ///
 	(Success > WMH WMA), structural(Success Attack Defense) ///
 	wscheme(centroid) tol(1e-06) ///
 	group(rebus_class, reps(50) method(normal) plot)
+
+plssem (Attack > GSH GSA SSH SSA) (Defense > NGCH NGCA CSH CSA) ///
+	(Success > WMH WMA), structural(Success Attack Defense) ///
+	wscheme(centroid) tol(1e-06) ///
+	group(rebus_class, reps(50) method(normal) what(loadings) plot)
 
 /* Example 38 */
 /* ---------- */
@@ -717,3 +722,49 @@ plssemplot, stats(LIKE)
 estat total, plot
 
 plssemplot, outerweights
+
+/* Example 42 */
+/* ---------- */
+/* [From http://marketing-bulletin.massey.ac.nz/V26/MB_v26_T1_Wong_2016.pdf] */
+import excel "./data/photocopier.xlsx", ///
+	sheet("Sheet1") firstrow clear
+label define type 1 "non-profit" 2 "for-profit"
+label value type type
+
+// Final model
+plssem (QUALI > quali_?) (FINAN > finan_1 finan_3) ///
+			 (GOVER > gover_1 gover_3) (LEADR > leadr_2 leadr_3) ///
+			 (REPUT > finan_1 finan_3 gover_1 gover_3 leadr_2 leadr_3 quali_?) ///
+			 (SATIS > satis_1) (PRICE > price_?) (LOYAL > loyal_?), ///
+			 structural(QUALI REPUT, FINAN REPUT, GOVER REPUT, ///
+									LEADR REPUT, SATIS REPUT PRICE, LOYAL REPUT SATIS PRICE) ///
+			 wscheme(path) digits(5) tol(1e-06)
+
+plssemplot, innermodel
+plssemplot, loadings
+plssemplot, scores
+
+estat total, plot
+
+predict, xb residuals
+
+estat unobshet, test reps(200) plot
+
+// Multigroup analysis
+plssem (QUALI > quali_?) (FINAN > finan_1 finan_3) ///
+			 (GOVER > gover_1 gover_3) (LEADR > leadr_2 leadr_3) ///
+			 (REPUT > finan_1 finan_3 gover_1 gover_3 leadr_2 leadr_3 quali_?) ///
+			 (SATIS > satis_1) (PRICE > price_?) (LOYAL > loyal_?), ///
+			 structural(QUALI REPUT, FINAN REPUT, GOVER REPUT, ///
+									LEADR REPUT, SATIS REPUT PRICE, LOYAL REPUT SATIS PRICE) ///
+			 wscheme(path) digits(5) tol(1e-06) ///
+			 group(type, method(normal) plot) //boot(50)
+
+plssem (QUALI > quali_?) (FINAN > finan_1 finan_3) ///
+			 (GOVER > gover_1 gover_3) (LEADR > leadr_2 leadr_3) ///
+			 (REPUT > finan_1 finan_3 gover_1 gover_3 leadr_2 leadr_3 quali_?) ///
+			 (SATIS > satis_1) (PRICE > price_?) (LOYAL > loyal_?), ///
+			 structural(QUALI REPUT, FINAN REPUT, GOVER REPUT, ///
+									LEADR REPUT, SATIS REPUT PRICE, LOYAL REPUT SATIS PRICE) ///
+			 wscheme(path) digits(5) tol(1e-06) ///
+			 group(rebus_class, method(permutation) reps(200) plot) //boot(50)

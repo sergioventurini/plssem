@@ -1,10 +1,10 @@
-*!mkheader version 0.2.0
-*!Written 12May2017
+*!mkheader version 0.3.0
+*!Written 28Aug2017
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
 program mkheader
-	version 10
+	version 14.2
 	syntax [, matrix1(string) matrix2(string) DIGits(integer 5) noGRoup ///
 		noSTRuctural RAWsum rebus_it(integer -999) rebus_gqi(real 0) ]
 
@@ -111,27 +111,26 @@ program mkheader
 			}
 		}
 		else {
+			local title: display _skip(0) "Partial least squares path modeling"
+			display as text "`title'"
+			
+			display
+			
 			if ("`structural'" == "nostructural") {
-				local title: display _skip(0) "Partial least squares path modeling"
-				display as text "`title'"
-				
-				display
-
 				local initialize: display _skip(0) "Initialization: `init'"
 				display as text "`initialize'"
 			}
 			else {
-				local title: display _skip(0) "Partial least squares path modeling"
-				display as text "`title'"
-				
-				display
-
 				if ("`rawsum'" == "") {
 					local wgt: display _skip(0) "Weighting scheme: `wscheme'"
 					display as text "`wgt'"
 					
 					local toler: display _skip(0) "Tolerance: " string(`tol', "%9.`digits'e")
 					display as text "`toler'"
+				}
+				else {
+					local wgt: display _skip(0) "Weighting scheme: rawsum"
+					display as text "`wgt'"
 				}
 				
 				if ("`rawsum'" == "") {

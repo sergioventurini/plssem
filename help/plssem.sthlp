@@ -33,7 +33,7 @@
 {synopt:{opth b:oot(numlist)}}number of bootstrap replications{p_end}
 {synopt:{opth s:eed(numlist)}}bootstrap seed number{p_end}
 {synopt:{opt t:ol(#)}}tolerance; default is {cmd:1e-7}{p_end}
-{synopt:{opt max:iter(#)}}maximum number of iterations; default is {cmd:1000}{p_end}
+{synopt:{opt max:iter(#)}}maximum number of iterations; default is {cmd:100}{p_end}
 {synopt:{cmdab:init(eigen)}}initialize the latent variables using {helpb factor}{p_end}
 {synopt:{cmdab:init(indsum)}}initialize the latent variables using the sum of indicators; the default{p_end}
 {synopt:{opt dig:its(#)}}number of digits to display; default is {cmd:3}{p_end}
@@ -123,7 +123,7 @@ The default tolerance value is 1e-7.
 
 {phang}{opt maxiter(#)}
 indicates the maximum number of iterations the algorithm runs. The default is
-1000 iterations. Note that usually the algorithm requires a very limited number of
+100 iterations. Note that usually the algorithm requires a very limited number of
 iterations to reach convergence, typically less than 10. 
 
 {phang}{opt init(initialization)}
@@ -305,6 +305,7 @@ if the {cmd:boot()} option is chosen){p_end}
 {synopt:{cmd:e(pathcoef_bs)}}bootstrap-based path coefficients matrix (extended form; available only
 if the {cmd:boot()} option is chosen){p_end}
 {synopt:{cmd:e(adj_struct)}}adjacency matrix for the structural (inner) model{p_end}
+{synopt:{cmd:e(total_effects)}}matrix of the structural (inner) model total effects{p_end}
 {synopt:{cmd:e(rsquared)}}vector of r-squared for reflective latent variables{p_end}
 {synopt:{cmd:e(redundancy)}}vector of redundancies{p_end}
 {synopt:{cmd:e(assessment)}}vector of model quality indices{p_end}

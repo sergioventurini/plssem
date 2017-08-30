@@ -1,10 +1,10 @@
-*!plssem_estat version 0.2.0
-*!Written 23May2017
+*!plssem_estat version 0.3.0
+*!Written 30Aug2017
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
 program plssem_estat, rclass
-	version 10
+	version 14.2
 	gettoken subcmd rest : 0 , parse(", ")
 	local lsubcmd = length("`subcmd'")
 	
@@ -30,7 +30,7 @@ program plssem_estat, rclass
 end
 
 program indirect, rclass
-	version 10
+	version 14.2
 	syntax , Effects(string) [ Boot(numlist min=1 max=1) Seed(numlist max=1) ///
 		Level(real 0.95) DIGits(integer 3) ]
 	
@@ -108,6 +108,12 @@ program indirect, rclass
 
 	tempname ehold
 	_estimates hold `ehold'
+
+	if ("`boot'" != "") {
+		display
+		display as text "Computing indirect effects bootstrap distribution..."
+	}
+	
 	capture {
 		forvalues ll = 1/`num_effects' {
 			local dep `: word `ll' of `ind_dvar''
@@ -224,7 +230,7 @@ program indirect, rclass
 end
 
 program total, rclass
-	version 10
+	version 14.2
 	syntax [ , DIGits(integer 3) Plot ]
 	
 	/* Options:
@@ -343,7 +349,7 @@ program total, rclass
 end
 
 program plssem_vif, rclass
-	version 10
+	version 14.2
 	syntax [ , DIGits(integer 3) ]
 	
 	/* Options:
@@ -378,7 +384,7 @@ program plssem_vif, rclass
 end
 
 program unobshet, rclass
-	version 10
+	version 14.2
 	syntax [ , Method(string) Numclass(numlist integer >1 max=1) ///
 		MAXCLass(integer 20) Dendrogram MAXITer(integer 50) Stop(real 0.005) ///
 		Test Reps(numlist integer >1 max=1) SEed(numlist max=1) Plot ///
@@ -426,8 +432,7 @@ program unobshet, rclass
 		exit
 	}
 	if ("`e(formative)'" != "") {
-		display as error "the REBUS approach can't be used with formative blocks; " _continue
-		display as error "only reflective blocks are allowed"
+		display as error "the REBUS approach can't be used with formative blocks"
 		exit
 	}
 	local props = e(properties)
@@ -436,6 +441,32 @@ program unobshet, rclass
 	if (!`isstruct') {
 		display as error "the fitted plssem model includes only the measurement part"
 		exit
+	}
+	local rawsum "rawsum"
+	local israwsum : list rawsum in props
+	local cc "relative"
+	local isrelative : list cc in props
+	if (`isrelative') {
+		local convcrit "relative"
+	}
+	else {
+		local convcrit "square"
+	}
+	local initmet "indsum"
+	local isindsum : list initmet in props
+	if (`isindsum') {
+		local init "indsum"
+	}
+	else {
+		local init "eigen"
+	}
+	local indscale "scaled"
+	local isscaled : list indscale in props
+	if (`isscaled') {
+		local scale ""
+	}
+	else {
+		local scale "noscale"
 	}
 	local boot "bootstrap"
 	local isboot : list boot in props
@@ -483,7 +514,7 @@ program unobshet, rclass
 	}
 	local todrop "`: colnames r(meas_res)' `: colnames r(struct_res)'"
 
-	// collect results for later to display
+	// Collecting results to display later
 	matrix `gof_global' = e(assessment)
 	matrix `gof_global' = `gof_global'[1, 3]
 	local gof_loc = strofreal(`gof_global'[1, 1], "%9.4f")
@@ -491,9 +522,6 @@ program unobshet, rclass
 	tempvar __touse__
 	quietly generate byte `__touse__' = e(sample)
 	quietly count if `__touse__'
-	if (r(N) == 0) {
-		error 2000
-	}
 	local N = r(N)
 
 	tempvar rebus_clus
@@ -597,91 +625,54 @@ program unobshet, rclass
 	
 	/* Set temporary variables */
 	local allindicators = e(mvs)
-	local num_lv : word count `e(lvs)'
-	tempname cm ow path ind indstd y y_local loads r2 ind_all indstd_all block ///
-		x_hat out_res endo y_hat inn_res old_class old_class_i new_class counts
+	local alllatents = e(lvs)
+	local allreflective = e(reflective)
+	local num_ind : word count `allindicators'
+	local num_lv : word count `alllatents'
+	tempname cm ow path ind indstd y_local loads r2 block x_hat out_res endo ///
+		y_hat inn_res
 	tempvar __touseloc__
 	quietly generate byte `__touseloc__' = .
 	mata: `endo' = colsum(st_matrix("e(adj_struct)"))
 	mata: `endo' = (`endo' :> 0)
-	local iter = 1
-	local nchanged = `N'
+	foreach var in `allindicators' {
+		local allstdindicators "`allstdindicators' std`var'"
+	}
+	local allstdindicators : list clean allstdindicators
+	
+	/* Run the REBUS algorithm */
+	// display
 
-	/* REBUS iterations */
-	display
-	capture {
-		while (`iter' <= `maxiter') & (`nchanged' > `N'*`stop') {
-			if (`iter' == 1) {
-				noisily display as text "REBUS iteration 1" _continue
-			}
-			else if (mod(`iter', 5) == 0) {
-				noisily display as text "`iter'" _continue
-			}
-			else if (`iter') {
-				noisily display as text "." _continue
-			}
-
-			mata: `cm' = J(strtoreal(st_local("N")), 0, .)
-			forvalues k = 1/`numclass' {
-				tempname localmodel_`k'
-				quietly plssem `mm' if (`rebus_class' == `k' & `__touse__'), ///
-					structural(`sm') `options'
-				_estimates hold `localmodel_`k'', copy
-				quietly drop `__touseloc__'
-				quietly generate byte `__touseloc__' = e(sample)
-
-				mata: st_view(`ind' = ., ., "`allindicators'", "`__touseloc__'")				// split.DM[[k]]
-
-				mata: `ow' = st_matrix("e(outerweights)")																// w.locals[[k]]
-				mata: `path' = st_matrix("e(pathcoef)")																	// path.locals[[k]]
-				mata: `loads' = st_matrix("e(loadings)")																// loads.locals[[k]]
-				mata: `r2' = st_matrix("e(rsquared)")	
-				mata: `r2' = `r2'[., selectindex(`r2' :!= .)]														// R2.locals[[k]]
-
-				// mata: `indstd' = scale(`ind') 																				// split.X[[k]]
-				// mata: `y' = `indstd' * `ow'																					// Y.k
-
-				mata: st_view(`ind_all' = ., ., "`allindicators'", "`__touse__'")				// DM
-				mata: `indstd_all' = scale(`ind_all', mean(`ind'), sd(`ind'))						// X.k
-				mata: `y_local' = `indstd_all' * `ow'																		// Y.locals[[k]]
-				mata: `out_res' = J(strtoreal(st_local("N")), 0, .)
-				forvalues j = 1/`num_lv' {
-					mata: `block' = selectindex(`loads'[., `j'] :!= .)										// blocklist == j
-					mata: `x_hat' = `y_local'[., `j'] * `loads'[`block', `j']'						// X.hat
-					mata: `out_res' = (`out_res', (`indstd_all'[., `block'] - `x_hat'))		// out.res[, blocklist == j]
-				}
-				mata: `y_hat' = `y_local' * `path'[., selectindex(`endo')]							// Y.hat
-				mata: `inn_res' = `y_local'[., selectindex(`endo')] - `y_hat'						// innres.locals[[k]]
-				mata: `cm' = (`cm', rebus_cm(`out_res', `inn_res', `loads', `r2'))			// CM.locals[, k]
-				
-				_estimates drop `localmodel_`k''
-			}
-
-			mata: st_view(`old_class' = ., ., "`rebus_class'", "`__touse__'")
-			mata: `old_class_i' = st_viewobs(`old_class')
-			mata: `new_class' = which(`cm', "min")
-			mata: st_local("nchanged", strofreal(sum(`old_class' :!= `new_class')))
-			mata: st_store(`old_class_i', "`rebus_class'", ., `new_class')
-			forvalues k = 1/`numclass' {
-				quietly count if `rebus_class' == `k'
-				if (r(N) == 0) {
-					local rN0 = 1
-					error 148
-				}
-				else {
-					local rN0 = 0
-				}
-				if (r(N) <= 5) {
-					local rN_lte_5 = 1
-					error 148
-				}
-				else {
-					local rN_lte_5 = 0
-				}
-			}
-
-			local ++iter
-		}
+	tempname res_rebus
+	capture noisily {
+		mata: `res_rebus' = ///
+			plssem_rebus( ///
+				st_data(., "`allindicators'"), ///			 note: `__touse__' not used here
+				st_matrix("e(adj_meas)"), ///
+				st_matrix("e(adj_struct)"), ///
+				"`allindicators'", ///
+				"`allstdindicators'", ///
+				"`alllatents'", ///
+				"`e(binarylvs)'", ///
+				st_numscalar("e(tolerance)"), ///
+				st_numscalar("e(maxiter)"), ///
+				"`__touse__'", ///
+				"`scheme'", ///
+				"`convcrit'", ///
+				"`init'", ///
+				"`scale'", ///
+				strtoreal("`isstruct'"), ///
+				strtoreal("`israwsum'"), ///
+				"`rebus_class'", ///
+				strtoreal("`numclass'"), ///
+				strtoreal("`maxiter'"), ///
+				strtoreal("`stop'"), ///
+				1)
+		
+		mata: st_local("iter", strofreal(`res_rebus'.niter))
+		mata: st_local("rN0", strofreal(`res_rebus'.rN0))
+		mata: st_local("rN_lte_5", strofreal(`res_rebus'.rN_lte_5))
+		mata: st_store(., "`rebus_class'", "`__touse__'", `res_rebus'.rebus_class)
 	}
 	if (_rc != 0) {
 		if (mod(`iter', 5) == 0) {
@@ -690,11 +681,14 @@ program unobshet, rclass
 		else {
 			display as error "aborting"
 		}
-		if (`rN0') {
-			display as error "one of the classes is empty"
+		if (real("`rN0'")) {
+			display as error "one class is empty"
 		}
-		else if (`rN_lte_5') {
+		else if (real("`rN_lte_5'")) {
 			display as error "too few observations (5 or less) assigned to a single class"
+		}
+		else if (_rc == 409) {
+			display as error "at least one indicator has zero variance in one of the iterations"
 		}
 		else {
 			display as error "something went wrong in the REBUS calculations"
@@ -705,26 +699,42 @@ program unobshet, rclass
 		_estimates unhold `globalmodel'
 		exit
 	}
+	/*
 	else {
-		if (mod(`iter' - 1, 5) == 0) {
+		if (mod(`iter', 5) == 0) {
 			display as text " done!"
 		}
 		else {
 			display as text "done!"
 		}
 	}
-	display
-	/* End REBUS iterations */
-
+	//display
+	*/
+	/* End REBUS algorithm */
+	
+	/* Checking that the established classes have enough observations */
+	forvalues k = 1/`numclass' {
+		quietly count if (`rebus_class' == `k' & `__touse__')
+		if (r(N) < 10) {
+			display as error "less than 10 observations in class " + `k'
+			display as error "at least 10 complete observations required " _continue
+			display as error "in each class to proceed with the calculations"
+			display as error "try reducing the number of classes with " _continue
+			display as error "the 'numclass()' option"
+			error 2001
+		}
+	}
+	
 	/* Once stability is attained, final local models are estimated */
 	local allendogenous "`: colnames e(struct_b)'"
 	tempname lat class indstd_st lat_st out_res_st inn_res_st class_st gqi
-	mata: `indstd_st' = J(0, cols(`ind'), .)
+	mata: `indstd_st' = J(0, strtoreal("`num_ind'"), .)
 	mata: `lat_st' = J(0, sum(`endo'), .)
-	mata: `out_res_st' = J(0, cols(`ind'), .)
+	mata: `out_res_st' = J(0, strtoreal("`num_ind'"), .)
 	mata: `inn_res_st' = J(0, sum(`endo'), .)
 	mata: `class_st' = J(0, 1, .)
 	forvalues k = 1/`numclass' {
+		tempname localmodel_`k'
 		quietly plssem `mm' if (`rebus_class' == `k' & `__touse__'), ///
 			structural(`sm') `options'
 		_estimates hold `localmodel_`k'', copy
@@ -732,24 +742,24 @@ program unobshet, rclass
 		quietly generate byte `__touseloc__' = e(sample)
 
 		mata: st_view(`lat' = ., ., "`allendogenous'", "`__touseloc__'")
-		mata: st_view(`ind' = ., ., "`allindicators'", "`__touseloc__'")						// split.DM[[k]]
-		mata: `indstd' = scale(`ind') 																							// split.X[[k]]
-
-		mata: `ow' = st_matrix("e(outerweights)")																		// w.locals[[k]]
-		mata: `path' = st_matrix("e(pathcoef)")																			// path.locals[[k]]
-		mata: `loads' = st_matrix("e(loadings)")																		// loads.locals[[k]]
-		mata: `r2' = st_matrix("e(rsquared)")	
-		mata: `r2' = `r2'[., selectindex(`r2' :!= .)]																// R2.locals[[k]]
-
-		mata: `y_local' = `indstd' * `ow'																						// LV.locals[[k]]
+		mata: st_view(`ind' = ., ., "`allindicators'", "`__touseloc__'")
+		mata: `indstd' = scale(`ind')
+		
+		mata: `ow' = st_matrix("e(outerweights)")
+		mata: `path' = st_matrix("e(pathcoef)")
+		mata: `loads' = st_matrix("e(loadings)")
+		mata: `r2' = st_matrix("e(rsquared)")
+		mata: `r2' = `r2'[., selectindex(`r2' :!= .)]
+		
+		mata: `y_local' = `indstd' * `ow'
 		mata: `out_res' = J(rows(`ind'), 0, .)
 		forvalues j = 1/`num_lv' {
-			mata: `block' = selectindex(`loads'[., `j'] :!= .)												// blocklist == j
-			mata: `x_hat' = `y_local'[., `j'] * `loads'[`block', `j']'								// X.hat
-			mata: `out_res' = (`out_res', (`indstd'[., `block'] - `x_hat'))						// out.res[, blocklist == j]
+			mata: `block' = selectindex(`loads'[., `j'] :!= .)
+			mata: `x_hat' = `y_local'[., `j'] * `loads'[`block', `j']'
+			mata: `out_res' = (`out_res', (`indstd'[., `block'] - `x_hat'))
 		}
-		mata: `y_hat' = `y_local' * `path'[., selectindex(`endo')]									// Y.hat
-		mata: `inn_res' = `y_local'[., selectindex(`endo')] - `y_hat'								// innres.locals[[k]]
+		mata: `y_hat' = `y_local' * `path'[., selectindex(`endo')]
+		mata: `inn_res' = `y_local'[., selectindex(`endo')] - `y_hat'
 		mata: `class' = J(rows(`ind'), 1, `k')
 
 		mata: `indstd_st' = (`indstd_st' \ `indstd')
@@ -758,90 +768,57 @@ program unobshet, rclass
 		mata: `inn_res_st' = (`inn_res_st' \ `inn_res')
 		mata: `class_st' = (`class_st' \ `class')
 	}
-	mata: `gqi' = rebus_gqi(`indstd_st', `lat_st', `out_res_st', `inn_res_st', `class_st')
+	mata: `gqi' = ///
+		rebus_gqi(`indstd_st', `lat_st', `out_res_st', `inn_res_st', `class_st')
 	tempname gqi_final
 	mata: st_numscalar("`gqi_final'", `gqi')
 	/* End final REBUS calculations */
 
 	/* Permutation test */
 	if ("`test'" != "") {
-		tempname rebclass rebclass_p gqi_perm
+		tempname res_ptest
 		if ("`reps'" == "") {
-			local reps = 50
+			local reps = 100
 		}
-		if ("`seed'" != "") {
-			set seed `seed'
-		}
-		quietly generate `rebclass_p' = .
-		mata: `rebclass' = st_data(., "`rebus_class'", "`__touse__'")
-		mata: `gqi_perm' = J(`reps', 1, .)
-
-		noisily display as text "Permutation replications (" _continue
-		noisily display as result string(`reps') _continue
-		noisily display as text ")"
-		noisily display as text ///
-			"{hline 4}{c +}{hline 3}" " 1 " ///
-			"{hline 3}{c +}{hline 3}" " 2 " ///
-			"{hline 3}{c +}{hline 3}" " 3 " ///
-			"{hline 3}{c +}{hline 3}" " 4 " ///
-			"{hline 3}{c +}{hline 3}" " 5"
-		
-		local tmp_skip = 0
-		forvalues m = 1/`reps' {
-			if (mod(`m', 50) == 0) {
-				local todisp = strtrim(string(`m', "%9.0f"))
-				if (strlen("`todisp'") < strlen(string(`reps'))) {
-					local tmp_skip = strlen(string(`reps')) - strlen("`todisp'")
-				}
-				noisily display as text "." _skip(3) _skip(`tmp_skip') "`todisp'"
-				local tmp_skip = 0
+	
+	capture noisily {
+		mata: `res_ptest' = ///
+			plssem_rebus_ptest( ///
+				st_data(., "`allindicators'"), ///					 note: `touse' not used here
+				st_matrix("e(adj_meas)"), ///
+				st_matrix("e(adj_struct)"), ///
+				"`allindicators'", ///
+				"`allstdindicators'", ///
+				"`alllatents'", ///
+				"`e(binarylvs)'", ///
+				st_numscalar("e(tolerance)"), ///
+				st_numscalar("e(maxiter)"), ///
+				"`__touse__'", ///
+				"`scheme'", ///
+				"`convcrit'", ///
+				"`init'", ///
+				"`scale'", ///
+				strtoreal("`isstruct'"), ///
+				strtoreal("`israwsum'"), ///
+				"`rebus_class'", ///
+				strtoreal("`numclass'"), ///
+				strtoreal("`maxiter'"), ///
+				strtoreal("`stop'"), ///
+				strtoreal("`reps'"), ///
+				strtoreal("`seed'"), ///
+				1)
+		}		
+		if (_rc != 0) {
+			if (_rc == 409) {
+				display as error "at least one indicator has zero variance " _continue
+				display as error "in one of the iterations of the permutation test"
 			}
 			else {
-				noisily display as text "." _continue
+				display as error "something went wrong in the REBUS permutation test"
 			}
-
-			mata: st_store(., "`rebclass_p'", "`__touse__'", jumble(`rebclass'))
-
-			mata: `indstd_st' = J(0, cols(`ind'), .)
-			mata: `lat_st' = J(0, sum(`endo'), .)
-			mata: `out_res_st' = J(0, cols(`ind'), .)
-			mata: `inn_res_st' = J(0, sum(`endo'), .)
-			mata: `class_st' = J(0, 1, .)
-			forvalues k = 1/`numclass' {
-				quietly plssem `mm' if (`rebclass_p' == `k' & `__touse__'), ///
-					structural(`sm') `options'
-				quietly drop `__touseloc__'
-				quietly generate byte `__touseloc__' = e(sample)
-
-				mata: st_view(`lat' = ., ., "`allendogenous'", "`__touseloc__'")
-				mata: st_view(`ind' = ., ., "`allindicators'", "`__touseloc__'")				// split.DM[[k]]
-				mata: `indstd' = scale(`ind') 																					// split.X[[k]]
-
-				mata: `ow' = st_matrix("e(outerweights)")																// w.locals[[k]]
-				mata: `path' = st_matrix("e(pathcoef)")																	// path.locals[[k]]
-				mata: `loads' = st_matrix("e(loadings)")																// loads.locals[[k]]
-				mata: `r2' = st_matrix("e(rsquared)")	
-				mata: `r2' = `r2'[., selectindex(`r2' :!= .)]														// R2.locals[[k]]
-
-				mata: `y_local' = `indstd' * `ow'																				// LV.locals[[k]]
-				mata: `out_res' = J(rows(`ind'), 0, .)
-				forvalues j = 1/`num_lv' {
-					mata: `block' = selectindex(`loads'[., `j'] :!= .)										// blocklist == j
-					mata: `x_hat' = `y_local'[., `j'] * `loads'[`block', `j']'						// X.hat
-					mata: `out_res' = (`out_res', (`indstd'[., `block'] - `x_hat'))				// out.res[, blocklist == j]
-				}
-				mata: `y_hat' = `y_local' * `path'[., selectindex(`endo')]							// Y.hat
-				mata: `inn_res' = `y_local'[., selectindex(`endo')] - `y_hat'						// innres.locals[[k]]
-				mata: `class' = J(rows(`ind'), 1, `k')
-
-				mata: `indstd_st' = (`indstd_st' \ `indstd')
-				mata: `lat_st' = (`lat_st' \ `lat')
-				mata: `out_res_st' = (`out_res_st' \ `out_res')
-				mata: `inn_res_st' = (`inn_res_st' \ `inn_res')
-				mata: `class_st' = (`class_st' \ `class')
-			}
-			mata: `gqi_perm'[`m', 1] = ///
-				rebus_gqi(`indstd_st', `lat_st', `out_res_st', `inn_res_st', `class_st')
+			restore
+			_estimates unhold `globalmodel'
+			exit
 		}
 		
 		local oldN = _N
@@ -851,7 +828,7 @@ program unobshet, rclass
 		tempname pvalue_sc permdist
 		tempvar gqi_dist
 		quietly generate `gqi_dist' = .
-		mata: st_store(range(1, `reps', 1), "`gqi_dist'", `gqi_perm')
+		mata: st_store(range(1, `reps', 1), "`gqi_dist'", `res_ptest')
 		quietly count if (`gqi_dist' > `gqi_final') & !missing(`gqi_dist')
 		local pvalue = strofreal(r(N)/`reps', "%9.4f")
 		scalar `pvalue_sc' = r(N)/`reps'
@@ -977,9 +954,8 @@ program unobshet, rclass
 		matrix `results_l'[1, 1 + `k'] = `tmp_mat'
 	}
 	
-	local iterm1 = `iter' - 1
 	local gqi_final_loc = `gqi_final'
-	mkheader, digits(5) rebus_it(`iterm1') rebus_gqi(`gqi_final_loc')
+	mkheader, digits(5) rebus_it(`iter') rebus_gqi(`gqi_final_loc')
 
 	tempname maxlen
 	mata: st_numscalar("`maxlen'", max(st_matrix("`alllen'")))
@@ -1023,7 +999,7 @@ program unobshet, rclass
 			title(`title') firstcolwidth(``maxlen'') colwidth(`colw') hlines(2) ///
 			novlines total rebus
 	}
-	/* End display */
+	/* End of display */
 
 	/* Restore global model results */
 	tempname rebus_c

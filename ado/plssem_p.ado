@@ -1,10 +1,10 @@
 *!plssem_p version 0.2.0
-*!Written 29May2017
+*!Written 28Aug2017
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
 program plssem_p, rclass sortpreserve
-	version 10
+	version 14.2
 
 	syntax , [ xb RESiduals NOOUTer NOINner ]
 	
@@ -96,7 +96,7 @@ program plssem_p, rclass sortpreserve
 			mata: st_matrix("`b2use'", transposeonly(`load_var'[`load_idx', .]))
 			mata: st_matrixcolstripe("`b2use'", `load_nm')
 			mata: st_matrix("`tmp'", ///
-						st_matrix("`modeA_scores'")[., `idx'] * st_matrix("`b2use'"))
+							st_matrix("`modeA_scores'")[., `idx'] * st_matrix("`b2use'"))
 			mata: st_matrix("`ohat'", (st_matrix("`ohat'"), st_matrix("`tmp'")))
 			local ++idx
 			local end = `start' + `nblock' - 1

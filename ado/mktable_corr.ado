@@ -1,10 +1,10 @@
 *!mktable_corr version 0.1.0
-*!Written 09Sept2016
+*!Written 28Aug2017
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
 program mktable_corr
-	version 10
+	version 14.2
 	syntax , matrix(string) [ Title(string) CUToff(real 0) ]
 
 	/* Options:

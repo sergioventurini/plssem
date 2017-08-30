@@ -1,10 +1,10 @@
 *!mktable version 0.2.0
-*!Written 12May2017
+*!Written 28Aug2017
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
 program mktable
-	version 10
+	version 14.2
 	syntax , matrix(string) [ FIRSTCOLName(string) FIRSTCOLWidth(integer 25) ///
 		COLWidth(integer 15) Title(string) HLines(numlist >0 integer sort) ///
 		NOVLines DIGits(integer 3) Path STats TOTal CORr CUToff(real 0) ///

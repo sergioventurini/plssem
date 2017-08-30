@@ -1,10 +1,10 @@
 *!plssemplot version 0.2.0
-*!Written 25May2017
+*!Written 30Aug2017
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
 program plssemplot
-	version 10
+	version 14.2
 
 	if ("`e(cmd)'" != "plssem") {
 		error 301
@@ -60,7 +60,7 @@ program _plssemplot
 			display as smcl "{stata net install nwcommands-ado.pkg}"
 			exit
 		}
-
+		
 		quietly nwset, mat(`adjmat') directed labs(`e(lvs)')
 		quietly nwplot, lab layout(circle) title("Structural model" " ") ///
 			labelopt(mlabposition(0)) nodefactor(4.5) arcstyle(automatic) ///
