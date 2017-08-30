@@ -265,7 +265,7 @@ program plssem_p, rclass sortpreserve
 	}
 	
 	/* Clean up */
-	// mata: mata drop __*
+	capture mata: cleanup()
 	
 	/* Return values */
 	if (!`noreflective') | (`isstruct') {
