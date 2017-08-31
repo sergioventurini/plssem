@@ -736,7 +736,7 @@ program unobshet, rclass
 	local donotcleanup "nocleanup"
 	forvalues k = 1/`numclass' {
 		tempname localmodel_`k'
-		plssem `mm' if (`rebus_class' == `k' & `__touse__'), ///
+		quietly plssem `mm' if (`rebus_class' == `k' & `__touse__'), ///
 			structural(`sm') `options' `donotcleanup'
 		_estimates hold `localmodel_`k'', copy
 		quietly drop `__touseloc__'
