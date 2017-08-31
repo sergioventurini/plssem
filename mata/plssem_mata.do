@@ -925,7 +925,7 @@ struct plssem_struct_boot scalar plssem_boot(real matrix X, real matrix Yinit,
 	}
 	res_bs.loadings_v = load_v
 	res_bs.xloadings_reps = xlambda
-	res_bs.xloadings_bs = plssem_boot_lv(xlambda, M, "cross")
+	res_bs.xloadings_bs = plssem_boot_lm(xlambda, M, "cross")
 	xload_v = plssem_boot_lv(xlambda, M, "cross")
 	for (p = 1; p <= P; p++) {
 		if (!isnotbinary[p]) {
