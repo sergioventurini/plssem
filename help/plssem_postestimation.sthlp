@@ -176,7 +176,7 @@ classes for which the automatic stopping rule is to be computed when
 {opt dendrogram},
 an option used with {cmd:estat unobshet}, allows to visualize the dendrogram
 for a Ward hierarchical clustering algorithm on the base of the residuals of
-the global model. The dendrogram allow to assess the quality of choice for the
+the global model. The dendrogram allows to assess the quality of choice for the
 number of classes.
 
 {phang}
@@ -305,7 +305,7 @@ are not saved in the data set.
 {phang2}{cmd:. describe *_hat *_res}{p_end}
 
 {pstd}Assessment of unobserved heterogeneity using REBUS{p_end}
-{phang2}{cmd:. estat unobshet, test reps(20) plot}{p_end}
+{phang2}{cmd:. estat unobshet, test reps(200) plot}{p_end}
 
     {hline}
 
