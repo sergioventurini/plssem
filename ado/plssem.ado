@@ -1,5 +1,5 @@
 *!plssem version 0.3.0
-*!Written 30Aug2017
+*!Written 02Sep2017
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -211,6 +211,8 @@ program Estimate, eclass byable(recall)
 
 	/* Set obs to use */
 	marksample touse
+	tempvar touse_nomiss
+	quietly generate `touse_nomiss' = `touse'
 	markout `touse' `allindicators'
 
 	quietly count if `touse'
@@ -224,6 +226,7 @@ program Estimate, eclass byable(recall)
 
 	quietly misstable patterns `allindicators' if `touse'
 	local nobs = r(N_complete)
+	/* End of setting observations to use */
 
 	/* Check that there are no "zero-variance" indicators */
 	tempname zerovar
@@ -286,6 +289,7 @@ program Estimate, eclass byable(recall)
 
 	/* Parse the binary() option */
 	if ("`binary'" != "") {
+		local binary : list clean binary
 		foreach var in `binary' {
 			local nind_bin : word count `i`var''
 			if (`nind_bin' > 1) {
@@ -368,7 +372,7 @@ program Estimate, eclass byable(recall)
 							}
 						}
 
-						// Add the interaction to the list of LVs
+						// Add the interactions to the list of LVs
 						local alllatents "`alllatents' `internm'"
 						local modeA "`modeA' `internm'"
 						local num_lv: word count `alllatents'
@@ -459,7 +463,7 @@ program Estimate, eclass byable(recall)
 	}
 	/* End of parsing the inner relationships */
 	
-	/* Create some more utility macros and scalars */
+	/* Create other macros and scalars */
 	foreach var in `allindicators' {
 		local allstdindicators "`allstdindicators' std`var'"
 	}
@@ -484,7 +488,7 @@ program Estimate, eclass byable(recall)
 	else {
 		scalar `struct_sc' = 1
 	}
-	/* End of creating the utility macros */
+	/* End of creating other macros */
 
 	/* Create the adjacency matrices */
 	tempname modes adj_meas adj_struct
@@ -722,24 +726,18 @@ program Estimate, eclass byable(recall)
 		local k = 1
 		matrix `indstats' = J(`num_ind', 7, .)
 		foreach ind in `allindicators' {
-			// quietly summarize `ind' if `touse', detail
-			quietly summarize `ind', detail
+			quietly summarize `ind' if `touse', detail
 			matrix `indstats'[`k', 1] = r(mean)
 			matrix `indstats'[`k', 2] = r(sd)
 			matrix `indstats'[`k', 3] = r(p50)
 			matrix `indstats'[`k', 4] = r(min)
 			matrix `indstats'[`k', 5] = r(max)
-			local nonmissN = r(N)
-			// quietly misstable summarize `ind' if `touse'
-			quietly misstable summarize `ind'
-			if (missing(r(N_eq_dot))) {
-				matrix `indstats'[`k', 6] = `nonmissN'
-				matrix `indstats'[`k', 7] = 0
-			}
-			else {
-				matrix `indstats'[`k', 6] = r(N_lt_dot)
-				matrix `indstats'[`k', 7] = r(N_eq_dot)
-			}
+			mata: st_local("indstats_mata", ///
+				strofreal(nonmissing(st_data(., "`ind'", "`touse_nomiss'"))))
+			matrix `indstats'[`k', 6] = real("`indstats_mata'")
+			mata: st_local("indstats_mata", ///
+				strofreal(missing(st_data(., "`ind'", "`touse_nomiss'"))))
+			matrix `indstats'[`k', 7] = real("`indstats_mata'")
 			local ++k
 		}
 		matrix rownames `indstats' = `allindicators'

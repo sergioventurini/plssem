@@ -72,7 +72,7 @@ bysort group: plssem (Expectation > CUEX1-CUEX3) (Satisfaction > CUSA1-CUSA3) //
 	(Quality > PERQ1-PERQ7) (Image < IMAG1-IMAG5), ///
 	structural(Quality Expectation, Satisfaction Expectation Quality Image, ///
 	Image Expectation Quality) wscheme("path") ///
-	seed(123) digits(5) //boot(50)
+	seed(123) digits(5) boot(500)
 
 estat total, plot
 	
@@ -605,7 +605,6 @@ predict, xb residuals
 /* Example 37 */
 /* ---------- */
 /* [From Sanchez, G. (2013) PLS Path Modeling with R (Chapter 9)] */
-pause on
 use ./data/futbol, clear
 
 plssem (Attack > GSH GSA SSH SSA) (Defense > NGCH NGCA CSH CSA) ///
@@ -631,7 +630,7 @@ estat unobshet // a posteriori approach
 // estat unobshet, numclass(6)
 // estat unobshet, test reps(300) plot seed(123)
 
-estat unobshet, numclass(4) // a priori approach
+estat unobshet, numclass(2) // a priori approach
 
 plssem (Attack > GSH GSA SSH SSA) (Defense > NGCH NGCA CSH CSA) ///
 	(Success > WMH WMA), structural(Success Attack Defense) ///

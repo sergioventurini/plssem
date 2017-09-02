@@ -1,11 +1,12 @@
 *!plssem_mata version 0.3.0
-*!Written 30Aug2017
+*!Written 02Sep2017
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
 capture mata: mata drop ///
 	plssem_struct() ///
 	plssem_scale() ///
+	plssem_scale_mat() ///
 	plssem_init() ///
 	plssem_init_mat() ///
 	plssem_base() ///
@@ -98,8 +99,8 @@ void plssem_scale(real matrix X, string scalar stdind, string scalar touse,
 	/* Arguments:
 		 ----------
 		 - X					--> real matrix containing the observed manifest variables
-		 - stdind	 		--> string scalar providing the list of the latent binary
-											variables
+		 - stdind	 		--> string scalar providing the list of the standardized
+											indicators
 		 - touse			--> string scalar containing the name of the variable tracking
 											the subset of the data to use
 		 - scale	 		--> string scalar indicating if the indicators are scaled
@@ -126,6 +127,40 @@ void plssem_scale(real matrix X, string scalar stdind, string scalar touse,
 	else {
 		st_store(., std_ind, touse, X)
 	}
+}
+
+real matrix plssem_scale_mat(real matrix X, real colvector touse,
+	string scalar scale)
+{
+	/* Description:
+		 ------------
+		 Function that implements standardization of the indicators (returning the
+		 result as a matrix)
+	*/
+	
+	/* Arguments:
+		 ----------
+		 - X					--> real matrix containing the observed manifest variables
+		 - touse			--> real colvector containing the name of the variable
+											tracking the subset of the data to use
+		 - scale	 		--> string scalar indicating if the indicators are scaled
+	*/
+	
+	/* Returned value:
+		 ---------------
+		 - Xsc				--> real matrix of the standardized indicators
+	*/
+	
+	real matrix Xsc
+
+	if (scale == "") {
+		Xsc = scale(X[selectindex(touse), .])
+	}
+	else {
+		Xsc = X[selectindex(touse), .]
+	}
+	
+	return(Xsc)
 }
 
 void plssem_init(real matrix X,  real matrix M, string scalar ind,
@@ -220,7 +255,8 @@ real matrix plssem_init_mat(real matrix X,  real matrix M, string scalar ind,
 {
 	/* Description:
 		 ------------
-		 Function that initializes the LVs in a PLS-SEM model
+		 Function that initializes the LVs in a PLS-SEM model (returning the result
+		 as a matrix)
 	*/
 	
 	/* Arguments:
@@ -925,7 +961,7 @@ struct plssem_struct_boot scalar plssem_boot(real matrix X, real matrix Yinit,
 	}
 	res_bs.loadings_v = load_v
 	res_bs.xloadings_reps = xlambda
-	res_bs.xloadings_bs = plssem_boot_lm(xlambda, M, "cross")
+	res_bs.xloadings_bs = plssem_boot_lv(xlambda, M, "cross")
 	xload_v = plssem_boot_lv(xlambda, M, "cross")
 	for (p = 1; p <= P; p++) {
 		if (!isnotbinary[p]) {
@@ -2277,12 +2313,7 @@ real colvector plssem_rebus_ptest(real matrix X, real matrix M, real matrix S,
 			st_store(., touseloc_name, touseloc)
 			
 			// Standardize the MVs (if required)
-			if (scale == "") {
-				Xsc = scale(X[selectindex(touseloc), .])
-			}
-			else {
-				Xsc = X[selectindex(touseloc), .]
-			}
+			Xsc = plssem_scale_mat(X, touseloc, scale)
 			
 			// Check that there are no zero-variance indicators
 			if (any(selectindex(sd(Xsc) :== 0))) {
@@ -2364,6 +2395,7 @@ end
 
 mata: mata mosave plssem_struct(), dir(PERSONAL) replace
 mata: mata mosave plssem_scale(), dir(PERSONAL) replace
+mata: mata mosave plssem_scale_mat(), dir(PERSONAL) replace
 mata: mata mosave plssem_init(), dir(PERSONAL) replace
 mata: mata mosave plssem_init_mat(), dir(PERSONAL) replace
 mata: mata mosave plssem_base(), dir(PERSONAL) replace
