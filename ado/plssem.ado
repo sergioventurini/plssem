@@ -1,5 +1,5 @@
 *!plssem version 0.3.0
-*!Written 02Sep2017
+*!Written 04Sep2017
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -65,9 +65,10 @@ program Estimate, eclass byable(recall)
 	syntax anything(id="Measurement model" name=blocks) [if] [in], ///
 		[ STRuctural(string) Wscheme(string) BINary(namelist min=1) ///
 		Boot(numlist integer >0 max=1) Seed(numlist max=1) Tol(real 1e-7) ///
-		MAXiter(integer 100) INIT(string) DIGits(integer 3) noHEADer ///
-		noMEAStable noDISCRIMtable noSTRUCTtable STATs GRoup(string) ///
-		CORRelate(string) RAWsum noSCale CONVcrit(string) noCLeanup ]
+		MAXiter(integer 100) MISsing(string) k(numlist integer >0 max=1) ///
+		INIT(string) DIGits(integer 3) noHEADer noMEAStable noDISCRIMtable ///
+		noSTRUCTtable STATs GRoup(string) CORRelate(string) RAWsum noSCale ///
+		CONVcrit(string) noCLeanup ]
 	
 	/* Options:
 	   --------
@@ -80,6 +81,9 @@ program Estimate, eclass byable(recall)
 		 tol(real 1e-7)									--> tolerance (default 1e-7)
 		 maxiter(integer 100)						--> maximum number of iterations (default
 																				100)
+		 missing(string)								--> imputation method ("mean" or "knn")
+		 k(numlist integer >0 max=1)		--> neighbor size; to use with
+																				missing("knn") (default 5)
 		 init(string)										--> initialization method ("eigen" or "indsum")
 		 digits(integer 3)							--> number of digits to display (default 3)
 		 noheader												--> do not show the header
@@ -208,9 +212,69 @@ program Estimate, eclass byable(recall)
 	local allindicators : list clean allindicators
 	local alllatents : list clean alllatents
 	/* End of parsing the blocks */
-
-	/* Set obs to use */
+	
+	/* Parse the binary() option */
+	if ("`binary'" != "") {
+		local binary : list clean binary
+		foreach var in `binary' {
+			local nind_bin : word count `i`var''
+			if (`nind_bin' > 1) {
+				display as error "latent variables in 'binary()' option must be defined through a single binary indicator"
+				exit
+			}
+		}
+	}
+	/* End of parsing the binary() option */
+	
+	/* Check if any observation has only missing */
+	tempname ind_mata allmiss
+	mata: `ind_mata' = st_data(., "`allindicators'")
+	mata: st_numscalar("`allmiss'", anyof(rowmissing(`ind_mata'), ///
+		cols(`ind_mata')))
+	if (`allmiss') {
+		display as error "some observations have all indicators missing; " _continue
+		display as error "remove them manually before proceeding"
+		exit
+	}
+	/* End checking if any observation has only missing */
+	
+	/* Set obs to use (1/2) */
 	marksample touse
+	/* End of setting observations to use (1/2) */
+	
+	/* Imputation of missing values */
+	local missing : list clean missing
+	foreach var in `binary' {
+		local indbin "`indbin' `i`var''"
+	}
+	local indbin : list clean indbin
+	
+	if ("`missing'" == "mean") {
+		mata: meanimp( ///
+			st_data(., "`allindicators'", "`touse'"), ///
+			"`allindicators'", ///
+			"`indbin'", ///
+			"`touse'")
+	}
+	else if ("`missing'" == "knn") {
+		if ("`k'" == "") {
+			local k = 5
+		}
+		mata: knnimp( ///
+			st_data(., "`allindicators'", "`touse'"), ///
+			"`allindicators'", ///
+			strtoreal("`k'"), ///
+			"`indbin'", ///
+			"`touse'", ///
+			1)
+	}
+	else if ("`missing'" != "") {
+		display as error "missing can be either 'mean' or 'knn'"
+		exit
+	}
+	/* End of imputing the missing values */
+	
+	/* Set obs to use (2/2) */
 	tempvar touse_nomiss
 	quietly generate `touse_nomiss' = `touse'
 	markout `touse' `allindicators'
@@ -226,7 +290,7 @@ program Estimate, eclass byable(recall)
 
 	quietly misstable patterns `allindicators' if `touse'
 	local nobs = r(N_complete)
-	/* End of setting observations to use */
+	/* End of setting observations to use (2/2) */
 
 	/* Check that there are no "zero-variance" indicators */
 	tempname zerovar
@@ -287,19 +351,6 @@ program Estimate, eclass byable(recall)
 	}
 	/* End of checking the initialization method */
 
-	/* Parse the binary() option */
-	if ("`binary'" != "") {
-		local binary : list clean binary
-		foreach var in `binary' {
-			local nind_bin : word count `i`var''
-			if (`nind_bin' > 1) {
-				display as error "latent variables in 'binary()' option must be defined through a single binary indicator"
-				exit
-			}
-		}
-	}
-	/* End of parsing the binary() option */
-	
 	/* Parse the correlate() option */
 	if ("`correlate'" != "") {
 		local tok_i = 1
@@ -723,22 +774,22 @@ program Estimate, eclass byable(recall)
 	// ("if `touse'" is not used here to correctly account for the missing values)
 	if ("`stats'" != "") {
 		tempname indstats
-		local k = 1
+		local kk = 1
 		matrix `indstats' = J(`num_ind', 7, .)
 		foreach ind in `allindicators' {
 			quietly summarize `ind' if `touse', detail
-			matrix `indstats'[`k', 1] = r(mean)
-			matrix `indstats'[`k', 2] = r(sd)
-			matrix `indstats'[`k', 3] = r(p50)
-			matrix `indstats'[`k', 4] = r(min)
-			matrix `indstats'[`k', 5] = r(max)
+			matrix `indstats'[`kk', 1] = r(mean)
+			matrix `indstats'[`kk', 2] = r(sd)
+			matrix `indstats'[`kk', 3] = r(p50)
+			matrix `indstats'[`kk', 4] = r(min)
+			matrix `indstats'[`kk', 5] = r(max)
 			mata: st_local("indstats_mata", ///
 				strofreal(nonmissing(st_data(., "`ind'", "`touse_nomiss'"))))
-			matrix `indstats'[`k', 6] = real("`indstats_mata'")
+			matrix `indstats'[`kk', 6] = real("`indstats_mata'")
 			mata: st_local("indstats_mata", ///
 				strofreal(missing(st_data(., "`ind'", "`touse_nomiss'"))))
-			matrix `indstats'[`k', 7] = real("`indstats_mata'")
-			local ++k
+			matrix `indstats'[`kk', 7] = real("`indstats_mata'")
+			local ++kk
 		}
 		matrix rownames `indstats' = `allindicators'
 		matrix colnames `indstats' = "mean" "sd" "median" "min" "max" "N" "missing"
@@ -875,6 +926,7 @@ program Estimate, eclass byable(recall)
 	if ("`structural'" != "") {
 		local props "`props' `wscheme'"
 	}
+	local props "`props' `missing'"
 	if ("`boot'" != "") {
 		local props "`props' bootstrap"
 	}
@@ -1020,9 +1072,10 @@ program Compare, eclass sortpreserve
 	syntax anything(id="Measurement model" name=blocks) [if] [in], ///
 		[ STRuctural(string) Wscheme(string) BINary(namelist min=1) ///
 		Boot(numlist integer >0 max=1) Seed(numlist max=1) Tol(real 1e-7) ///
-		MAXiter(integer 100) INIT(string) DIGits(integer 3) noHEADer ///
-		noMEAStable noDISCRIMtable noSTRUCTtable STATs GRoup(string) ///
-		CORRelate(string) RAWsum noSCale CONVcrit(string) noCLeanup ]
+		MAXiter(integer 100) MISsing(string) k(numlist integer >0 max=1) ///
+		INIT(string) DIGits(integer 3) noHEADer noMEAStable noDISCRIMtable ///
+		noSTRUCTtable STATs GRoup(string) CORRelate(string) RAWsum noSCale ///
+		CONVcrit(string) noCLeanup ]
 
 	/* Options:
 	   --------
@@ -1035,6 +1088,9 @@ program Compare, eclass sortpreserve
 		 tol(real 1e-7)									--> tolerance (default 1e-7)
 		 maxiter(integer 100)						--> maximum number of iterations (default
 																				100)
+		 missing(string)								--> imputation method ("mean" or "knn")
+		 k(numlist integer >0 max=1)		--> neighbor size; to use with
+																				missing("knn") (default 5)
 		 init(string)										--> initialization method ("eigen" or "indsum")
 		 digits(integer 3)							--> number of digits to display (default 3)
 		 noheader												--> do not show the header

@@ -1,5 +1,5 @@
 *!plssem_mata version 0.3.0
-*!Written 02Sep2017
+*!Written 04Sep2017
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -29,6 +29,8 @@ capture mata: mata drop ///
 	sd() ///
 	which() ///
 	cronbach() ///
+	meanimp() ///
+	knnimp() ///
 	rebus_cm() ///
 	rebus_gqi() ///
 	plssem_struct_rebus() ///
@@ -376,7 +378,7 @@ struct plssem_struct scalar plssem_base(real matrix X, real matrix Yinit,
 
 	real matrix W, w_old, w_new, C, E, Yhat, Ycor, Ytilde, Ydep, Yindep, mf, ///
 		fscores, T, beta, beta_v, Yexo, Yendo, Ypred, Whist, xlambda, lambda, Snew
-	real scalar iter, delta, P, Q, i, j, p, q, n, minval, maxval, converged
+	real scalar iter, delta, P, Q, p, n, minval, maxval, converged
 	real rowvector endo, diff, isnotbinary, r2, r2_a
 	real colvector Mind, Sind, predec
 	string rowvector lvs_vec
@@ -736,7 +738,7 @@ real matrix plssem_pval(real matrix path, real matrix path_se,
 	*/
 
 	real matrix pval
-	real scalar P, Q, p, q, stat, df
+	real scalar P, p, q, stat, df
 	real rowvector isnotbinary
 	string rowvector lvs_vec
 
@@ -935,7 +937,7 @@ struct plssem_struct_boot scalar plssem_boot(real matrix X, real matrix Yinit,
 		bs_ind = runiformint(n, 1, 1, n)
 		X_bs = X[bs_ind, .]
 		Yinit_bs = Yinit[bs_ind, .]
-		if (any(sd(X_bs) :== 0)) {
+		if (anyof(sd(X_bs), 0)) {
 			skip_b = 1
 			b--
 			continue
@@ -1058,7 +1060,7 @@ real matrix plssem_boot_pm(real matrix path)
 	pathcoef = J(P, P, 0)
 	
 	for (j = 1; j <= P*P; j++) {
-		if (!any(path[., j] :== .)) {
+		if (!hasmissing(path[., j])) {
 			path_mean[j] = mean(path[., j])
 		}
 	}
@@ -1145,7 +1147,7 @@ real matrix plssem_boot_pv(real matrix path)
 	pathcoef_v = J(P, P, 0)
 	
 	for (j = 1; j <= P*P; j++) {
-		if (!any(path[., j] :== .)) {
+		if (!hasmissing(path[., j])) {
 			path_var[j] = variance(path[., j])
 		}
 	}
@@ -1316,7 +1318,7 @@ class AssociativeArray scalar plssem_mga_perm(real matrix X, real matrix Yinit,
 	
 	real matrix bs_mat, alldata, group_tmp, X_bs, Yinit_bs, res_p, res_l
 	real vector bs_ind
-	real scalar P, Q, N, n, G, b, skip, i, g, groupi, p
+	real scalar P, Q, N, n, G, b, skip, i, g, groupi
 	string scalar todisp, spaces, touse_new_name
 	real colvector touse_vec, groupvals, groupsizes, __id__, __group__, ///
 		touse_new, touse_tmp, res_tmp
@@ -1536,7 +1538,7 @@ class AssociativeArray scalar plssem_mga_boot(real matrix X, real matrix Yinit,
 	real matrix bs_mat, alldata, group_tmp, X_bs, Yinit_bs, alldata_bs, ///
 		alldata_tmp, res_p, res_l
 	real vector bs_ind
-	real scalar P, Q, N, n, G, b, skip, i, g, p, skip_b
+	real scalar P, Q, N, n, G, b, skip, i, g, skip_b
 	string scalar todisp, spaces, touse_new_name
 	real colvector touse_vec, groupvals, groupsizes, __id__, touse_new, ///
 		touse_tmp, group_idx, res_tmp
@@ -1622,7 +1624,7 @@ class AssociativeArray scalar plssem_mga_boot(real matrix X, real matrix Yinit,
 			st_store(., touse_new_name, touse_new)
 			X_bs = alldata_bs[., range(2, (Q + 1), 1)']
 			Yinit_bs = alldata_bs[., range((Q + 2), (Q + P + 1), 1)']
-			if (any(sd(X_bs[selectindex(touse_new), .]) :== 0)) {
+			if (anyof(sd(X_bs[selectindex(touse_new), .]), 0)) {
 				skip_b = 1
 				break
 			}
@@ -1881,6 +1883,181 @@ real rowvector cronbach(real matrix X, real matrix M)
 	return(alpha)
 }
 
+void meanimp(real matrix X, string scalar vars, |string scalar categ,
+	string scalar touse)
+{
+	/* Description:
+		 ------------
+		 Function that performs mean imputation for a set of variables
+	*/
+	
+	/* Arguments:
+		 ----------
+		 - X					--> real matrix containing the variable to impute
+		 - vars	 			--> string scalar providing the list of the variables to
+											imputes
+		 - categ	 		--> (optional) string scalar providing the list of the
+											categorical variables
+		 - touse	 		--> (optional) string scalar containing the name of the
+											variable tracking the subset of the data to use
+	*/
+	
+	/* Returned value:
+		 ---------------
+		 - void				--> the matrix of imputed variables is saved directly in the
+											data table
+	*/
+
+	real matrix Ximp, ur, xvals, xfreqs
+	real scalar Q, q, mostfreq
+	string rowvector vars_vec
+	
+	Q = cols(X)
+	
+	Ximp = X
+	vars_vec = tokens(vars)
+
+	for (q = 1; q <= Q; q++) {
+		if (hasmissing(Ximp[., q])) {
+			if (strpos(categ, vars_vec[q])) {
+				ur = uniqrows(Ximp[., q], 1)
+				xvals = ur[., 1]
+				xfreqs = ur[., 2]
+				mostfreq = xvals[which(xfreqs, "max")[1]]
+				Ximp[., q] = editmissing(Ximp[., q], mostfreq)
+			}
+			else {
+				if (st_vartype(vars_vec[q]) != "float") {
+					stata("quietly recast float " + vars_vec[q])
+				}
+				Ximp[., q] = editmissing(Ximp[., q], mean(Ximp[., q]))
+			}
+		}
+	}
+	
+	st_store(., vars_vec, touse, Ximp)
+}
+
+void knnimp(real matrix X, string scalar vars, real scalar k,
+	|string scalar categ, string scalar touse, real scalar noisily)
+{
+	/* Description:
+		 ------------
+		 Function that performs mean imputation for a set of variables
+	*/
+	
+	/* Arguments:
+		 ----------
+		 - X					--> real matrix containing the variable to impute
+		 - vars	 			--> string scalar providing the list of variables to impute
+		 - k	 				--> real scalar providing the neighbor size
+		 - categ	 		--> (optional) string scalar providing the list of the
+											categorical variables
+		 - touse	 		--> (optional) string scalar containing the name of the
+											variable tracking the subset of the data to use
+		 - noisily		--> (optional) real scalar; if not 0, it prints the bootstrap
+											iterations
+	*/
+	
+	/* Returned value:
+		 ---------------
+		 - void				--> the matrix of imputed variables is saved directly in the
+											data table
+	*/
+
+	real matrix Ximp, D, Xsub, ur, xvals, xfreqs
+	real scalar n, Q, N, R, V, v, i, q, mostfreq, D_idx, knew
+	real colvector complete_idx, incomplete_idx, disti, tmp_idx
+	real rowvector vars_nonmiss
+	string rowvector vars_vec, vars_touse
+	string scalar meas, todisp
+	
+	n = rows(X)												// number of observations
+	Q = cols(X)
+	
+	if (noisily == .) {
+		noisily = 1
+	}
+	meas = "L2"
+	
+	Ximp = X
+	vars_vec = tokens(vars)
+	complete_idx = selectindex(rowmissing(X) :== 0)
+	N = rows(complete_idx)						// number of complete observations
+	incomplete_idx = selectindex(rowmissing(X) :> 0)
+	R = n - N													// number of incomplete observations
+	
+	stata("quietly set matsize " + strofreal(Q*n), 0)
+	
+	if (noisily) {
+		printf("\n")
+		printf("{txt}Imputing missing values using k nearest neighbor ")
+		printf("{txt}(using k = " + strtrim(strofreal(k, "%9.0f")))
+		printf("{txt})\n")
+		displayflush()
+	}
+	
+	for (i = 1; i <= R; i++) {
+		if (noisily) {
+			if (i == 1) {
+				printf("{txt}1")
+			}
+			else if (mod(i, 10) == 0) {
+				todisp = strtrim(strofreal(i, "%9.0f"))
+				printf("{txt}" + todisp)
+			}
+			else {
+				printf("{txt}.")
+			}
+			displayflush()
+		}
+		
+		vars_nonmiss = selectindex(colnonmissing(X[incomplete_idx[i], .]))
+		vars_touse = vars_vec[vars_nonmiss]
+		tmp_idx = selectindex(rowmissing(X[., vars_nonmiss]) :== 0)
+		tmp_idx = (tmp_idx, range(1, rows(tmp_idx), 1))
+		stata("matrix dissimilarity D = " + invtokens(vars_touse) + ", " + meas, 0)
+		D = st_matrix("D")
+		D_idx = tmp_idx[selectindex(incomplete_idx[i] :== tmp_idx[., 1]), 2]
+		disti = D[., D_idx]
+		disti[D_idx] = max(disti)
+		disti = (disti, tmp_idx)
+		disti = sort(disti, 1)					// ties are randomly broken
+		Xsub = X[disti[1..k, 2], .]
+		knew = k
+		while (anyof(colmissing(Xsub), knew)) {
+			knew++
+			Xsub = X[disti[1..knew, 2], .]
+		}
+		for (q = 1; q <= Q; q++) {
+			if (hasmissing(X[incomplete_idx[i], q])) {
+				if (strpos(categ, vars_vec[q])) {
+					ur = uniqrows(Xsub[., q], 1)
+					xvals = ur[., 1]
+					xfreqs = ur[., 2]
+					mostfreq = xvals[which(xfreqs, "max")[1]]
+					Ximp[incomplete_idx[i], q] = ///
+						editmissing(Ximp[incomplete_idx[i], q], mostfreq)
+				}
+				else {
+					if (st_vartype(vars_vec[q]) != "float") {
+						stata("quietly recast float " + vars_vec[q])
+					}
+					Ximp[incomplete_idx[i], q] = ///
+						editmissing(Ximp[incomplete_idx[i], q], mean(Xsub[., q]))
+				}
+			}
+		}
+	}
+	if (noisily) {
+		printf("\n")
+		displayflush()
+	}
+	
+	stata("capture quietly matrix drop D", 1)
+	st_store(., vars_vec, touse, Ximp)
+}
+
 real colvector rebus_cm(real matrix e, real matrix f, real matrix loads, ///
 	real rowvector r2)
 {
@@ -2044,15 +2221,14 @@ struct plssem_struct_rebus scalar plssem_rebus(real matrix X, real matrix M,
 
 	real matrix cm, Xsc, Yinit, Xreb, Xrebsc, Xreb_all, Xrebsc_all, ow, path, ///
 		loads, y, y_local, block, x_hat, y_hat, out_res, inn_res
-	real scalar iter, N, nchanged, k, P, Q, p, rN0, rN_lte_5
-	string scalar touseloc_name, todisp
+	real scalar iter, N, nchanged, k, P, p, rN0, rN_lte_5
+	string scalar touseloc_name
 	real colvector modes, touse_vec, rebus_class, touseloc, old_class, ///
 		new_class, class_freq
 	real rowvector r2, endo
 	
 	iter = 1
 	P = cols(M)
-	Q = rows(M)
 	touse_vec = st_data(., touse)
 	N = sum(touse_vec)
 	nchanged = N
@@ -2141,7 +2317,7 @@ struct plssem_struct_rebus scalar plssem_rebus(real matrix X, real matrix M,
 		old_class = new_class
 		
 		class_freq = uniqrows(new_class, 1)[., 2]
-		if (any(class_freq :== 0)) {
+		if (anyof(class_freq, 0)) {
 			rN0 = 1
 			break
 		}
@@ -2177,8 +2353,8 @@ real colvector plssem_rebus_ptest(real matrix X, real matrix M, real matrix S,
 	string scalar binary, real scalar tol, real scalar maxit, string scalar touse,
 	string scalar scheme, string scalar crit, string scalar init,
 	string scalar scale, real scalar structural, real scalar rawsum,
-	string scalar rebus_cl, real scalar numclass, real scalar maxit_reb,
-	real scalar stop, |real scalar B, real scalar seed, real scalar noisily)
+	string scalar rebus_cl, real scalar numclass, |real scalar B,
+	real scalar seed, real scalar noisily)
 {
 	/* Description:
 		 ------------
@@ -2219,14 +2395,11 @@ real colvector plssem_rebus_ptest(real matrix X, real matrix M, real matrix S,
 		 - rebus_cl		--> string scalar providing the variable with the REBUS
 											classes
 		 - numclass		--> real scalar providing the number of REBUS classes
-		 - maxit_reb	--> real scalar providing the maximum number of REBUS
-											iterations
-		 - stop				--> real scalar providing the REBUS stopping criterion
-		 - B					--> (optional) real scalar number of bootstrap replications
+		 - B					--> (optional) real scalar number of permutation replications
 											(default 100)
-		 - seed				--> (optional) real scalar bootstrap seed
-		 - noisily		--> (optional) real scalar; if not 0, it prints the bootstrap
-											iterations
+		 - seed				--> (optional) real scalar permutation seed
+		 - noisily		--> (optional) real scalar; if not 0, it prints the
+											permutation iterations
 	*/
 	
 	/* Returned value:
@@ -2418,6 +2591,8 @@ mata: mata mosave scale(), dir(PERSONAL) replace
 mata: mata mosave sd(), dir(PERSONAL) replace
 mata: mata mosave which(), dir(PERSONAL) replace
 mata: mata mosave cronbach(), dir(PERSONAL) replace
+mata: mata mosave meanimp(), dir(PERSONAL) replace
+mata: mata mosave knnimp(), dir(PERSONAL) replace
 mata: mata mosave rebus_cm(), dir(PERSONAL) replace
 mata: mata mosave rebus_gqi(), dir(PERSONAL) replace
 mata: mata mosave plssem_struct_rebus(), dir(PERSONAL) replace

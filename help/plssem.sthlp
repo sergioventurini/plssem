@@ -34,6 +34,9 @@
 {synopt:{opth s:eed(numlist)}}bootstrap seed number{p_end}
 {synopt:{opt t:ol(#)}}tolerance; default is {cmd:1e-7}{p_end}
 {synopt:{opt max:iter(#)}}maximum number of iterations; default is {cmd:100}{p_end}
+{synopt:{cmdab:miss:ing(mean)}}impute the indicator missing values using the mean of the available indicators{p_end}
+{synopt:{cmdab:miss:ing(knn)}}impute the indicator missing values using the k-th nearest neighbor method{p_end}
+{synopt:{opt k(#)}}number of nearest neighbors to use with {cmd:missing(knn)}; default is {cmd:5}{p_end}
 {synopt:{cmdab:init(eigen)}}initialize the latent variables using {helpb factor}{p_end}
 {synopt:{cmdab:init(indsum)}}initialize the latent variables using the sum of indicators; the default{p_end}
 {synopt:{opt dig:its(#)}}number of digits to display; default is {cmd:3}{p_end}
@@ -118,13 +121,22 @@ sets the seed number for the bootstrap calculations. This option may be useful i
 reproducibility is the analyst's concern. 
 
 {phang}{opt tol(#)}
-sets the tolerance value used for checking convergence attainment.
-The default tolerance value is 1e-7. 
+sets the tolerance value used for checking convergence attainment. The default tolerance
+value is 1e-7. 
 
 {phang}{opt maxiter(#)}
 indicates the maximum number of iterations the algorithm runs. The default is
 100 iterations. Note that usually the algorithm requires a very limited number of
 iterations to reach convergence, typically less than 10. 
+
+{phang}{opt missing(imputation method)}
+povides the choice for the method to use for imputing the indicator missing values. Possible
+choices are {bf:mean} (i.e. the mean of the available indicators) or {bf:knn} (i.e. the k-th
+nearest neighbor method).
+
+{phang}{opt k(#)}
+sets the number of nearest neighbors to use with {cmd:missing(knn)}. The default
+number of nearest neighbors is 5.
 
 {phang}{opt init(initialization)}
 lets the user choose between two options for initialization. These
@@ -278,7 +290,7 @@ Norwegian University of Science and Technology{break}
 {synopt:{cmd:e(reflective)}}list of latent variables measured in a reflective way{p_end}
 {synopt:{cmd:e(formative)}}list of latent variables measured in a formative way{p_end}
 {synopt:{cmd:e(struct_eqs)}}equations defining the structural model{p_end}
-{synopt:{cmd:e(properties)}}choices of initialization, weighting scheme,
+{synopt:{cmd:e(properties)}}choices of initialization, weighting scheme, imputation method, 
 whether the boostrap has been used, if the model has a structural part, if the
 {cmd:rawsum} option has been used if the manifest variables have been scaled or not{p_end}
 

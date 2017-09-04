@@ -1,5 +1,5 @@
 *!plssem_estat version 0.3.0
-*!Written 30Aug2017
+*!Written 04Sep2017
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -642,7 +642,7 @@ program unobshet, rclass
 	
 	/* Run the REBUS algorithm */
 	// display
-
+  
 	tempname res_rebus
 	capture noisily {
 		mata: `res_rebus' = ///
@@ -803,8 +803,6 @@ program unobshet, rclass
 				strtoreal("`israwsum'"), ///
 				"`rebus_class'", ///
 				strtoreal("`numclass'"), ///
-				strtoreal("`maxiter'"), ///
-				strtoreal("`stop'"), ///
 				strtoreal("`reps'"), ///
 				strtoreal("`seed'"), ///
 				1)
