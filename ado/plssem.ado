@@ -226,51 +226,51 @@ program Estimate, eclass byable(recall)
 	}
 	/* End of parsing the binary() option */
 	
-	/* Check if any observation has only missing */
-	tempname ind_mata allmiss
-	mata: `ind_mata' = st_data(., "`allindicators'")
-	mata: st_numscalar("`allmiss'", anyof(rowmissing(`ind_mata'), ///
-		cols(`ind_mata')))
-	if (`allmiss') {
-		display as error "some observations have all indicators missing; " _continue
-		display as error "remove them manually before proceeding"
-		exit
-	}
-	/* End checking if any observation has only missing */
-	
 	/* Set obs to use (1/2) */
 	marksample touse
 	/* End of setting observations to use (1/2) */
 	
 	/* Imputation of missing values */
-	local missing : list clean missing
-	foreach var in `binary' {
-		local indbin "`indbin' `i`var''"
-	}
-	local indbin : list clean indbin
-	
-	if ("`missing'" == "mean") {
-		mata: meanimp( ///
-			st_data(., "`allindicators'", "`touse'"), ///
-			"`allindicators'", ///
-			"`indbin'", ///
-			"`touse'")
-	}
-	else if ("`missing'" == "knn") {
-		if ("`k'" == "") {
-			local k = 5
+	if ("`missing'" != "") {
+		local missing : list clean missing
+		foreach var in `binary' {
+			local indbin "`indbin' `i`var''"
 		}
-		mata: knnimp( ///
-			st_data(., "`allindicators'", "`touse'"), ///
-			"`allindicators'", ///
-			strtoreal("`k'"), ///
-			"`indbin'", ///
-			"`touse'", ///
-			1)
-	}
-	else if ("`missing'" != "") {
-		display as error "missing can be either 'mean' or 'knn'"
-		exit
+		local indbin : list clean indbin
+		
+		if ("`missing'" == "mean") {
+			mata: meanimp( ///
+				st_data(., "`allindicators'", "`touse'"), ///
+				"`allindicators'", ///
+				"`indbin'", ///
+				"`touse'")
+		}
+		else if ("`missing'" == "knn") {
+			tempname ind_mata allmiss
+			mata: `ind_mata' = st_data(., "`allindicators'")
+			mata: st_numscalar("`allmiss'", anyof(rowmissing(`ind_mata'), ///
+				cols(`ind_mata')))
+			if (`allmiss') {
+				display as error "some observations have all indicators missing; " _continue
+				display as error "remove them manually before proceeding"
+				exit
+			}
+			
+			if ("`k'" == "") {
+				local k = 5
+			}
+			mata: knnimp( ///
+				st_data(., "`allindicators'", "`touse'"), ///
+				"`allindicators'", ///
+				strtoreal("`k'"), ///
+				"`indbin'", ///
+				"`touse'", ///
+				1)
+		}
+		else {
+			display as error "missing can be either 'mean' or 'knn'"
+			exit
+		}
 	}
 	/* End of imputing the missing values */
 	
