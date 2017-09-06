@@ -1,5 +1,5 @@
 *!plssem_estat version 0.3.0
-*!Written 04Sep2017
+*!Written 06Sep2017
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -494,7 +494,7 @@ program unobshet, rclass
 		display as error "currently the REBUS approach implementation doesn't allow for binary latent variables"
 		exit
 	}
-
+	
 	/* Global model */
 	tempname globalmodel gof_global
 	_estimates hold `globalmodel', copy
@@ -513,17 +513,18 @@ program unobshet, rclass
 		exit
 	}
 	local todrop "`: colnames r(meas_res)' `: colnames r(struct_res)'"
-
-	// Collecting results to display later
+	
+	/* Collecting results to display later */
 	matrix `gof_global' = e(assessment)
 	matrix `gof_global' = `gof_global'[1, 3]
 	local gof_loc = strofreal(`gof_global'[1, 1], "%9.4f")
-
+	
 	tempvar __touse__
 	quietly generate byte `__touse__' = e(sample)
 	quietly count if `__touse__'
 	local N = r(N)
-
+	
+	/* Clustering residuals using Ward hierarchical linkage */
 	tempvar rebus_clus
 	capture cluster drop `rebus_clus'
 	cluster wardslinkage `todrop' if `__touse__', name(`rebus_clus') ///
@@ -565,7 +566,7 @@ program unobshet, rclass
 	capture drop `rebus_class'
 	cluster generate `rebus_class' = groups(`numclass'), name(`rebus_nm')
 	quietly drop `todrop'
-
+	
 	/* Parse global model e(cmdline) */
 	local cmdline = e(cmdline)
 	local trash
@@ -642,7 +643,6 @@ program unobshet, rclass
 	
 	/* Run the REBUS algorithm */
 	// display
-  
 	tempname res_rebus
 	capture noisily {
 		mata: `res_rebus' = ///
@@ -710,7 +710,7 @@ program unobshet, rclass
 	}
 	//display
 	*/
-	/* End REBUS algorithm */
+	/* End of REBUS algorithm */
 	
 	/* Checking that the established classes have enough observations */
 	forvalues k = 1/`numclass' {
@@ -741,7 +741,7 @@ program unobshet, rclass
 		_estimates hold `localmodel_`k'', copy
 		quietly drop `__touseloc__'
 		quietly generate byte `__touseloc__' = e(sample)
-
+		
 		mata: st_view(`lat' = ., ., "`allendogenous'", "`__touseloc__'")
 		mata: st_view(`ind' = ., ., "`allindicators'", "`__touseloc__'")
 		mata: `indstd' = scale(`ind')

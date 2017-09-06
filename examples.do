@@ -626,9 +626,8 @@ twoway (scatter Success Attack if member == 1, mlabel(Team) mlabposition(0) msiz
 
 * REBUS solution
 estat unobshet // a posteriori approach
-// estat unobshet, numclass(5) stop(.05) dendro name("rebus_cluster")
-// estat unobshet, numclass(6)
-// estat unobshet, test reps(300) plot seed(123)
+estat unobshet, numclass(5) stop(.1) dendro name("rebus_cluster")
+estat unobshet, test reps(300) plot seed(123)
 
 estat unobshet, numclass(2) // a priori approach
 

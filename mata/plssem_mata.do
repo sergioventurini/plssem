@@ -1,5 +1,5 @@
 *!plssem_mata version 0.3.0
-*!Written 04Sep2017
+*!Written 06Sep2017
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -2147,8 +2147,8 @@ real scalar rebus_gqi(real matrix ind, real matrix lat, real matrix e, ///
 		left = (left \ (1 - mean(colsum(e2_k)' :/ ind_k_den)))
 		right = (right \ (1 - mean(colsum(f2_k)' :/ lat_k_den)))
 	}
-	// sqrt((Nk' * (left :* right))/N) // this is the calculation according
-																		 // to Sanchez's plspm R package
+	// gqi = sqrt((Nk' * (left :* right))/N) // this is the calculation according
+																					 // to Sanchez's plspm R package
 
 	gqi = sqrt((Nk' * left)*(Nk' * right))/N	// this is the calculation according
 																						// to Trinchera's PhD thesis (2007)
@@ -2236,7 +2236,7 @@ struct plssem_struct_rebus scalar plssem_rebus(real matrix X, real matrix M,
 	rebus_class = st_data(., rebus_cl)
 	localmodels = J(numclass, 1, res)
 	modes = J(P, 1, 0)
-	endo = colsum(S)						 // indicators for the endogenous latent variables
+	endo = (colsum(S)	:> 0)			 // indicators for the endogenous latent variables
 	
 	if (noisily == .) {
 		noisily = 1
@@ -2264,7 +2264,7 @@ struct plssem_struct_rebus scalar plssem_rebus(real matrix X, real matrix M,
 
 		cm = J(N, 0, .)
 		for (k = 1; k <= numclass; k++) {
-			touseloc = touse_vec :* (rebus_class :== k)
+			touseloc = touse_vec :* (old_class :== k)
 			st_store(., touseloc_name, touseloc)
 			
 			// Standardize the MVs (if required)
@@ -2299,7 +2299,7 @@ struct plssem_struct_rebus scalar plssem_rebus(real matrix X, real matrix M,
 			y = Xrebsc * ow
 			
 			Xreb_all = X[selectindex(touse_vec), .]
-			Xrebsc_all = scale(Xreb_all, 0, mean(Xreb), sd(Xreb))
+			Xrebsc_all = scale(Xreb_all, 0, sd(Xreb), mean(Xreb))
 			y_local = Xrebsc_all * ow
 			out_res = J(N, 0, .)
 			for (p = 1; p <= P; p++) {
@@ -2308,10 +2308,9 @@ struct plssem_struct_rebus scalar plssem_rebus(real matrix X, real matrix M,
 				out_res = (out_res, (Xrebsc_all[., block] - x_hat))
 			}
 			y_hat = y_local * path[., selectindex(endo)]
-			inn_res = y_local[., selectindex(endo)] - y_hat
+			inn_res = (y_local[., selectindex(endo)] - y_hat)
 			cm = (cm, rebus_cm(out_res, inn_res, loads, r2))
 		}
-		
 		new_class = which(cm, "min")
 		nchanged = sum(old_class :!= new_class)
 		old_class = new_class
