@@ -1,5 +1,5 @@
 *!plssem_estat version 0.3.0
-*!Written 06Sep2017
+*!Written 07Sep2017
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -672,7 +672,7 @@ program unobshet, rclass
 		mata: st_local("iter", strofreal(`res_rebus'.niter))
 		mata: st_local("rN0", strofreal(`res_rebus'.rN0))
 		mata: st_local("rN_lte_5", strofreal(`res_rebus'.rN_lte_5))
-		mata: st_store(., "`rebus_class'", "`__touse__'", `res_rebus'.rebus_class)
+		mata: st_store(., "`rebus_class'", `res_rebus'.rebus_class)
 	}
 	if (_rc != 0) {
 		if (mod(`iter', 5) == 0) {

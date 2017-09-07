@@ -1,5 +1,5 @@
 *!plssem_mata version 0.3.0
-*!Written 06Sep2017
+*!Written 07Sep2017
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -1794,7 +1794,7 @@ real rowvector sd(real matrix X, |real scalar biased)
 	return(sc)
 }
 
-real vector which(real matrix X, |string scalar minmax)
+real colvector which(real matrix X, |string scalar minmax)
 {
 	/* Description:
 		 ------------
@@ -1815,10 +1815,10 @@ real vector which(real matrix X, |string scalar minmax)
 	*/
 	
 	real scalar i, j, N, w
-	real vector index
+	real colvector index
 	
-	pragma unset i // this is needed to avoid useless warning messages
-	pragma unset w // this is needed to avoid useless warning messages
+	pragma unset i		// this is needed to avoid useless warning messages
+	pragma unset w		// this is needed to avoid useless warning messages
 
 	N = rows(X)
 	
@@ -2193,9 +2193,9 @@ struct plssem_struct_rebus scalar plssem_rebus(real matrix X, real matrix M,
 											of "centroid", "factorial" or "path")
 		 - crit		 		--> string scalar containing the convergence criterion (either
 											"relative" or "square")
-		 - scale	 		--> string scalar indicating if the indicators must be scaled
 		 - init	 			--> string scalar containing the initialization type (either
 											"indsum" or "eigen")
+		 - scale	 		--> string scalar indicating if the indicators must be scaled
 		 - structural	--> real scalar equal to 1 if the model has a structural part,
 											and 0 otherwise
 		 - rawsum			--> real scalar equal to 1 if the 'rawsum' option has been
@@ -2222,8 +2222,8 @@ struct plssem_struct_rebus scalar plssem_rebus(real matrix X, real matrix M,
 	real matrix cm, Xsc, Yinit, Xreb, Xrebsc, Xreb_all, Xrebsc_all, ow, path, ///
 		loads, y, y_local, block, x_hat, y_hat, out_res, inn_res
 	real scalar iter, N, nchanged, k, P, p, rN0, rN_lte_5
-	string scalar touseloc_name
-	real colvector modes, touse_vec, rebus_class, touseloc, old_class, ///
+	string scalar touse_loc_name
+	real colvector modes, touse_vec, rebus_class, touse_loc, old_class, ///
 		new_class, class_freq
 	real rowvector r2, endo
 	
@@ -2242,9 +2242,9 @@ struct plssem_struct_rebus scalar plssem_rebus(real matrix X, real matrix M,
 		noisily = 1
 	}
 	
-	(void) st_addvar("byte", touseloc_name = st_tempname())
+	(void) st_addvar("byte", touse_loc_name = st_tempname())
 	
-	old_class = rebus_class[selectindex(touse_vec), .]
+	old_class = rebus_class
 	while ((iter <= maxit_reb) & (nchanged > N*stop)) {
 		/*
 		if (noisily) {
@@ -2261,18 +2261,18 @@ struct plssem_struct_rebus scalar plssem_rebus(real matrix X, real matrix M,
 			displayflush()
 		}
 		*/
-
+		
 		cm = J(N, 0, .)
 		for (k = 1; k <= numclass; k++) {
-			touseloc = touse_vec :* (old_class :== k)
-			st_store(., touseloc_name, touseloc)
+			touse_loc = touse_vec :* (old_class :== k)
+			st_store(., touse_loc_name, touse_loc)
 			
 			// Standardize the MVs (if required)
 			if (scale == "") {
-				Xsc = scale(X[selectindex(touseloc), .])
+				Xsc = scale(X[selectindex(touse_loc), .])
 			}
 			else {
-				Xsc = X[selectindex(touseloc), .]
+				Xsc = X[selectindex(touse_loc), .]
 			}
 			
 			// Check that there are no zero-variance indicators
@@ -2281,14 +2281,14 @@ struct plssem_struct_rebus scalar plssem_rebus(real matrix X, real matrix M,
 			}
 			
 			// Initialize the LVs
-			Yinit = plssem_init_mat(Xsc,  M, ind, stdind, latents, touseloc_name, ///
+			Yinit = plssem_init_mat(Xsc,  M, ind, stdind, latents, touse_loc_name, ///
 				rawsum, init)
 			
 			// Run the PLS algorithm
 			localmodels[k, 1] = plssem_base(Xsc, Yinit, M, S, modes, latents, ///
-				binary, tol, maxit, touseloc_name, scheme, crit, structural, rawsum)
+				binary, tol, maxit, touse_loc_name, scheme, crit, structural, rawsum)
 			
-			Xreb = X[selectindex(touseloc), .]
+			Xreb = X[selectindex(touse_loc), .]
 			Xrebsc = scale(Xreb)
 			ow = localmodels[k, 1].outer_weights
 			path = localmodels[k, 1].path
@@ -2296,7 +2296,7 @@ struct plssem_struct_rebus scalar plssem_rebus(real matrix X, real matrix M,
 			loads = localmodels[k, 1].loadings
 			r2 = localmodels[k, 1].r2
 			r2 = r2[., selectindex(r2 :!= .)]
-			y = Xrebsc * ow
+			//y = Xrebsc * ow ???
 			
 			Xreb_all = X[selectindex(touse_vec), .]
 			Xrebsc_all = scale(Xreb_all, 0, sd(Xreb), mean(Xreb))
@@ -2311,7 +2311,8 @@ struct plssem_struct_rebus scalar plssem_rebus(real matrix X, real matrix M,
 			inn_res = (y_local[., selectindex(endo)] - y_hat)
 			cm = (cm, rebus_cm(out_res, inn_res, loads, r2))
 		}
-		new_class = which(cm, "min")
+		new_class = J(length(old_class), 1, .)
+		new_class[selectindex(touse_vec), 1] = which(cm, "min")
 		nchanged = sum(old_class :!= new_class)
 		old_class = new_class
 		
@@ -2413,8 +2414,8 @@ real colvector plssem_rebus_ptest(real matrix X, real matrix M, real matrix S,
 		loads, y_local, block, x_hat, y_hat, out_res, inn_res, indstd_st, ///
 		lat_st, out_res_st, inn_res_st
 	real scalar P, Q, b, p, k, i, skip
-	string scalar touseloc_name, todisp, spaces
-	real colvector gqi_perm, modes, touse_vec, rebus_class, touseloc, ///
+	string scalar touse_loc_name, todisp, spaces
+	real colvector gqi_perm, modes, touse_vec, rebus_class, touse_loc, ///
 		rebclass_p, class_st, class_reb
 	real rowvector r2, endo
 	
@@ -2439,7 +2440,7 @@ real colvector plssem_rebus_ptest(real matrix X, real matrix M, real matrix S,
 	endo = colsum(S)						 // indicators for the endogenous latent variables
 	gqi_perm = J(B, 1, .)
 	
-	(void) st_addvar("byte", touseloc_name = st_tempname())
+	(void) st_addvar("byte", touse_loc_name = st_tempname())
 	
 	if (noisily) {
 		printf("{txt}\n")
@@ -2481,11 +2482,11 @@ real colvector plssem_rebus_ptest(real matrix X, real matrix M, real matrix S,
 		inn_res_st = J(0, sum(endo :> 0), .)
 		class_st = J(0, 1, .)
 		for (k = 1; k <= numclass; k++) {
-			touseloc = touse_vec :* (rebclass_p :== k)
-			st_store(., touseloc_name, touseloc)
+			touse_loc = touse_vec :* (rebclass_p :== k)
+			st_store(., touse_loc_name, touse_loc)
 			
 			// Standardize the MVs (if required)
-			Xsc = plssem_scale_mat(X, touseloc, scale)
+			Xsc = plssem_scale_mat(X, touse_loc, scale)
 			
 			// Check that there are no zero-variance indicators
 			if (any(selectindex(sd(Xsc) :== 0))) {
@@ -2493,16 +2494,16 @@ real colvector plssem_rebus_ptest(real matrix X, real matrix M, real matrix S,
 			}
 			
 			// Initialize the LVs
-			Yinit = plssem_init_mat(Xsc,  M, ind, stdind, latents, touseloc_name, ///
+			Yinit = plssem_init_mat(Xsc,  M, ind, stdind, latents, touse_loc_name, ///
 				rawsum, init)
 			
 			// Run the PLS algorithm
 			localmodels[k, 1] = plssem_base(Xsc, Yinit, M, S, modes, latents, ///
-				binary, tol, maxit, touseloc_name, scheme, crit, structural, rawsum)
+				binary, tol, maxit, touse_loc_name, scheme, crit, structural, rawsum)
 			
-			Xreb = X[selectindex(touseloc), .]
+			Xreb = X[selectindex(touse_loc), .]
 			Xrebsc = scale(Xreb)
-			Yendo = st_data(., latents, touseloc_name)
+			Yendo = st_data(., latents, touse_loc_name)
 			Yendo = Yendo[., selectindex(endo)]
 			
 			ow = localmodels[k, 1].outer_weights
