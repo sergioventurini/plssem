@@ -766,3 +766,53 @@ plssem (QUALI > quali_?) (FINAN > finan_1 finan_3) ///
 									LEADR REPUT, SATIS REPUT PRICE, LOYAL REPUT SATIS PRICE) ///
 			 wscheme(path) digits(5) tol(1e-06) ///
 			 group(rebus_class, method(permutation) reps(200) plot) //boot(50)
+
+/* Example 43 */
+/* ---------- */
+use ./data/ecsimobi, clear
+plssem (Expectation > CUEX1-CUEX3) (Satisfaction > CUSA1-CUSA3) ///
+	(Complaints > CUSCO) (Loyalty < CUSL1-CUSL3) (Image > IMAG1-IMAG5) ///
+	(Quality > PERQ1-PERQ7) (Value > PERV1-PERV2), ///
+	structural(Expectation Image, Quality Expectation, Value Expectation Quality, ///
+	Satisfaction Value Quality Image Expectation, Complaints Satisfaction, ///
+	Loyalty Complaints Satisfaction Image) ///
+	wscheme("path") digits(7) boot(200) seed(101)
+
+tempname M S
+matrix `M' = e(adj_meas)
+matrix `S' = e(adj_struct)
+plssemmat `M', structural(`S') wscheme("path") digits(7) boot(200) seed(101)
+
+/* Example 44 */
+/* ---------- */
+use ./data/ecsimobi, clear
+plssem (Expectation > CUEX1-CUEX3) (Satisfaction > CUSA1-CUSA3) ///
+	(Complaints < CUSCO) (Loyalty < CUSL1-CUSL3) (Image > IMAG1-IMAG5) ///
+	(Quality < PERQ1-PERQ7) (Value > PERV1-PERV2), ///
+	wscheme("path") digits(7) boot(200) seed(101) init(eigen)
+
+tempname M S
+matrix `M' = e(adj_meas)
+plssemmat `M', wscheme("path") digits(7) boot(200) seed(101) init(eigen)
+
+/* Example 45 */
+/* ---------- */
+/* [From Sanchez, G. (2013) PLS Path Modeling with R (Section 6.2.3)] */
+use ./data/college, clear
+
+plssem (HighSchool > HS_GPA SAT_Verbal SAT_Math) ///
+	(Intro > Biology1 Chemistry1 Math1 Physics1) ///
+	(Medium < Biology2 Chemistry2 Math2 Physics2) (Graduation > FinalGPA), ///
+	structural(Intro HighSchool, Medium Intro HighSchool, ///
+	Graduation Medium Intro HighSchool) ///
+	wscheme("centroid") digits(4) tol(1e-6) correlate(mv lv cross, cutoff(.3)) ///
+	group(Gender, reps(200) method(permutation) plot alpha(0.1) what(path) ///
+	groupseed(101))
+
+tempname M S
+matrix `M' = e(adj_meas)
+matrix `S' = e(adj_struct)
+plssemmat `M', structural(`S') ///
+	wscheme("centroid") digits(4) tol(1e-6) correlate(mv lv cross, cutoff(.3)) ///
+	group(Gender, reps(200) method(permutation) plot alpha(0.1) what(path) ///
+	groupseed(101))
