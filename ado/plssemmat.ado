@@ -130,17 +130,90 @@ program Estimate, eclass byable(recall)
 	 */
 
 	local cmdline : list clean 0
-	
-	/* Parse the adjacency matrices */
 	local adj_meas : list clean adj_meas
 	local structural : list clean structural
-	
+		
+	/* Some checks on the adjacency matrices */
+	if ("`structural'" != "") {
+		if (`: colsof `adj_meas'' != `: rowsof `structural'') {
+			display as error "the sizes of the adjacency matrices do not match"
+			exit
+		}
+		if (`: colsof `structural'' != `: rowsof `structural'') {
+			display as error "the sizes of the adjacency matrices do not match"
+			exit
+		}
+		if ("`: colnames `adj_meas''" != "`: colnames `structural''") {
+			display as error "the adjacency matrices column names do not match"
+			exit
+		}
+		if ("`: rownames `structural''" != "`: colnames `structural''") {
+			display as error "the adjacency matrices column names do not match"
+			exit
+		}
+	}
+	tempname zeroone
+	mata: `zeroone' = uniqrows(vec(st_matrix("`adj_meas'")))
+	mata: st_local("isadjmeas", strofreal(`zeroone' != e(2, 2)'))
+	if (`isadjmeas') {
+		display as error "the measurement adjacency matrix is not correct"
+		display as error "at least one element different from 0 or 1"
+		exit
+	}
+	if ("`structural'" != "") {
+		mata: `zeroone' = uniqrows(vec(st_matrix("`structural'")))
+		mata: st_local("isadjstruc", strofreal(`zeroone' != e(2, 2)'))
+		if (`isadjstruc') {
+			display as error "the structural adjacency matrix is not correct"
+			display as error "at least one element different from 0 or 1"
+			exit
+		}
+	}
+	mata: st_local("isadjmeas", ///
+		strofreal(any(colsum(st_matrix("`adj_meas'")) :== 0)))
+	if (`isadjmeas') {
+		display as error "the measurement adjacency matrix is not correct"
+		display as error "at least one column filled with zeros"
+		exit
+	}
+	mata: st_local("isadjmeas", ///
+		strofreal(any(rowsum(st_matrix("`adj_meas'")) :== 0)))
+	if (`isadjmeas') {
+		display as error "the measurement adjacency matrix is not correct"
+		display as error "at least one row filled with zeros"
+		exit
+	}
+	mata: st_local("isadjmeas", ///
+		strofreal(any(rowsum(st_matrix("`adj_meas'")) :!= 1)))
+	if (`isadjmeas') {
+		display as error "the measurement adjacency matrix is not correct"
+		display as error "more than one column filled for at least one row"
+		exit
+	}
+	mata: st_local("isadjmeas", ///
+		strofreal(any(rowsum(st_matrix("`adj_meas'")) :!= 1)))
+	if (`isadjmeas') {
+		display as error "the measurement adjacency matrix is not correct"
+		display as error "more than one column filled for at least one row"
+		exit
+	}
+	/* End of checking the adjacency matrices */
+
+	/* Parse the adjacency matrices */
 	local allindicators : rownames `adj_meas'
 	local alllatents : colnames `adj_meas'
 	local allmodes : coleq `adj_meas'
 	
 	local j = 1
 	foreach var in `alllatents' {
+		local iscoleq : word `j' of `allmodes'
+		if ("`iscoleq'" != "Reflective" & "`iscoleq'" != "Formative") {
+			display as error "the measurement adjacency matrix is not correct"
+			display as error "the equation names of the columns must be either " _continue
+			display as error "'Reflective' or 'Formative'"
+			exit
+		}
+		
 		local LV`j' `var'
 		if ("`: word `j' of `allmodes''" == "Reflective") {
 			local modeA "`modeA' `LV`j''"
@@ -430,7 +503,7 @@ program Estimate, eclass byable(recall)
 	}
 	
 	local loadrownames : rownames `adj_meas'
-	local loadcolnames : colnames `adj_meas'
+	local loadcolnames : colfullnames `adj_meas'
 
 	matrix `adj_struct' = J(`num_lv', `num_lv', 0)
 	if ("`structural'" != "") {

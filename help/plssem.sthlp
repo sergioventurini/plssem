@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 0.0.1  04May2017}{...}
+{* *! version 0.3.0  04Sep2017}{...}
 {vieweralsosee "plssem postestimation" "help plssem postestimation"}{...}
 {vieweralsosee "plssemplot" "help plssemplot"}{...}
 {viewerjumpto "Syntax" "plssem##syntax"}{...}
@@ -18,9 +18,27 @@
 {marker syntax}{...}
 {title:Syntax}
 
+{pstd}
+Partial least squares structural equation modeling of data
+
 {p 8 12 2}
 {cmd:plssem} (LV1 > indblock1) (LV2 > indblock2) (...) {ifin}
 [{cmd:,} structural(LV2 LV1, ...) {it:{help plssem##plssemopts:options}}]
+
+
+{pstd}
+Partial least squares structural equation modeling of adjacency measures
+
+{p 8 15 2}
+{cmd:plssemmat} {it:adjmeas_matname} {ifin}
+[{cmd:,} structural({it:adjstruc_matname}) {it:{help plssem##plssemopts:options}}]
+
+
+{phang}
+{it:adjmeas_matname} is a Q x P matrix providing the adjacency matrix for the
+measurement model, while {it:adjstruc_matname} is a P x P matrix providing the
+adjacency matrix for the structural model (Q denotes the number of indicators
+and P the number of latent variables in the model).
 
 {synoptset 19 tabbed}{...}
 {marker plssemopts}{...}
@@ -78,7 +96,17 @@ structural relationship following the same approach. Say that we have two furthe
 in the model, {cmd:LV3} and {cmd:LV4}; then, in the structural part of the syntax we would type in
 {cmd:structural(LV2 LV1, LV4 LV3)} indicating that {cmd:LV4} is another endogenous LV predicted by
 {cmd:LV3}. In addition, in line with most of the Stata commands, one can fit a full PLS-PM model by
-subsetting the data directly in the syntax using the {cmd:if} and {cmd:in} qualifers. 
+subsetting the data directly in the syntax using the {cmd:if} and {cmd:in} qualifers.
+
+{pstd}In {cmd:plssemmat} row and column names of the adjacency matrices provided
+are used in the output. Note that, no matter whether {cmd:plssem} or {cmd:plssemmat}
+is used, the raw data are still needed. The difference between the two commands is how
+the model is specified: through an equation-like style for {cmd:plssem} and with the
+adjacency matrices for {cmd:plssemmat}.
+
+{pstd}In {cmd:plssemmat} each column name of the measurement model adjacency matrix
+must specify either "Reflective:" or "Formative:" as the equation names of the columns (see the
+examples below).
 
 
 {marker description}{...}
@@ -241,6 +269,26 @@ default is {bf:relative}.
 
 {pstd}Plot of loadings{p_end}
 {phang2}{cmd:. plssemplot, loadings}{p_end}
+
+    {hline}
+{pstd}Setup{p_end}
+{phang2}{cmd:. matrix m = (2, 5, 3)}{p_end}
+{phang2}{cmd:. matrix sd = (.5, 1, 2)}{p_end}
+{phang2}{cmd:. matrix C = (1, .3, 1, .1, .5, 1)}{p_end}
+{phang2}{cmd:. drawnorm x1 x2 x3, n(300) means(m) sds(sd) corr(C) cstorage(lower) clear}{p_end}
+{p 12 12 2}{cmd: seed(101)}{p_end}
+
+{pstd}Model specification{p_end}
+{phang2}{cmd:. matrix M = (1, 0 \ 1, 0 \ 0, 1)}{p_end}
+{phang2}{cmd:. matrix rownames M = x1 x2 x3}{p_end}
+{phang2}{cmd:. matrix colnames M = y1 y2}{p_end}
+{phang2}{cmd:. matrix coleq M = Reflective Formative}{p_end}
+{phang2}{cmd:. matrix S = (0, 1 \ 0, 0)}{p_end}
+{phang2}{cmd:. matrix rownames S = y1 y2}{p_end}
+{phang2}{cmd:. matrix colnames S = y1 y2}{p_end}
+
+{pstd}Model estimation{p_end}
+{phang2}{cmd:. plssemmat M, structural(S) wscheme(path) digits(4)}{p_end}
 
     {hline}
 

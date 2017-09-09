@@ -797,6 +797,23 @@ plssemmat `M', wscheme("path") digits(7) boot(200) seed(101) init(eigen)
 
 /* Example 45 */
 /* ---------- */
+matrix m = (2, 5, 3)
+matrix sd = (.5, 1, 2)
+matrix C = (1, .3, 1, .1, .5, 1)
+drawnorm x1 x2 x3, n(300) means(m) sds(sd) corr(C) cstorage(lower) clear seed(101)
+
+matrix M = (1, 0 \ 1, 0 \ 0, 1)
+matrix rownames M = x1 x2 x3
+matrix colnames M = y1 y2
+matrix coleq M = Reflective Formative
+matrix S = (0, 1 \ 0, 0)
+matrix rownames S = y1 y2
+matrix colnames S = y1 y2
+
+plssemmat M, structural(S) wscheme(path) digits(4)
+
+/* Example 46 */
+/* ---------- */
 /* [From Sanchez, G. (2013) PLS Path Modeling with R (Section 6.2.3)] */
 use ./data/college, clear
 
