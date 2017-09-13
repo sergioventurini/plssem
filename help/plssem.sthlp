@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 0.3.0  04Sep2017}{...}
+{* *! version 0.3.0  12Sep2017}{...}
 {vieweralsosee "plssem postestimation" "help plssem postestimation"}{...}
 {vieweralsosee "plssemplot" "help plssemplot"}{...}
 {viewerjumpto "Syntax" "plssem##syntax"}{...}
@@ -191,19 +191,18 @@ displays some summary statistics (mean, standard deviations, etc.) for the origi
 indicators. 
 
 {phang}{opt group(grouping variable, [sub-options])}
-provides the structural part of the estimation
-results (default) for each category of the grouping variable as well as the comparison
-between the categories based on normal-theory (default). By adding the suboption
-{bf:what(loadings)} you can alternatively display the measurement part of the estimation
-results. As an alternative to normal-based theory estimations, the user can use two resampling
-techniques. More specifically, by adding the suboption {bf:method(permutation}
-or {bf:bootstrap)} one can get the results based on permutation or bootstrap resampling.
-The default number of replications for both permutation and bootstrap is 100. However,
-this can be changed by adding the suboption {bf:reps(#)}. Further, with the suboption
-{bf:groupseed(#)} one can also set a certain seed number to be able reproduce the bootstrap
-or permutation results. Finally, by using the suboption {bf:plot} we can get a graphical
-output showing the estimates differences between the groups based on alpha level of
-0.05 (default). The significance level can also be changed by adding the suboption
+provides both the structural and the measurement part of the estimation
+results for each category of the grouping variable as well as the comparison
+between the categories based on normal-theory (default). As an alternative to
+normal-based theory estimations, the user can use two resampling techniques. More
+specifically, by adding the suboption {bf:method(permutation} or {bf:bootstrap)} one
+can get the results based on permutation or bootstrap resampling. The default number
+of replications for both permutation and bootstrap is 100. However, this can be
+changed by adding the suboption {bf:reps(#)}. Further, with the suboption {bf:groupseed(#)}
+one can also set a certain seed number to be able reproduce the bootstrap or permutation
+results. Finally, by using the suboption {bf:plot} we can get a graphical output
+showing the estimates differences between the groups based on alpha level of 0.05
+(default). The significance level can also be changed by adding the suboption
 {bf:alpha(#)}.
 
 {phang}{opt correlate(mv lv cross [, cutoff(#)])}

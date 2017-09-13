@@ -1,5 +1,5 @@
 *!plssem version 0.3.0
-*!Written 04Sep2017
+*!Written 13Sep2017
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -14,7 +14,7 @@ program plssem, byable(onecall)
 		if (_by()) {
 			error 190
 		}
-
+		
 		// Extract all the options from 'cmdline'
 		local cmdline = `"`e(cmdline)'"'
 		local cmdlen = strlen(`"`cmdline'"')
@@ -25,7 +25,7 @@ program plssem, byable(onecall)
 		if (`hasstruct' == 0) {
 			local nostructural "nostructural"
 		}
-
+		
 		if (`"`options'"' != "") {
 			Display, `options' `nostructural'
 		}
@@ -34,7 +34,7 @@ program plssem, byable(onecall)
 		}
 		exit
 	}
-
+	
 	if _by() {
 		local BY `"by `_byvars' `_byrc0':"'
 	}
@@ -44,7 +44,7 @@ program plssem, byable(onecall)
 	else {
 		local version : display "version " string(_caller()) " :"
 	}
-
+	
 	local isgroup = strpos(`"`options'"', "gr")
 	if (`isgroup') {
 		if _by() {
@@ -93,14 +93,13 @@ program Estimate, eclass byable(recall)
 		 nostructtable									--> do not show the structural table
 		 stats													--> print a table of summary statistics for
 																				the indicators
-		 group(string)									--> perform multigroup analysis; accepts
+		 group(string)									--> performs multigroup analysis; accepts
 																				the suboptions reps(#), method(), plot,
-																				alpha, what() and groupseed(numlist max=1);
+																				alpha and groupseed(numlist max=1);
 																				method() accepts either 'permutation',
 																				'bootstrap' or 'normal'; groupseed(numlist
 																				max=1) accepts an optional seed for
-																				multigroup analysis; what() accepts either
-																				'path' or 'loadings'
+																				multigroup analysis
 		 correlate(string)							--> report the correlation among the
 																				indicators, the LVs as well as the cross
 																				loadings; accepts any combination of 'mv',
@@ -118,8 +117,7 @@ program Estimate, eclass byable(recall)
 																				(undocumented)
 	 */
 	
-	/* Parse the specified blocks.
-	 * Macros:
+	/* Macros:
 	 * 	LV`i'							- latent variable name
 	 * 	i`i'							- indicators for latent, by latent index
 	 * 	istd`i'						- indicators for latent, by latent index (standardized)
@@ -135,7 +133,7 @@ program Estimate, eclass byable(recall)
 	/* Parse the blocks */
 	local blocks : list clean blocks
 	tokenize `"`blocks'"', parse(" ()<>")
-
+	
 	tempname inblock startblock
 	scalar `inblock' = 0
 	scalar `startblock' = 0
@@ -203,7 +201,7 @@ program Estimate, eclass byable(recall)
 	local modeB : list clean modeB
 	local modeA : list uniq modeA
 	local modeB : list uniq modeB
-
+	
 	if (`inblock') {
 		display as error "missing )"
 		error 197
@@ -1102,12 +1100,11 @@ program Compare, eclass sortpreserve
 																				the indicators
 		 group(string)									--> performs multigroup analysis; accepts
 																				the suboptions reps(#), method(), plot,
-																				alpha, what() and groupseed(numlist max=1);
+																				alpha and groupseed(numlist max=1);
 																				method() accepts either 'permutation',
 																				'bootstrap' or 'normal'; groupseed(numlist
 																				max=1) accepts an optional seed for
-																				multigroup analysis; what() accepts either
-																				'path' or 'loadings'
+																				multigroup analysis
 		 correlate(string)							--> reports the correlation among the
 																				indicators, the LVs as well as the cross
 																				loadings; accepts any combination of 'mv',
@@ -1151,13 +1148,6 @@ program Compare, eclass sortpreserve
 	if ("`alpha'" == "") {
 		local alpha = 0.05
 	}
-	if ("`what'" == "") {
-		local what = "path"
-	}
-	if (("`structural'" == "") & ("`what'" == "path")) {
-		display as error "choosing 'what(path)' requires a structural part"
-		exit
-	}
 	if ("`init'" == "") {
 		local init "indsum"
 	}
@@ -1166,6 +1156,10 @@ program Compare, eclass sortpreserve
 	}
 	local skip1 = 1
 	local skip3 = 3
+	local whatstr "loadings"
+	if ("`structural'" != "") {
+		local whatstr "`whatstr' path"
+	}
 
 	/* Parse the group() option */
 	tokenize `"`group'"', parse(",")
@@ -1215,36 +1209,32 @@ program Compare, eclass sortpreserve
 					exit
 				}
 			}
-			else if ("``tok_i''" == "what") {
-				local tok_tmp = `tok_i' + 2
-				local what = "``tok_tmp''"
-				if (("`what'" != "path") & ("`what'" != "loadings")) {
-					display as error "'what()' suboption accepts either 'path' or 'loadings'"
-					exit
-				}
-			}
 		}
 		local ++tok_i
 	}
 	/* End of parsing the group() option */
 	
 	/* Estimation using the whole sample */
-	tempname results whole adj_meas adj_struct modes rawsum_sc struct_sc ehold tmp
+	tempname adj_meas adj_struct modes rawsum_sc struct_sc ehold
 	quietly Estimate `0'
 	local alllatents = e(lvs)
 	local allindicators = e(mvs)
 	local allreflective = e(reflective)
 	local nlv : word count `alllatents'
-	if ("`what'" == "path") {
-		matrix `tmp' = e(struct_b)
-		local loadcolnames : colnames `tmp'
-		matrix `whole' = vec(`tmp')
-	}
-	else if ("`what'" == "loadings") {
-		matrix `tmp' = e(loadings)
-		local loadrownames : rownames `tmp'
-		local loadcolnames : colnames `tmp'
-		matrix `whole' = vec(`tmp')
+
+	foreach what in `whatstr' {
+		tempname tmp_`what' whole_`what' loadrownames_`what' loadcolnames_`what'
+		if ("`what'" == "path") {
+			matrix `tmp_`what'' = e(struct_b)
+			local loadcolnames_`what' : colnames `tmp_`what''
+			matrix `whole_`what'' = vec(`tmp_`what'')
+		}
+		else if ("`what'" == "loadings") {
+			matrix `tmp_`what'' = e(loadings)
+			local loadrownames_`what' : rownames `tmp_`what''
+			local loadcolnames_`what' : colnames `tmp_`what''
+			matrix `whole_`what'' = vec(`tmp_`what'')
+		}
 	}
 	matrix `adj_meas' = e(adj_meas)
 	if ("`structural'" != "") {
@@ -1374,41 +1364,43 @@ program Compare, eclass sortpreserve
 				st_numscalar("`struct_sc'"), ///
 				st_numscalar("`rawsum_sc'"))
 		
-		tempname strb_`ng' strvar_`ng' group_`ng'
-		if ("`what'" == "path") {
-			mata: `tmp_mata' = `res'.path
-			mata: `tmp_mata' = `tmp_mata'[selectindex(rownonmissing(`tmp_mata')), ///
-				selectindex(colnonmissing(`tmp_mata'))]
-			mata: st_matrix("`strb_`ng''", `tmp_mata')
-			matrix rownames `strb_`ng'' = `struct_rownames'
-			matrix colnames `strb_`ng'' = `lv_regest_all'
-			matrix `strb_`ng'' = vec(`strb_`ng'')
-			
-			mata: `tmp_mata' = sqrt(`res'.path_v)
-			mata: `tmp_mata' = `tmp_mata'[selectindex(rownonmissing(`tmp_mata')), ///
-				selectindex(colnonmissing(`tmp_mata'))]
-			mata: st_matrix("`strvar_`ng''", `tmp_mata')
-			matrix rownames `strvar_`ng'' = `struct_rownames'
-			matrix colnames `strvar_`ng'' = `lv_regest_all'
-			matrix `strvar_`ng'' = vec(`strvar_`ng'')
-		}
-		else if ("`what'" == "loadings") {
-			mata: st_matrix("`strb_`ng''", `res'.loadings)
-			matrix rownames `strb_`ng'' = `loadrownames'
-			matrix colnames `strb_`ng'' = `loadcolnames'
-			matrix `strb_`ng'' = vec(`strb_`ng'')
+		foreach what in `whatstr' {
+			tempname strb_`what'_`ng' strvar_`what'_`ng' group_`what'_`ng'
+			if ("`what'" == "path") {
+				mata: `tmp_mata' = `res'.path
+				mata: `tmp_mata' = `tmp_mata'[selectindex(rownonmissing(`tmp_mata')), ///
+					selectindex(colnonmissing(`tmp_mata'))]
+				mata: st_matrix("`strb_`what'_`ng''", `tmp_mata')
+				matrix rownames `strb_`what'_`ng'' = `struct_rownames'
+				matrix colnames `strb_`what'_`ng'' = `lv_regest_all'
+				matrix `strb_`what'_`ng'' = vec(`strb_`what'_`ng'')
+				
+				mata: `tmp_mata' = sqrt(`res'.path_v)
+				mata: `tmp_mata' = `tmp_mata'[selectindex(rownonmissing(`tmp_mata')), ///
+					selectindex(colnonmissing(`tmp_mata'))]
+				mata: st_matrix("`strvar_`what'_`ng''", `tmp_mata')
+				matrix rownames `strvar_`what'_`ng'' = `struct_rownames'
+				matrix colnames `strvar_`what'_`ng'' = `lv_regest_all'
+				matrix `strvar_`what'_`ng'' = vec(`strvar_`what'_`ng'')
+			}
+			else if ("`what'" == "loadings") {
+				mata: st_matrix("`strb_`what'_`ng''", `res'.loadings)
+				matrix rownames `strb_`what'_`ng'' = `loadrownames_`what''
+				matrix colnames `strb_`what'_`ng'' = `loadcolnames_`what''
+				matrix `strb_`what'_`ng'' = vec(`strb_`what'_`ng'')
 
-			mata: `tmp_mata' = ///
-				plssem_lv( ///
-					st_data(., "`allstdindicators'", "`touse_gr'"), ///
-					st_data(., "`alllatents'", "`touse_gr'"), ///
-					"`alllatents'", ///
-					"`binary'")
-			mata: `tmp_mata' = sqrt(`tmp_mata') :* editvalue(`res'.M, 0, .)
-			mata: st_matrix("`strvar_`ng''", `tmp_mata')
-			matrix rownames `strvar_`ng'' = `loadrownames'
-			matrix colnames `strvar_`ng'' = `loadcolnames'
-			matrix `strvar_`ng'' = vec(`strvar_`ng'')
+				mata: `tmp_mata' = ///
+					plssem_lv( ///
+						st_data(., "`allstdindicators'", "`touse_gr'"), ///
+						st_data(., "`alllatents'", "`touse_gr'"), ///
+						"`alllatents'", ///
+						"`binary'")
+				mata: `tmp_mata' = sqrt(`tmp_mata') :* editvalue(`res'.M, 0, .)
+				mata: st_matrix("`strvar_`what'_`ng''", `tmp_mata')
+				matrix rownames `strvar_`what'_`ng'' = `loadrownames_`what''
+				matrix colnames `strvar_`what'_`ng'' = `loadcolnames_`what''
+				matrix `strvar_`what'_`ng'' = vec(`strvar_`what'_`ng'')
+			}
 		}
 		
 		restore
@@ -1420,62 +1412,65 @@ program Compare, eclass sortpreserve
 		exit
 	}
 	
-	local nrows = rowsof(`tmp')
-	local ncols = colsof(`tmp')
-	local totrows = `nrows'*`ncols'
-	tempname nonmiss
-	matrix `nonmiss' = J(`totrows', 1, 0)
-	local strb_rn : rowfullnames `strb_1'
-	forvalues i = 1/`totrows' {
-		if (!missing(`strb_1'[`i', 1])) {
-			matrix `nonmiss'[`i', 1] = 1
-			local nm_tmp `: word `i' of `strb_rn''
-			local tok_i = 1
-			tokenize `"`nm_tmp'"', parse(":")
-			while ("``tok_i''" != "") {
-				if (`tok_i' == 1) {
-					local nm_Y "``tok_i''"
+	foreach what in `whatstr' {
+		local obstest_cn ""
+		local nrows = rowsof(`tmp_`what'')
+		local ncols = colsof(`tmp_`what'')
+		local totrows = `nrows'*`ncols'
+		tempname nonmiss_`what'
+		matrix `nonmiss_`what'' = J(`totrows', 1, 0)
+		local strb_`what'_rn : rowfullnames `strb_`what'_1'
+		forvalues i = 1/`totrows' {
+			if (!missing(`strb_`what'_1'[`i', 1])) {
+				matrix `nonmiss_`what''[`i', 1] = 1
+				local nm_tmp `: word `i' of `strb_`what'_rn''
+				local tok_i = 1
+				tokenize `"`nm_tmp'"', parse(":")
+				while ("``tok_i''" != "") {
+					if (`tok_i' == 1) {
+						local nm_Y "``tok_i''"
+					}
+					else if (`tok_i' == 3) {
+						local nm_X "``tok_i''"
+					}
+					local ++tok_i
 				}
-				else if (`tok_i' == 3) {
-					local nm_X "``tok_i''"
+				if ("`what'" == "path") {
+					local strbok_`what'_rn "`strbok_`what'_rn' `nm_X':`nm_Y'"
 				}
-				local ++tok_i
-			}
-			if ("`what'" == "path") {
-				local strbok_rn "`strbok_rn' `nm_X':`nm_Y'"
-			}
-			else if ("`what'" == "loadings") {
-				local lv_is_ref : list nm_Y in allreflective
-				if (`lv_is_ref') {
-					local strbok_rn "`strbok_rn' `nm_Y':`nm_X'"
-				}
-				else {
-					local strbok_rn "`strbok_rn' `nm_X':`nm_Y'"
+				else if ("`what'" == "loadings") {
+					local lv_is_ref : list nm_Y in allreflective
+					if (`lv_is_ref') {
+						local strbok_`what'_rn "`strbok_`what'_rn' `nm_Y':`nm_X'"
+					}
+					else {
+						local strbok_`what'_rn "`strbok_`what'_rn' `nm_X':`nm_Y'"
+					}
 				}
 			}
 		}
+		forvalues ng = 1/`ngroups' {
+			tempname strbok_`what'_`ng' strvarok_`what'_`ng' strb_var_`what'_`ng'
+			mata: st_matrix("`strbok_`what'_`ng''", select(st_matrix("`strb_`what'_`ng''"), ///
+				st_matrix("`nonmiss_`what''")))
+			mata: st_matrix("`strvarok_`what'_`ng''", select(st_matrix("`strvar_`what'_`ng''"), ///
+				st_matrix("`nonmiss_`what''")))
+			mata: st_matrix("`strvarok_`what'_`ng''", st_matrix("`strvarok_`what'_`ng''"):^2)
+			matrix `group_`what'_`ng'' = `strbok_`what'_`ng''
+		}
+		tempname numeff obstest_tmp obstest_`what'
+		mata: st_numscalar("`numeff'", colsum(st_matrix("`nonmiss_`what''")))
+		local neff_`what' = `numeff'
+		matrix `obstest_`what'' = J(`neff_`what'', `ngroups' - 1, .)
+		forvalues ng = 2/`ngroups' {
+			mata: st_matrix("`obstest_tmp'", abs(st_matrix("`strbok_`what'_1'") - ///
+				st_matrix("`strbok_`what'_`ng''")))
+			matrix `obstest_`what''[1, `ng' - 1] = `obstest_tmp'
+			local obstest_cn "`obstest_cn' `ng'vs1"
+		}
+		matrix rownames `obstest_`what'' = `strbok_`what'_rn'
+		matrix colnames `obstest_`what'' = `obstest_cn'
 	}
-	forvalues ng = 1/`ngroups' {
-		tempname strbok_`ng' strvarok_`ng' strb_var_`ng'
-		mata: st_matrix("`strbok_`ng''", select(st_matrix("`strb_`ng''"), ///
-			st_matrix("`nonmiss'")))
-		mata: st_matrix("`strvarok_`ng''", select(st_matrix("`strvar_`ng''"), ///
-			st_matrix("`nonmiss'")))
-		mata: st_matrix("`strvarok_`ng''", st_matrix("`strvarok_`ng''"):^2)
-		matrix `group_`ng'' = `strbok_`ng''
-	}
-	tempname numeff obstest_tmp obstest
-	mata: st_numscalar("`numeff'", colsum(st_matrix("`nonmiss'")))
-	local neff = `numeff'
-	matrix `obstest' = J(`neff', `ngroups' - 1, .)
-	forvalues ng = 2/`ngroups' {
-		mata: st_matrix("`obstest_tmp'", abs(st_matrix("`strbok_1'") - ///
-			st_matrix("`strbok_`ng''")))
-		matrix `obstest'[1, `ng' - 1] = `obstest_tmp'
-		local obstest_cn "`obstest_cn' `ng'vs1"
-	}
-	matrix rownames `obstest' = `strbok_rn'
-	matrix colnames `obstest' = `obstest_cn'
 	
 	/* Standardize the MVs (if requested) */
 	mata: ///
@@ -1497,8 +1492,10 @@ program Compare, eclass sortpreserve
 			st_numscalar("`rawsum_sc'"), ///
 			"`init'")
 	
-	tempname dtest
-	matrix `dtest' = J(`ngroups' - 1, `neff', .)
+	foreach what in `whatstr' {
+		tempname dtest_`what'
+		matrix `dtest_`what'' = J(`ngroups' - 1, `neff_`what'', .)
+	}
 	if ("`method'" != "normal") {
 		tempname res_mga
 
@@ -1528,8 +1525,10 @@ program Compare, eclass sortpreserve
 						strtoreal("`groupseed'"), ///
 						1)
 				
-				mata: st_matrix("`dtest'", plssem_mga_perm_diff(`res_mga', ///
-					st_matrix("`obstest'"), "`what'"))
+				foreach what in `whatstr' {
+					mata: st_matrix("`dtest_`what''", plssem_mga_perm_diff(`res_mga', ///
+						st_matrix("`obstest_`what''"), "`what'"))
+				}
 			}
 			else if ("`method'" == "bootstrap") {
 				local title "Multigroup comparison (`groupvar') - Bootstrap t-test"
@@ -1556,8 +1555,10 @@ program Compare, eclass sortpreserve
 						strtoreal("`groupseed'"), ///
 						1)
 				
-				mata: st_matrix("`dtest'", plssem_mga_boot_diff(`res_mga', ///
-					st_matrix("`groupsizes'"), strtoreal("`neff'"), "`what'"))
+				foreach what in `whatstr' {
+					mata: st_matrix("`dtest_`what''", plssem_mga_boot_diff(`res_mga', ///
+						st_matrix("`groupsizes'"), strtoreal("`neff_`what''"), "`what'"))
+				}
 			}
 		} // end of -capture-
 		local rc = _rc
@@ -1581,69 +1582,80 @@ program Compare, eclass sortpreserve
 		forvalues ng = 2/`ngroups' {
 			scalar `k2' = ((`groupsizes'[`ng', 1] - 1)^2)/`k0'
 			scalar `k3' = sqrt(1/`groupsizes'[1, 1] + 1/`groupsizes'[`ng', 1])
-			forvalues j = 1/`neff' {
-				matrix `dtest'[`ng' - 1, `j'] = `obstest'[`j', `ng' - 1]/(sqrt( ///
-					`k1'*`strvarok_1'[`j', 1] + `k2'*`strvarok_`ng''[`j', 1])*`k3')
+			foreach what in `whatstr' {
+				forvalues j = 1/`neff_`what'' {
+					matrix `dtest_`what''[`ng' - 1, `j'] = ///
+						`obstest_`what''[`j', `ng' - 1]/(sqrt( ///
+						`k1'*`strvarok_`what'_1'[`j', 1] + ///
+						`k2'*`strvarok_`what'_`ng''[`j', 1])*`k3')
+				}
 			}
 		}
 	}
-	matrix rownames `dtest' = `obstest_cn'
-	matrix colnames `dtest' = `strbok_rn'
-	
-	matrix `results' = J(`neff', 1 + `ngroups' + (`ngroups' - 1)*3, .)
-	local resnm : subinstr local strbok_rn ":" "->", all
-	matrix rownames `results' = `resnm'
-	if (`ngroups' > 2) {
-		forvalues ng = 1/`ngroups' {
-			local grp_cn `grp_cn' "Group_`ng'"
-			if (`ng' > 1) {
-				local absd_cn `absd_cn' "AD_`ng'vs1"
-				local stat_cn `stat_cn' "S_`ng'vs1"
-				local pval_cn `pval_cn' "P_`ng'vs1"
+	foreach what in `whatstr' {
+		matrix rownames `dtest_`what'' = `obstest_cn'
+		matrix colnames `dtest_`what'' = `strbok_`what'_rn'
+		
+		local grp_cn ""
+		local absd_cn ""
+		local stat_cn ""
+		local pval_cn ""
+		tempname results_`what'
+		matrix `results_`what'' = J(`neff_`what'', 1 + `ngroups' + (`ngroups' - 1)*3, .)
+		local resnm : subinstr local strbok_`what'_rn ":" "->", all
+		matrix rownames `results_`what'' = `resnm'
+		if (`ngroups' > 2) {
+			forvalues ng = 1/`ngroups' {
+				local grp_cn `grp_cn' "Group_`ng'"
+				if (`ng' > 1) {
+					local absd_cn `absd_cn' "AD_`ng'vs1"
+					local stat_cn `stat_cn' "S_`ng'vs1"
+					local pval_cn `pval_cn' "P_`ng'vs1"
+				}
 			}
+			matrix colnames `results_`what'' = "Global" `grp_cn' `absd_cn' `stat_cn' `pval_cn'
 		}
-		matrix colnames `results' = "Global" `grp_cn' `absd_cn' `stat_cn' `pval_cn'
-	}
-	else {
-		matrix colnames `results' = "Global" "Group_1" "Group_2" "Abs_Diff" "Statistic" "P-value"
-	}
+		else {
+			matrix colnames `results_`what'' = "Global" "Group_1" "Group_2" "Abs_Diff" "Statistic" "P-value"
+		}
 
-	tempname alllen anysig
-	matrix `alllen' = J(`neff', 1, .)
-	mata: st_matrix("`whole'", select(st_matrix("`whole'"), ///
-		st_matrix("`nonmiss'")))
-	local anysig = 0
-	forvalues j = 1/`neff' {
-		matrix `results'[`j', 1] = `whole'[`j', 1]
-		forvalues ng = 1/`ngroups' {
-			matrix `results'[`j', 1 + `ng'] = `group_`ng''[`j', 1]
-			if (`ng' > 1) {
-				matrix `results'[`j', 1 + `ngroups' + (`ng' - 1)] = ///
-					`obstest'[`j', `ng' - 1]
-				matrix `results'[`j', 1 + `ngroups' + (`ngroups' - 1) + (`ng' - 1)] = ///
-					`dtest'[`ng' - 1, `j']
-				if ("`method'" == "permutation") {
-					matrix `results'[`j', 1 + `ngroups' + (`ngroups' - 1)*2 + (`ng' - 1)] = ///
-						(`dtest'[`ng' - 1, `j'] + 1)/(`reps' + 1)
-				}
-				else if (("`method'" == "bootstrap") | ("`method'" == "normal")) {
-					matrix `results'[`j', 1 + `ngroups' + (`ngroups' - 1)*2 + (`ng' - 1)] = ///
-						2*ttail(`alln' - 2, `dtest'[`ng' - 1, `j'])
+		tempname alllen_`what' anysig_`what'
+		matrix `alllen_`what'' = J(`neff_`what'', 1, .)
+		mata: st_matrix("`whole_`what''", select(st_matrix("`whole_`what''"), ///
+			st_matrix("`nonmiss_`what''")))
+		local anysig_`what' = 0
+		forvalues j = 1/`neff_`what'' {
+			matrix `results_`what''[`j', 1] = `whole_`what''[`j', 1]
+			forvalues ng = 1/`ngroups' {
+				matrix `results_`what''[`j', 1 + `ng'] = `group_`what'_`ng''[`j', 1]
+				if (`ng' > 1) {
+					matrix `results_`what''[`j', 1 + `ngroups' + (`ng' - 1)] = ///
+						`obstest_`what''[`j', `ng' - 1]
+					matrix `results_`what''[`j', 1 + `ngroups' + (`ngroups' - 1) + (`ng' - 1)] = ///
+						`dtest_`what''[`ng' - 1, `j']
+					if ("`method'" == "permutation") {
+						matrix `results_`what''[`j', 1 + `ngroups' + (`ngroups' - 1)*2 + (`ng' - 1)] = ///
+							(`dtest_`what''[`ng' - 1, `j'] + 1)/(`reps' + 1)
+					}
+					else if (("`method'" == "bootstrap") | ("`method'" == "normal")) {
+						matrix `results_`what''[`j', 1 + `ngroups' + (`ngroups' - 1)*2 + (`ng' - 1)] = ///
+							2*ttail(`alln' - 2, `dtest_`what''[`ng' - 1, `j'])
+					}
 				}
 			}
-		}
-		local nm : word `j' of `resnm'
-		local nm_len : strlen local nm
-		matrix `alllen'[`j', 1] = `nm_len' + 2
-		local nm_new = subinstr("`nm'", "->", " -> ", 1)
-		forvalues ng = 2/`ngroups' {
-			if (`results'[`j', 1 + `ngroups' + (`ngroups' - 1)*2 + (`ng' - 1)] <= `alpha') {
-				local nm_new "(*) `nm_new'"
-				local anysig = 1
-				continue, break
+			local nm : word `j' of `resnm'
+			local nm_len : strlen local nm
+			matrix `alllen_`what''[`j', 1] = `nm_len' + 2
+			local nm_new_`what' = subinstr("`nm'", "->", " -> ", 1)
+			forvalues ng = 2/`ngroups' {
+				if (`results_`what''[`j', 1 + `ngroups' + (`ngroups' - 1)*2 + (`ng' - 1)] <= `alpha') {
+					local nm_new_`what' "(*) `nm_new_`what''"
+					local anysig_`what' = 1
+					continue, break
+				}
 			}
+			local lblbar_`what' "`lblbar_`what'' `j' "`nm_new_`what''""
 		}
-		local lblbar "`lblbar' `j' "`nm_new'""
 	}
 	
 	if ("`rawsum'" == "") {
@@ -1663,89 +1675,99 @@ program Compare, eclass sortpreserve
 		}
 	}
 	
-	if ("`what'" == "path") {
-		local firstcollbl "Structural effect"
-	}
-	else {
-		local firstcollbl "Measurement effect"
-	}
-	tempname maxlen
-	mata: st_numscalar("`maxlen'", max(st_matrix("`alllen'")))
-	local `maxlen' = max(strlen("`firstcollbl'"), `maxlen') + 2
-	if (`ngroups' == 2) {
-		local colw = 11
-	}
-	else {
-		local colw = 9
-	}
-	mktable, matrix(`results') digits(`digits') firstcolname(`firstcollbl') ///
-		title(`title') firstcolwidth(``maxlen'') colwidth(`colw') hlines(`neff') ///
-		novlines total
-	if ("`method'" != "normal") {
-		display as text _skip(`skip1') "number of replications: `reps'"
-	}
-	if (`ngroups' > 2) {
-		display as text _skip(`skip1') "legend:"
-		display as text _skip(`skip3') "AD: absolute difference"
-		display as text _skip(`skip3') "S: statistic"
-		display as text _skip(`skip3') "P: p-value"
-	}
-	display as text _skip(`skip1') "group labels:"
-	local grplbl : value label `groupvar'
-	forvalues ng = 1/`ngroups' {
-		local grpvarlbl`ng' = `groupvals'[`ng', 1]
-		if ("`grplbl'" != "") {
-			local grpvarlbl`ng' : label `grplbl' `grpvarlbl`ng''
+	foreach what in `whatstr' {
+		if ("`what'" == "path") {
+			local firstcollbl_`what' "Structural effect"
 		}
-		display as text _skip(`skip3') "Group `ng': `grpvarlbl`ng''"
+		else {
+			local firstcollbl_`what' "Measurement effect"
+		}
+		tempname maxlen_`what'
+		mata: st_numscalar("`maxlen_`what''", max(st_matrix("`alllen_`what''")))
+		local `maxlen_`what'' = max(strlen("`firstcollbl_`what''"), `maxlen_`what'') + 2
+		if (`ngroups' == 2) {
+			local colw = 11
+		}
+		else {
+			local colw = 9
+		}
 	}
-	
-	if ("`plot'" != "") {
-		local reslbl "__result__"
-		quietly svmat `results', names(`reslbl')
-		generate id = _n
+	foreach what in `whatstr' {
+		mktable, matrix(`results_`what'') digits(`digits') ///
+			firstcolname(`firstcollbl_`what'') title(`title') ///
+			firstcolwidth(``maxlen_`what''') colwidth(`colw') hlines(`neff_`what'') ///
+			novlines total
+		if ("`method'" != "normal") {
+			display as text _skip(`skip1') "number of replications: `reps'"
+		}
+		if (`ngroups' > 2) {
+			display as text _skip(`skip1') "legend:"
+			display as text _skip(`skip3') "AD: absolute difference"
+			display as text _skip(`skip3') "S: statistic"
+			display as text _skip(`skip3') "P: p-value"
+		}
+		display as text _skip(`skip1') "group labels:"
 		local grplbl : value label `groupvar'
 		forvalues ng = 1/`ngroups' {
 			local grpvarlbl`ng' = `groupvals'[`ng', 1]
 			if ("`grplbl'" != "") {
 				local grpvarlbl`ng' : label `grplbl' `grpvarlbl`ng''
 			}
-			local ngp1 = `ng' +  1
-			local reslbl_toplot "`reslbl_toplot' `reslbl'`ngp1'"
-			local res_tolbl "`res_tolbl' label(`ng' `grpvarlbl`ng'')"
+			display as text _skip(`skip3') "Group `ng': `grpvarlbl`ng''"
 		}
-		if ("`what'" == "path") {
-			local whatplot "Path Coefficients"
-		}
-		else if ("`what'" == "loadings") {
-			local whatplot "Loadings"
-		}
-		local bartitle "`whatplot' Comparison across Groups (`groupvar')"
-		if ("`method'" != "normal") {
-			local barnote "Method: `method' - number of replications: `reps'"
-		}
-		else {
-			local barnote "Method: `method'"
-		}
-		if (`anysig') {
-			local alpha_perc = string(`alpha'*100, "%5.0g")
-			if (`ngroups' == 2) {
-				local barcaption "(*) Difference significant at {&alpha} = `alpha_perc'%"
+	}
+	
+	if ("`plot'" != "") {
+		foreach what in `whatstr' {
+			tempname barname_`what'
+			local reslbl "__result__`what'"
+			local reslbl_toplot ""
+			quietly svmat `results_`what'', names(`reslbl')
+			generate id = _n
+			local grplbl : value label `groupvar'
+			forvalues ng = 1/`ngroups' {
+				local grpvarlbl`ng' = `groupvals'[`ng', 1]
+				if ("`grplbl'" != "") {
+					local grpvarlbl`ng' : label `grplbl' `grpvarlbl`ng''
+				}
+				local ngp1 = `ng' +  1
+				local reslbl_toplot "`reslbl_toplot' `reslbl'`ngp1'"
+				local res_tolbl "`res_tolbl' label(`ng' `grpvarlbl`ng'')"
+			}
+			if ("`what'" == "path") {
+				local whatplot "Path Coefficients"
+			}
+			else if ("`what'" == "loadings") {
+				local whatplot "Loadings"
+			}
+			local bartitle "`whatplot' Comparison across Groups (`groupvar')"
+			if ("`method'" != "normal") {
+				local barnote "Method: `method' - number of replications: `reps'"
 			}
 			else {
-				local barcaption "(*) At least one of the differences is significant at {&alpha} = `alpha_perc'%"
+				local barnote "Method: `method'"
 			}
-		}
-		else {
-			local barcaption ""
-		}
+			if (`anysig_`what'') {
+				local alpha_perc = string(`alpha'*100, "%5.0g")
+				if (`ngroups' == 2) {
+					local barcaption "(*) Difference significant at {&alpha} = `alpha_perc'%"
+				}
+				else {
+					local barcaption "(*) At least one of the differences is significant at {&alpha} = `alpha_perc'%"
+				}
+			}
+			else {
+				local barcaption ""
+			}
 
-		graph bar (asis) `reslbl_toplot', over(id, relabel(`lblbar') ///
-			label(angle(90) labsize(small))) nofill legend(pos(12) ///
-			region(style(none)) `res_tolbl' rows(1)) ///
-			ylabel(, nogrid) yline(0, lwidth(vvthin)) title(`bartitle') scheme(sj) ///
-			note(`barnote') caption(`barcaption', size(small))
-		capture quietly drop `reslbl'* id
+			graph bar (asis) `reslbl_toplot', over(id, relabel(`lblbar_`what'') ///
+				label(angle(90) labsize(small))) nofill legend(pos(12) ///
+				region(style(none)) `res_tolbl' rows(1)) ///
+				ylabel(, nogrid) yline(0, lwidth(vvthin)) title(`bartitle') scheme(sj) ///
+				note(`barnote') caption(`barcaption', size(small)) ///
+				name(`barname_`what'', replace)
+			capture quietly drop `reslbl'* id
+		}
 	}
 	
 	/* Clean up */

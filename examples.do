@@ -252,8 +252,7 @@ plssem (HighSchool > HS_GPA SAT_Verbal SAT_Math) ///
 	structural(Intro HighSchool, Medium Intro HighSchool, ///
 	Graduation Medium Intro HighSchool) ///
 	wscheme("centroid") digits(4) tol(1e-6) correlate(mv lv cross, cutoff(.3)) ///
-	group(Gender, reps(200) method(permutation) plot alpha(0.1) what(path)) ///
-	//boot(50)
+	group(Gender, reps(200) method(permutation) plot alpha(0.1)) //boot(50)
 
 /* Example 18 */
 /* ---------- */
@@ -293,8 +292,7 @@ plssem (Expectation > CUEX1-CUEX3) (Satisfaction > CUSA1-CUSA3) ///
 	Satisfaction Value Quality Image Expectation, Complaints Satisfaction, ///
 	Loyalty Complaints Satisfaction Image) ///
 	wscheme("path") digits(4) ///
-	group(group, reps(200) method(bootstrap) plot alpha(0.1) what(path)) ///
-	// boot(50)
+	group(group, reps(200) method(bootstrap) plot alpha(0.1)) //boot(50)
 
 /* Example 21 */
 /* ---------- */
@@ -316,7 +314,7 @@ plssem (Image > imag1-imag3) (Satisfaction > sat1-sat3) ///
 plssem (Image > imag1-imag3) (Satisfaction > sat1-sat3) ///
 	(Loyalty > loy1-loy3), structural(Loyalty Image*Satisfaction) ///
 	wscheme("centroid") digits(5) tol(1e-6) //boot(200) ///
-	// group(gender, reps(50) method(normal) plot alpha(0.1) what(loadings))
+	// group(gender, reps(50) method(normal) plot alpha(0.1))
 
 /* Two-stage path modeling approach */
 use ./data/satisfaction, clear
@@ -360,8 +358,7 @@ plssem (Expectation > CUEX1-CUEX3) (Satisfaction > CUSA1-CUSA3) ///
 	Satisfaction Value Quality Image*Expectation, Complaints Satisfaction, ///
 	Loyalty Complaints Satisfaction Image) ///
 	wscheme("path") digits(4) tol(1e-6) ///
-	//group(group, reps(50) method(normal) plot alpha(0.1) what(loadings)) ///
-	//boot(50)
+	//group(group, reps(50) method(normal) plot alpha(0.1)) //boot(50)
 
 plssemplot, outerweights
 
@@ -390,7 +387,7 @@ label value group group_lbl
 plssem (Expectation > CUEX1-CUEX3) (Satisfaction > CUSA1-CUSA3) ///
 	(Complaints > CUSCO) (Loyalty > CUSL1-CUSL3) (Image > IMAG1-IMAG5) ///
 	(Quality > PERQ1-PERQ7) (Value > PERV1-PERV2), digits(4) init(eigen) ///
-	//group(group, reps(50) method(normal) plot alpha(0.1) what(loadings)) ///
+	//group(group, reps(50) method(normal) plot alpha(0.1)) ///
 	/* structural(Expectation Image, Quality Expectation, Value Expectation Quality, ///
 	Satisfaction Value Quality Image Expectation, Complaints Satisfaction, ///
 	Loyalty Complaints Satisfaction Image) wscheme("path") tol(1e-6) ///
@@ -423,7 +420,7 @@ plssem (HighSchool > HS_GPA SAT_Verbal SAT_Math) ///
 	structural(Intro HighSchool, Medium Intro HighSchool, ///
 	Graduation Medium Intro HighSchool) ///
 	wscheme("centroid") digits(4) tol(1e-6) correlate(mv lv cross, cutoff(.3)) ///
-	group(Gender, plot what(loadings))
+	group(Gender, plot)
 
 /* Example 27 */
 /* ---------- */
@@ -541,8 +538,7 @@ plssem (SES > OccStat StdEduc) ///
 			(Incentives > Incent1 Incent2) ///
 			(Motivation > Motive1 Motive2), ///
 			structural(Motivation Incentives SES) ///
-			group(Gender, what("path")) ///
-	    //boot(25) seed(123) stats corr(lv)
+			group(Gender) //boot(25) seed(123) stats corr(lv)
 
 /* Example 34 */
 /* ---------- */
@@ -639,7 +635,7 @@ plssem (Attack > GSH GSA SSH SSA) (Defense > NGCH NGCA CSH CSA) ///
 plssem (Attack > GSH GSA SSH SSA) (Defense > NGCH NGCA CSH CSA) ///
 	(Success > WMH WMA), structural(Success Attack Defense) ///
 	wscheme(centroid) tol(1e-06) ///
-	group(rebus_class, reps(50) method(normal) what(loadings) plot)
+	group(rebus_class, reps(50) method(normal) plot)
 
 /* Example 38 */
 /* ---------- */
@@ -823,13 +819,11 @@ plssem (HighSchool > HS_GPA SAT_Verbal SAT_Math) ///
 	structural(Intro HighSchool, Medium Intro HighSchool, ///
 	Graduation Medium Intro HighSchool) ///
 	wscheme("centroid") digits(4) tol(1e-6) correlate(mv lv cross, cutoff(.3)) ///
-	group(Gender, reps(200) method(permutation) plot alpha(0.1) what(path) ///
-	groupseed(101))
+	group(Gender, reps(200) method(permutation) plot alpha(0.1) groupseed(101))
 
 tempname M S
 matrix `M' = e(adj_meas)
 matrix `S' = e(adj_struct)
 plssemmat `M', structural(`S') ///
 	wscheme("centroid") digits(4) tol(1e-6) correlate(mv lv cross, cutoff(.3)) ///
-	group(Gender, reps(200) method(permutation) plot alpha(0.1) what(path) ///
-	groupseed(101))
+	group(Gender, reps(200) method(permutation) plot alpha(0.1) groupseed(101))
