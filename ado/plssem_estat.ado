@@ -1,5 +1,5 @@
 *!plssem_estat version 0.3.0
-*!Written 07Sep2017
+*!Written 16Sep2017
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -389,11 +389,12 @@ program unobshet, rclass
 		MAXCLass(integer 20) Dendrogram MAXITer(integer 50) Stop(real 0.005) ///
 		Test Reps(numlist integer >1 max=1) SEed(numlist max=1) Plot ///
 		name(string) DIGits(integer 3) ]
-	
+
 	/* Options:
 	   --------
 		 method(string)									--> method to use for assessing unobserved
-																				heterogeneity (default is 'rebus')
+																				heterogeneity; available methods are
+																				'rebus' and 'fimix'. default is 'rebus'.
 		 numclass(integer)							--> number of classes to use; if empty, it
 																				is chosen automatically using a Ward
 																				hierarchical algorithm
@@ -421,26 +422,79 @@ program unobshet, rclass
 			This postestimation command provides various methods to assess the
 			presence of unobserved heterogeneity.
 			
-			Currently it implements only the REBUS approach.
+			Currently it implements the REBUS-PLS and FIMIX-PLS approaches.
 	 */
 	
 	if ("`method'" == "") {
 		local method "rebus"
 	}
-	if ("`method'" != "rebus") {
-		display as error "currently 'estat unobshet' implements only the REBUS method"
-		exit
+	
+	if ("`method'" == "rebus") {
+		REBUS `0'
 	}
+	else if ("`method'" == "fimix") {
+		FIMIX `0'
+	}
+	else {
+		display as error "currently 'estat unobshet' implements only the " _continue
+		display as error "REBUS-PLS and FIMIX-PLS methods"
+		error 198
+	}
+	
+	/* Clean up */
+	capture mata: cleanup()
+end
+
+program REBUS, rclass
+	version 14.2
+	syntax [ , Method(string) Numclass(numlist integer >1 max=1) ///
+		MAXCLass(integer 20) Dendrogram MAXITer(integer 50) Stop(real 0.005) ///
+		Test Reps(numlist integer >1 max=1) SEed(numlist max=1) Plot ///
+		name(string) DIGits(integer 3) ]
+
+	/* Options:
+	   --------
+		 method(string)									--> method to use for assessing unobserved
+																				heterogeneity; available methods are
+																				'rebus' and 'fimix'. default is 'rebus'.
+		 numclass(integer)							--> number of classes to use; if empty, it
+																				is chosen automatically using a Ward
+																				hierarchical algorithm
+		 maxclass(integer 20)						--> maximum number of classes to test in
+																				choosing automatically the number of
+																				classes (default 20)
+		 dendrogram											--> display the dendrogram for the Ward
+																				cluster analysis
+		 maxiter(integer 50)						--> maximum number of iterations (default
+																				50)
+		 stop(real 0.05)								--> stopping criterion (default 0.005)
+		 test														--> permutation test
+		 reps(numlist integer >1 max=1)	--> number of permutation test replications
+																				(default is 50)
+		 seed(numlist max=1)						--> permutation test seed number
+		 plot														--> plot of the empirical distribution
+																				for the permutation test statistic
+		 name(string)										--> variable name where to store the final
+																				REBUS classification
+		 digits(integer 3)							--> number of digits to display (default 3)
+	 */
+	 
+	 /* Description:
+			------------
+			This postestimation command implements the REBUS-PLS approach to assess
+			the presence of unobserved heterogeneity.
+	 */
+	
 	if ("`e(formative)'" != "") {
 		display as error "the REBUS approach can't be used with formative blocks"
-		exit
+		error 198
 	}
 	local props = e(properties)
 	local struct "structural"
 	local isstruct : list struct in props
 	if (!`isstruct') {
 		display as error "the fitted plssem model includes only the measurement part"
-		exit
+		error 198
 	}
 	local rawsum "rawsum"
 	local israwsum : list rawsum in props
@@ -972,16 +1026,16 @@ program unobshet, rclass
 		title(`title') firstcolwidth(``maxlen'') colwidth(`colw') hlines(3) ///
 		novlines total rebus
 
-	local title "Path coefficients"
-	local firstcollbl ""
-	mktable, matrix(`results_p') digits(`digits') firstcolname(`firstcollbl') ///
-		title(`title') firstcolwidth(``maxlen'') colwidth(`colw') hlines(`neff') ///
-		novlines total
-
 	local title "Loadings"
 	local firstcollbl ""
 	mktable, matrix(`results_l') digits(`digits') firstcolname(`firstcollbl') ///
 		title(`title') firstcolwidth(``maxlen'') colwidth(`colw') hlines(`nind') ///
+		novlines total
+
+	local title "Path coefficients"
+	local firstcollbl ""
+	mktable, matrix(`results_p') digits(`digits') firstcolname(`firstcollbl') ///
+		title(`title') firstcolwidth(``maxlen'') colwidth(`colw') hlines(`neff') ///
 		novlines total
 
 	if ("`test'" != "") {
@@ -1026,7 +1080,97 @@ program unobshet, rclass
 		display as error "the solution provided may not be acceptable; " _continue
 		display as error "try to relax any of the stopping criteria"
 	}
+end
+
+program FIMIX, rclass
+	version 14.2
+	syntax [ , Method(string) Numclass(numlist integer >1 max=1) ///
+		MAXCLass(integer 20) MAXITer(integer 30000) Stop(real 0.005) ///
+		REStart(numlist integer >1 max=1) SEed(numlist max=1) ///
+		name(string) DIGits(integer 3) ]
+
+	/* Options:
+	   --------
+		 method(string)									--> method to use for assessing unobserved
+																				heterogeneity; available methods are
+																				'rebus' and 'fimix'. default is 'rebus'.
+		 numclass(integer)							--> number of classes to use; if empty, it
+																				is chosen automatically using a Ward
+																				hierarchical algorithm
+		 maxclass(integer 20)						--> maximum number of classes to test in
+																				choosing automatically the number of
+																				classes (default 20)
+		 maxiter(integer 30000)					--> maximum number of iterations (default
+																				30000)
+		 stop(real 1e-15)								--> stopping criterion (default 1e-15)
+		 restart(numlist integer >1
+						 max=1)									--> number of permutation test replications
+																				(default is 50)
+		 seed(numlist max=1)						--> permutation test seed number
+		 name(string)										--> variable name where to store the final
+																				FIMIX classification
+		 digits(integer 3)							--> number of digits to display (default 3)
+	 */
+	 
+	 /* Description:
+			------------
+			This postestimation command implements the FIMIX-PLS approach to assess
+			the presence of unobserved heterogeneity.
+	 */
 	
-	/* Clean up */
-	capture mata: cleanup()
+	display "Coming soon! :)"
+	exit
+	
+	/* Run the FIMIX algorithm */
+	// display
+	tempname res_fimix
+	capture noisily {
+		mata: `res_fimix' = ///
+			plssem_fimix( ///
+				st_data(., "`allindicators'"), ///			 note: `__touse__' not used here
+				st_matrix("e(adj_meas)"), ///
+				st_matrix("e(adj_struct)"), ///
+				"`allindicators'", ///
+				"`allstdindicators'", ///
+				"`alllatents'", ///
+				"`e(binarylvs)'", ///
+				st_numscalar("e(tolerance)"), ///
+				st_numscalar("e(maxiter)"), ///
+				"`__touse__'", ///
+				"`scheme'", ///
+				"`convcrit'", ///
+				"`init'", ///
+				"`scale'", ///
+				strtoreal("`isstruct'"), ///
+				strtoreal("`israwsum'"), ///
+				"`rebus_class'", ///
+				strtoreal("`numclass'"), ///
+				strtoreal("`maxiter'"), ///
+				strtoreal("`stop'"), ///
+				1)
+		
+		mata: st_local("iter", strofreal(`res_fimix'.niter))
+		mata: st_local("rN0", strofreal(`res_fimix'.rN0))
+		mata: st_local("rN_lte_5", strofreal(`res_fimix'.rN_lte_5))
+		mata: st_store(., "`rebus_class'", `res_fimix'.fimix_class)
+	}
+	if (_rc != 0) {
+		if (real("`rN0'")) {
+			display as error "one class is empty"
+		}
+		else if (real("`rN_lte_5'")) {
+			display as error "too few observations (5 or less) assigned to a single class"
+		}
+		else if (_rc == 409) {
+			display as error "at least one indicator has zero variance in one of the iterations"
+		}
+		else {
+			display as error "something went wrong in the FIMIX calculations"
+		}
+		display as error "try reducing the number of classes " _continue
+		display as error "or relaxing any of the stopping criteria"
+		restore
+		_estimates unhold `globalmodel'
+		exit
+	}
 end

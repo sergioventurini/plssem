@@ -276,7 +276,8 @@ plssem (Expectation > CUEX1-CUEX3) (Satisfaction > CUSA1-CUSA3) ///
 	Loyalty Complaints Satisfaction Image) ///
 	wscheme("path") digits(4) correlate(mv lv cross, cutoff(.3)) //boot(50)
 
-estat unobshet, test reps(300) plot
+estat unobshet, test reps(300) //plot
+estat unobshet, numclass(5) stop(.1) name("rebus_cluster_f") method("fimix")
 	
 /* Example 20 */
 /* ---------- */
@@ -827,3 +828,74 @@ matrix `S' = e(adj_struct)
 plssemmat `M', structural(`S') ///
 	wscheme("centroid") digits(4) tol(1e-6) correlate(mv lv cross, cutoff(.3)) ///
 	group(Gender, reps(200) method(permutation) plot alpha(0.1) groupseed(101))
+
+/* Example 47 */
+/* ---------- */
+use ./data/Career_Satisfaction, clear
+rename _all, lower
+cls
+
+/* STAGE I:
+Results from this estimation will go into table 1,
+that is the loadings of the items, DG as well as
+the discriminant validity as shown in table 2. Further,
+table of summary statistics should replace the one in 
+table 3. There is no reason to report the correlations
+as this information is indirectly provided in table 2 */
+quietly {
+	plssem (SJS > sjs1 sjs2) (SE > se1 se2) ///
+				 (WFE_DEV > wfe1-wfe3) ///
+				 (WFE_AFFECT > wfe4-wfe6) ///
+				 (WFE_CAPITAL > wfe7-wfe9) ///
+				 (CS > cs1 cs2 cs3 cs4 cs5), ///
+				 init(eigen) stats
+}
+
+/* recoding of the control variables */
+quietly {
+	tab gender
+	gen female = gender-1
+	label define label1 0"male" 1"female"
+	label values female label1
+	tab female
+	tab female, nol
+
+	tab marital_status
+	replace marital_status=2 if marital_status==3 //we change 3 to 2 because it was mistyped in the data punching phase
+	tab marital_status
+	gen notmarried = marital_status-1
+	label define label2 0"married" 1"not married"
+	label values notmarried label2
+	tab notmarried
+	tab notmarried, nol
+}
+		 
+/* STAGE II: Measurement continues...
+The loadings on WFE_DEV, WFE_AFFECT and WFE_CAPITAL
+should also be added to table1, these will then  be
+shown as the indicators of WFE itself. That is, 
+0.873, 0.884 and 0.869 should also be reported
+as well as the DG of 0.908 */
+quietly {
+	plssem (SJS > sjs1 sjs2) (SE > se1 se2) ///
+				 (WFE > WFE_DEV WFE_AFFECT WFE_CAPITAL) ///
+				 (CS > cs1 cs2 cs3 cs4 cs5), ///
+				 init(eigen)
+}
+	   
+/* THE STRUCTURAL MODEL, FULL-SEM
+Results from this estimation should go into
+table 4 showing the coefficients */
+plssem (SJS > sjs1 sjs2) (SE > se1 se2) ///
+       (WFE > WFE_DEV WFE_AFFECT WFE_CAPITAL) ///
+			 (CS > cs1 cs2 cs3 cs4 cs5) ///
+			 (FEMALE > female) ///
+			 (NMARR > notmarried), ///
+       structural(WFE SJS SE FEMALE NMARR, ///
+									CS WFE SJS SE FEMALE NMARR) ///
+	   boot(1000) seed(12345) ///
+		 init(eigen)
+
+/* THE MEDIATION ANALYSIS */
+estat indirect, effects(CS WFE SJS, CS WFE SE) boot(1000) seed(67893)
+estat indirect, effects(CS WFE SJS, CS WFE SE)

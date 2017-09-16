@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 0.3.0  12Sep2017}{...}
+{* *! version 0.3.0  13Sep2017}{...}
 {vieweralsosee "plssem postestimation" "help plssem postestimation"}{...}
 {vieweralsosee "plssemplot" "help plssemplot"}{...}
 {viewerjumpto "Syntax" "plssem##syntax"}{...}
@@ -27,7 +27,7 @@ Partial least squares structural equation modeling of data
 
 
 {pstd}
-Partial least squares structural equation modeling of adjacency measures
+Partial least squares structural equation modeling of adjacency matrices
 
 {p 8 15 2}
 {cmd:plssemmat} {it:adjmeas_matname} {ifin}

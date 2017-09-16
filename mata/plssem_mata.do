@@ -1,5 +1,5 @@
 *!plssem_mata version 0.3.0
-*!Written 07Sep2017
+*!Written 16Sep2017
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -36,6 +36,8 @@ capture mata: mata drop ///
 	plssem_struct_rebus() ///
 	plssem_rebus() ///
 	plssem_rebus_ptest() ///
+	plssem_struct_fimix() ///
+	plssem_fimix() ///
 	cleanup()
 
 version 14.2
@@ -79,6 +81,18 @@ struct plssem_struct_boot {
 }
 
 struct plssem_struct_rebus {
+	real scalar niter						// number of iterations to reach convergence
+	real colvector rebus_class	// column vector of the final attributed classes
+	real colvector touse_vec		// column vector for the observations used
+	real scalar rN0							// indicator that any of the classes is empty
+	real scalar rN_lte_5				// indicator that any of the classes has 5
+															// observations or less
+	real scalar nclass					// number of classes
+	real scalar maxiter					// maximum number of REBUS iterations
+	real scalar stop						// REBUS stopping criterion
+}
+
+struct plssem_struct_fimix {
 	real scalar niter						// number of iterations to reach convergence
 	real colvector rebus_class	// column vector of the final attributed classes
 	real colvector touse_vec		// column vector for the observations used
@@ -198,7 +212,7 @@ void plssem_init(real matrix X,  real matrix M, string scalar ind,
 		 - void				--> the matrix of initial LV scores is saved directly in the
 											data table
 	*/
-
+	
 	real matrix Y, Xunscaled
 	real scalar V, v
 	string scalar tmpscores
@@ -876,7 +890,7 @@ struct plssem_struct_boot scalar plssem_boot(real matrix X, real matrix Yinit,
 	Q = rows(M)   			// number of manifest variables
 	n = rows(X)
 	
-	// Boostrap resampling
+	// Boostrap resampling parameters
 	if (B == .) {
 		B = 100
 	}
@@ -950,6 +964,10 @@ struct plssem_struct_boot scalar plssem_boot(real matrix X, real matrix Yinit,
 		lambda[b, .] = rowsum(res.loadings)'
 		xlambda[b, .] = vec(res.xloadings)'
 	}
+	
+	// Storing the latent scores using the original full sample
+	res = plssem_base(X, Yinit, M, S, mode, latents, binary, tol, ///
+			maxit, touse, scheme, crit, structural, rawsum)
 	
 	// Assigning results to structure's members
 	res_bs.reps = B
@@ -2166,7 +2184,7 @@ struct plssem_struct_rebus scalar plssem_rebus(real matrix X, real matrix M,
 {
 	/* Description:
 		 ------------
-		 Function that implements the REBUS PLS-SEM algorithm
+		 Function that implements the REBUS-PLS algorithm
 	*/
 	
 	/* Arguments:
@@ -2358,7 +2376,7 @@ real colvector plssem_rebus_ptest(real matrix X, real matrix M, real matrix S,
 {
 	/* Description:
 		 ------------
-		 Function that implements the REBUS PLS-SEM algorithm
+		 Function that implements the permutation test for a REBUS-PLS solution
 	*/
 	
 	/* Arguments:
@@ -2536,6 +2554,198 @@ real colvector plssem_rebus_ptest(real matrix X, real matrix M, real matrix S,
 	return(gqi_perm)
 }
 
+struct plssem_struct_fimix scalar plssem_fimix(real matrix X, real matrix M,
+	real matrix S, string scalar ind, string scalar stdind, string scalar latents,
+	string scalar binary, real scalar tol, real scalar maxit, string scalar touse,
+	string scalar scheme, string scalar crit, string scalar init,
+	string scalar scale, real scalar structural, real scalar rawsum,
+	string scalar rebus_cl, real scalar numclass, real scalar maxit_reb,
+	real scalar stop, |real scalar noisily)
+{
+	/* Description:
+		 ------------
+		 Function that implements the FIMIX-PLS algorithm
+	*/
+	
+	/* Arguments:
+		 ----------
+		 - X					--> real matrix containing the observed manifest variables
+		 - M					--> real matrix containing the measurement model adjacency
+											matrix
+		 - S			 		--> real matrix containing the structural model adjacency
+											matrix
+		 - ind				--> string scalar providing the list of all the unstandardized
+											indicators
+		 - stdind			--> string scalar providing the list of all the standardized
+											indicators
+		 - latents 		--> string scalar providing the list of all the latent
+											variables
+		 - binary	 		--> string scalar providing the list of the latent binary
+											variables
+		 - tol		 		--> real scalar providing the tolerance to use in the
+											algorithm
+		 - maxit	 		--> real scalar providing the maximum number of PLS iterations
+		 - touse	 		--> string scalar containing the name of the variable tracking
+											the subset of the data to use
+		 - scheme	 		--> string scalar containing the weighting scheme to use (one
+											of "centroid", "factorial" or "path")
+		 - crit		 		--> string scalar containing the convergence criterion (either
+											"relative" or "square")
+		 - init	 			--> string scalar containing the initialization type (either
+											"indsum" or "eigen")
+		 - scale	 		--> string scalar indicating if the indicators must be scaled
+		 - structural	--> real scalar equal to 1 if the model has a structural part,
+											and 0 otherwise
+		 - rawsum			--> real scalar equal to 1 if the 'rawsum' option has been
+											chosen
+		 - rebus_cl		--> string scalar providing the variable with the REBUS
+											classes
+		 - numclass		--> real scalar providing the number of REBUS classes
+		 - maxit_reb	--> real scalar providing the maximum number of REBUS
+											iterations
+		 - stop				--> real scalar providing the REBUS stopping criterion
+		 - noisily		--> (optional) real scalar; if not 0, it prints the bootstrap
+											iterations
+	*/
+	
+	/* Returned value:
+		 ---------------
+		 - res --> scalar plssem_struct_rebus structure containing the results
+	*/
+
+	struct plssem_struct_fimix scalar res_fimix
+	struct plssem_struct scalar res
+	struct plssem_struct colvector localmodels
+
+	real matrix cm, Xsc, Yinit, Xreb, Xrebsc, Xreb_all, Xrebsc_all, ow, path, ///
+		loads, y, y_local, block, x_hat, y_hat, out_res, inn_res
+	real scalar iter, N, nchanged, k, P, p, rN0, rN_lte_5
+	string scalar touse_loc_name
+	real colvector modes, touse_vec, rebus_class, touse_loc, old_class, ///
+		new_class, class_freq
+	real rowvector r2, endo
+	
+	iter = 1
+	P = cols(M)
+	touse_vec = st_data(., touse)
+	N = sum(touse_vec)
+	nchanged = N
+	
+	rebus_class = st_data(., rebus_cl)
+	localmodels = J(numclass, 1, res)
+	modes = J(P, 1, 0)
+	endo = (colsum(S)	:> 0)			 // indicators for the endogenous latent variables
+	
+	if (noisily == .) {
+		noisily = 1
+	}
+	
+	(void) st_addvar("byte", touse_loc_name = st_tempname())
+	
+	old_class = rebus_class
+	while ((iter <= maxit_reb) & (nchanged > N*stop)) {
+		/*
+		if (noisily) {
+			if (iter == 1) {
+				printf("{txt}REBUS iteration 1")
+			}
+			else if (mod(iter, 5) == 0) {
+				todisp = strtrim(strofreal(iter, "%9.0f"))
+				printf("{txt}" + todisp)
+			}
+			else {
+				printf("{txt}.")
+			}
+			displayflush()
+		}
+		*/
+		
+		cm = J(N, 0, .)
+		for (k = 1; k <= numclass; k++) {
+			touse_loc = touse_vec :* (old_class :== k)
+			st_store(., touse_loc_name, touse_loc)
+			
+			// Standardize the MVs (if required)
+			if (scale == "") {
+				Xsc = scale(X[selectindex(touse_loc), .])
+			}
+			else {
+				Xsc = X[selectindex(touse_loc), .]
+			}
+			
+			// Check that there are no zero-variance indicators
+			if (any(selectindex(sd(Xsc) :== 0))) {
+				_error(409)
+			}
+			
+			// Initialize the LVs
+			Yinit = plssem_init_mat(Xsc,  M, ind, stdind, latents, touse_loc_name, ///
+				rawsum, init)
+			
+			// Run the PLS algorithm
+			localmodels[k, 1] = plssem_base(Xsc, Yinit, M, S, modes, latents, ///
+				binary, tol, maxit, touse_loc_name, scheme, crit, structural, rawsum)
+			
+			Xreb = X[selectindex(touse_loc), .]
+			Xrebsc = scale(Xreb)
+			ow = localmodels[k, 1].outer_weights
+			path = localmodels[k, 1].path
+			path = editmissing(path, 0)
+			loads = localmodels[k, 1].loadings
+			r2 = localmodels[k, 1].r2
+			r2 = r2[., selectindex(r2 :!= .)]
+			//y = Xrebsc * ow ???
+			
+			Xreb_all = X[selectindex(touse_vec), .]
+			Xrebsc_all = scale(Xreb_all, 0, sd(Xreb), mean(Xreb))
+			y_local = Xrebsc_all * ow
+			out_res = J(N, 0, .)
+			for (p = 1; p <= P; p++) {
+				block = selectindex(loads[., p] :!= .)
+				x_hat = y_local[., p] * loads[block, p]'
+				out_res = (out_res, (Xrebsc_all[., block] - x_hat))
+			}
+			y_hat = y_local * path[., selectindex(endo)]
+			inn_res = (y_local[., selectindex(endo)] - y_hat)
+			cm = (cm, rebus_cm(out_res, inn_res, loads, r2))
+		}
+		new_class = J(length(old_class), 1, .)
+		new_class[selectindex(touse_vec), 1] = which(cm, "min")
+		nchanged = sum(old_class :!= new_class)
+		old_class = new_class
+		
+		class_freq = uniqrows(new_class, 1)[., 2]
+		if (anyof(class_freq, 0)) {
+			rN0 = 1
+			break
+		}
+		else {
+			rN0 = 0
+		}
+		if (any(class_freq :<= 5)) {
+			rN_lte_5 = 1
+			break
+		}
+		else {
+			rN_lte_5 = 0
+		}
+		
+		iter++
+	}
+	
+	// Assigning results to structure's members
+	res_fimix.niter = (iter - 1)
+	res_fimix.rebus_class = new_class
+	res_fimix.touse_vec = touse_vec
+	res_fimix.rN0 = rN0
+	res_fimix.rN_lte_5 = rN_lte_5
+	res_fimix.nclass = numclass
+	res_fimix.maxiter = maxit_reb
+	res_fimix.stop = stop
+	
+	return(res_fimix)
+}
+
 void cleanup()
 {
 	/* Description:
@@ -2598,4 +2808,6 @@ mata: mata mosave rebus_gqi(), dir(PERSONAL) replace
 mata: mata mosave plssem_struct_rebus(), dir(PERSONAL) replace
 mata: mata mosave plssem_rebus(), dir(PERSONAL) replace
 mata: mata mosave plssem_rebus_ptest(), dir(PERSONAL) replace
+mata: mata mosave plssem_struct_fimix(), dir(PERSONAL) replace
+mata: mata mosave plssem_fimix(), dir(PERSONAL) replace
 mata: mata mosave cleanup(), dir(PERSONAL) replace
