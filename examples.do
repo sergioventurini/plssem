@@ -1,4 +1,4 @@
-cd "/Users/Sergio/Dropbox (Personal)/PLS-SEM"
+cd "/Users/Sergio/Dropbox (Personal)/plssem"
 
 /* Example 1 */
 /* --------- */
@@ -798,6 +798,9 @@ matrix m = (2, 5, 3)
 matrix sd = (.5, 1, 2)
 matrix C = (1, .3, 1, .1, .5, 1)
 drawnorm x1 x2 x3, n(300) means(m) sds(sd) corr(C) cstorage(lower) clear seed(101)
+replace x1 = . in 3/5
+replace x2 = . in 10/25
+replace x3 = . in 20/25
 
 matrix M = (1, 0 \ 1, 0 \ 0, 1)
 matrix rownames M = x1 x2 x3
@@ -807,7 +810,7 @@ matrix S = (0, 1 \ 0, 0)
 matrix rownames S = y1 y2
 matrix colnames S = y1 y2
 
-plssemmat M, structural(S) wscheme(path) digits(4)
+plssemmat M, structural(S) wscheme(path) digits(4) missing(knn)
 
 /* Example 46 */
 /* ---------- */
@@ -899,3 +902,61 @@ plssem (SJS > sjs1 sjs2) (SE > se1 se2) ///
 /* THE MEDIATION ANALYSIS */
 estat indirect, effects(CS WFE SJS, CS WFE SE) boot(1000) seed(67893)
 estat indirect, effects(CS WFE SJS, CS WFE SE)
+
+/* Example 48 */
+/* ---------- */
+use ./data/Mehmet/data_sommer_2010, clear
+
+local modelvars "spm1_6 spm1_7 spm1_8 spm1_9 spm3_2 spm3_6 spm3_8 spm3_12 spm15_7 spm15_8 spm15_3"
+keep `modelvars'
+order spm15_3, after(spm15_8)
+rename spm1_6 energy
+rename spm1_7 getaway
+rename spm1_8 boredom
+rename spm1_9 exciting
+rename spm3_2 entertain
+rename spm3_6 visittown
+rename spm3_8 nature
+rename spm3_12 fishing
+rename spm15_7 satisf
+rename spm15_8 expecta
+rename spm15_3 recommend
+
+set seed 123
+generate group = rbinomial(1, .4)
+
+/* Let us now build the model */
+plssem (Escape > energy getaway) ///
+       (Novelty > boredom exciting) ///
+			 (Motives > energy getaway boredom exciting) ///
+			 (Activity < entertain visittown nature fishing) ///
+			 (Satisfaction > satisf expecta) ///
+			 (Recommendation < recommend), ///
+       structural(Escape Motives, ///  // higher-order put in the structural part
+									Novelty Motives, ///
+									Activity Motives, ///
+									Satisfaction Activity Motives, ///
+									Recommendation Satisfaction Activity) ///
+			 missing(knn) //group(group, reps(200) method(permutation))
+
+/* Example 49 */
+/* ---------- */
+use ./data/workout2, clear
+
+/*
+drop if missing(face, sexy, body, appear, attract, muscle, strength, endur, ///
+	lweight, calories, cweight)
+*/
+
+plssem (Attractive > face sexy) ///
+			 (Appearance > body appear attract) ///
+			 (Muscle > muscle strength endur) ///
+			 (Weight > lweight calories cweight), /// if women == 1, ///
+			 structural(Appearance Attractive, ///
+	                Muscle Appearance, ///
+	                Weight Appearance) ///
+	     missing(mean) loadpval digits(5) boot(200) //noscale
+
+predict, xb residuals
+
+estat unobshet, method(rebus)

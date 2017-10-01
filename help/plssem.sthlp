@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 0.3.0  13Sep2017}{...}
+{* *! version 0.3.0  Sep2017}{...}
 {vieweralsosee "plssem postestimation" "help plssem postestimation"}{...}
 {vieweralsosee "plssemplot" "help plssemplot"}{...}
 {viewerjumpto "Syntax" "plssem##syntax"}{...}
@@ -62,6 +62,7 @@ and P the number of latent variables in the model).
 {synopt:{cmd:no}{cmdab:meas:table}}suppress display of measurement model estimates table{p_end}
 {synopt:{cmd:no}{cmdab:discrim:table}}suppress display of discriminant validity table{p_end}
 {synopt:{cmd:no}{cmdab:struct:table}}suppress display of structural model estimates table{p_end}
+{synopt:{opt loadp:val}}show the outer loadings' p-values{p_end}
 {synopt:{opt stat:s}}print a table of summary statistics for the indicators{p_end}
 {synopt:{opt gr:oup()}}perform multigroup analysis; see {help plssem##options:{it:Options}} for details{p_end}
 {synopt:{opt corr:elate()}}report the correlation among indicators, latent variables and cross loadings; see {help plssem##options:{it:Options}} for details{p_end}
@@ -130,7 +131,7 @@ ordinary least squares method.
 {marker options}{...}
 {title:Options}
 
-{phang}{opt wscheme(weighting scheme)}
+{phang}{opt wscheme(weighting_scheme)}
 provides the choice of the weighting scheme. The default is
 {bf:path} for the path scheme. Alternative choices are {bf:factorial} or {bf:centroid} for the
 corresponding scheme.
@@ -157,7 +158,7 @@ indicates the maximum number of iterations the algorithm runs. The default is
 100 iterations. Note that usually the algorithm requires a very limited number of
 iterations to reach convergence, typically less than 10. 
 
-{phang}{opt missing(imputation method)}
+{phang}{opt missing(imputation_method)}
 povides the choice for the method to use for imputing the indicator missing values. Possible
 choices are {bf:mean} (i.e. the mean of the available indicators) or {bf:knn} (i.e. the k-th
 nearest neighbor method).
@@ -166,7 +167,7 @@ nearest neighbor method).
 sets the number of nearest neighbors to use with {cmd:missing(knn)}. The default
 number of nearest neighbors is 5.
 
-{phang}{opt init(initialization)}
+{phang}{opt init(init_method)}
 lets the user choose between two options for initialization. These
 are {bf:indsum} (default) and {bf:eigen}. The {bf:eigen} option also allows the user estimate only the
 measurement part of the model.
@@ -186,11 +187,14 @@ suppresses measurement model section of the output.
 {phang}{opt nostructtable}
 suppresses structural model section of the output. 
 
+{phang}{opt loadpval}
+shows the table of loadings' p-values. 
+
 {phang}{opt stats}
 displays some summary statistics (mean, standard deviations, etc.) for the original
 indicators. 
 
-{phang}{opt group(grouping variable, [sub-options])}
+{phang}{opt group(grouping_variable, [sub-options])}
 provides both the structural and the measurement part of the estimation
 results for each category of the grouping variable as well as the comparison
 between the categories based on normal-theory (default). As an alternative to
@@ -221,7 +225,7 @@ scores.
 {phang}{opt noscale}
 the manifest variables are not standardized before running the algorithm.
 
-{phang}{opt convcrit(convergence criterion)}
+{phang}{opt convcrit(convergence_criterion)}
 the convergence criterion to use. Alternative choices are {bf:relative} or {bf:square}. The
 default is {bf:relative}.
 
@@ -338,8 +342,9 @@ Norwegian University of Science and Technology{break}
 {synopt:{cmd:e(formative)}}list of latent variables measured in a formative way{p_end}
 {synopt:{cmd:e(struct_eqs)}}equations defining the structural model{p_end}
 {synopt:{cmd:e(properties)}}choices of initialization, weighting scheme, imputation method, 
-whether the boostrap has been used, if the model has a structural part, if the
-{cmd:rawsum} option has been used if the manifest variables have been scaled or not{p_end}
+whether the boostrap has been used, whether the model has a structural part, whether the
+{cmd:rawsum} option has been used, and whether the manifest variables have been scaled or
+not{p_end}
 
 {synoptset 24 tabbed}{...}
 {p2col 5 24 28 2: Matrices}{p_end}
@@ -369,6 +374,8 @@ if the {cmd:boot()} option is chosen){p_end}
 {synopt:{cmd:e(redundancy)}}vector of redundancies{p_end}
 {synopt:{cmd:e(assessment)}}vector of model quality indices{p_end}
 {synopt:{cmd:e(reldiff)}}vector containing the history of weights' relative differences{p_end}
+{synopt:{cmd:e(imputed_data)}}matrix of imputed indicators; available only if the
+the {cmd:missing} option has been used{p_end}
 
 {synoptset 24 tabbed}{...}
 {p2col 5 24 28 2: Functions}{p_end}
@@ -387,7 +394,7 @@ Personality and Social Psychology, 51, 1173-1182.
 
 {marker Hairetal2017}{...}
 {phang}
-Hair, J. F., Hult, G. T. M., Ringle, C. M., and Sarstedt, M. 2017. {it:A Primer on Partial Least Squares Structural Equation Modeling (PLS-SEM)}. Sage.
+Hair, J. F., Hult, G. T. M., Ringle, C. M., and Sarstedt, M. 2017. {it:A Primer on Partial Least Squares Structural Equation Modeling (PLS-SEM)}. Second edition. Sage.
 
 {marker Lohmoller1989}{...}
 {phang}

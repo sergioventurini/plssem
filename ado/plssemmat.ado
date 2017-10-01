@@ -1,5 +1,5 @@
 *!plssemmat version 0.3.0
-*!Written 13Sep2017
+*!Written 30Sep2017
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -67,8 +67,8 @@ program Estimate_mat, eclass byable(recall)
 		Boot(numlist integer >0 max=1) Seed(numlist max=1) Tol(real 1e-7) ///
 		MAXiter(integer 100) MISsing(string) k(numlist integer >0 max=1) ///
 		INIT(string) DIGits(integer 3) noHEADer noMEAStable noDISCRIMtable ///
-		noSTRUCTtable STATs GRoup(string) CORRelate(string) RAWsum noSCale ///
-		CONVcrit(string) noCLeanup ]
+		noSTRUCTtable LOADPval STATs GRoup(string) CORRelate(string) RAWsum ///
+		noSCale CONVcrit(string) noCLeanup ]
 	
 	/* Options:
 	   --------
@@ -91,6 +91,7 @@ program Estimate_mat, eclass byable(recall)
 		 nodiscrimtable									--> do not show the discriminant validity
 																				table
 		 nostructtable									--> do not show the structural table
+		 loadpval												--> show the loadings' p-values
 		 stats													--> print a table of summary statistics for
 																				the indicators
 		 group(string)									--> perform multigroup analysis; accepts
@@ -109,8 +110,7 @@ program Estimate_mat, eclass byable(recall)
 																				specified value
 		 rawsum													--> estimate the latent scores as the raw
 																				sum of the indicators
-		 noscale												--> manifest variables are not scaled but
-																				only centered
+		 noscale												--> manifest variables are not standardized
 		 convcrit												--> convergence criterion (either 'relative'
 																				or 'square')
 		 nocleanup											--> Mata temporary objects are not removed
@@ -246,6 +246,13 @@ program Estimate_mat, eclass byable(recall)
 	marksample touse
 	/* End of setting observations to use (1/2) */
 	
+	/* Save original data set */
+	if ("`missing'" != "") {
+		tempname original_data
+		mata: `original_data' = st_data(., "`: list uniq allindicators'", "`touse'")
+	}
+	/* End saving original data set */
+	
 	/* Imputation of missing values */
 	if ("`missing'" != "") {
 		local missing : list clean missing
@@ -263,7 +270,7 @@ program Estimate_mat, eclass byable(recall)
 		}
 		else if ("`missing'" == "knn") {
 			tempname ind_mata allmiss
-			mata: `ind_mata' = st_data(., "`allindicators'")
+			mata: `ind_mata' = st_data(., "`allindicators'", "`touse'")
 			mata: st_numscalar("`allmiss'", anyof(rowmissing(`ind_mata'), ///
 				cols(`ind_mata')))
 			if (`allmiss') {
@@ -294,7 +301,7 @@ program Estimate_mat, eclass byable(recall)
 	tempvar touse_nomiss
 	quietly generate `touse_nomiss' = `touse'
 	markout `touse' `allindicators'
-
+	
 	quietly count if `touse'
 	if (r(N) == 0) {
 		error 2000
@@ -359,11 +366,11 @@ program Estimate_mat, eclass byable(recall)
 	}
 	if !("`init'" == "eigen" | "`init'" == "indsum") {
 		display as error "initialization method can be either 'eigen' or 'indsum'"
-		exit
+		error 198
 	}
 	if (("`structural'" == "") & ("`init'" != "eigen")) {
 		display as error "'init()' option must be set to 'eigen' when no structural model is provided"
-		exit
+		error 198
 	}
 	/* End of checking the initialization method */
 
@@ -510,92 +517,34 @@ program Estimate_mat, eclass byable(recall)
 	}
 	/* End of creating the adjacency matrices */
 	
-	/* Standardize the MVs (if requested) */
-	mata: ///
-		plssem_scale( ///
-			st_data(., "`allindicators'", "`touse'"), ///
-			"`allstdindicators'", ///
-			"`touse'", ///
-			"`scale'")
-	/* End of standardizing the MVs */
-	
-	/* Initialize LVs */
-	mata: ///
-		plssem_init( ///
-			st_data(., "`allstdindicators'", "`touse'"), ///
-			st_matrix("`adj_meas'"), ///
-			"`allindicators'", ///
-			"`allstdindicators'", ///
-			"`alllatents'", ///
-			"`touse'", ///
-			st_numscalar("`rawsum_sc'"), ///
-			"`init'")
-	/* End of initializing the LVs */
-	
-	/* Run the PLS algorithm */
-	tempname res converged outerW iter matreldiff Whistory
-	
-	mata: `res' = ///
-		plssem_base( ///
-			st_data(., "`allstdindicators'", "`touse'"), ///
-			st_data(., "`alllatents'", "`touse'"), ///
-			st_matrix("`adj_meas'"), ///
-			st_matrix("`adj_struct'"), ///
-			st_matrix("`modes'"), ///
-			"`alllatents'", ///
-			"`binary'", ///
-			strtoreal("`tol'"), ///
-			strtoreal("`maxiter'"), ///
-			"`touse'", ///
-			"`wscheme'", ///
-			"`convcrit'", ///
-			st_numscalar("`struct_sc'"), ///
-			st_numscalar("`rawsum_sc'"))
-	
-	mata: st_numscalar("`converged'", `res'.converged)
-	mata: st_numscalar("`iter'", `res'.niter)
-	if (("`structural'" != "") & ("`rawsum'" == "")) {
-		mata: st_matrix("`matreldiff'", `res'.diff)
-		mata: st_matrix("`Whistory'", `res'.evo)
-		foreach var in `alllatents' {
-			foreach var2 in `i`var'' {
-				local Whistcolnames `Whistcolnames' "`var2':`var'"
-			}
-		}
-		matrix colnames `Whistory' = `Whistcolnames'
-		mata: st_matrix("`outerW'", `res'.outer_weights)
-		matrix rownames `outerW' = `loadrownames'
-		matrix colnames `outerW' = `loadcolnames'
-	}
-	/* End of the PLS algorithm */
-	
-	/* Label the LVs */
-	local now "`c(current_date)', `c(current_time)'"
-	local now : list clean now
-	foreach var of varlist `alllatents' {
-		label variable `var' "Scores of `var' latent variable [`now']"
-	}
-	/* End of labeling the LVs */
-	
-	/* Compute the model parameters' variances */
-	tempname xload_v path_v
-	
-	if ("`boot'" == "") {
-		mata: `xload_v' = ///
-			plssem_lv( ///
-				st_data(., "`allstdindicators'", "`touse'"), ///
-				st_data(., "`alllatents'", "`touse'"), ///
-				"`alllatents'", ///
-				"`binary'")
-		if ("`structural'" != "") {
-			mata: `path_v' = `res'.path_v
-		}
-	}
-	else {
-		tempname res_bs
+	capture noisily {
+		/* Standardize the MVs (if requested) */
+		mata: ///
+			plssem_scale( ///
+				st_data(., "`allindicators'", "`touse'"), ///
+				"`allstdindicators'", ///
+				"`touse'", ///
+				"`scale'")
+		/* End of standardizing the MVs */
 		
-		mata: `res_bs' = ///
-			plssem_boot( ///
+		/* Initialize LVs */
+		mata: ///
+			plssem_init( ///
+				st_data(., "`allstdindicators'", "`touse'"), ///
+				st_matrix("`adj_meas'"), ///
+				"`allindicators'", ///
+				"`allstdindicators'", ///
+				"`alllatents'", ///
+				"`touse'", ///
+				st_numscalar("`rawsum_sc'"), ///
+				"`init'")
+		/* End of initializing the LVs */
+		
+		/* Run the PLS algorithm */
+		tempname res converged outerW iter matreldiff Whistory
+		
+		mata: `res' = ///
+			plssem_base( ///
 				st_data(., "`allstdindicators'", "`touse'"), ///
 				st_data(., "`alllatents'", "`touse'"), ///
 				st_matrix("`adj_meas'"), ///
@@ -609,17 +558,107 @@ program Estimate_mat, eclass byable(recall)
 				"`wscheme'", ///
 				"`convcrit'", ///
 				st_numscalar("`struct_sc'"), ///
-				st_numscalar("`rawsum_sc'"), ///
-				strtoreal("`boot'"), ///
-				strtoreal("`seed'"), ///
-				1)
-		mata: `xload_v' = `res_bs'.xloadings_v
-		if ("`structural'" != "") {
-			mata: `path_v' = `res_bs'.path_v
+				st_numscalar("`rawsum_sc'"))
+		
+		mata: st_numscalar("`converged'", `res'.converged)
+		mata: st_numscalar("`iter'", `res'.niter)
+		if (("`structural'" != "") & ("`rawsum'" == "")) {
+			mata: st_matrix("`matreldiff'", `res'.diff)
+			mata: st_matrix("`Whistory'", `res'.evo)
+			foreach var in `alllatents' {
+				foreach var2 in `i`var'' {
+					local Whistcolnames `Whistcolnames' "`var2':`var'"
+				}
+			}
+			matrix colnames `Whistory' = `Whistcolnames'
+			mata: st_matrix("`outerW'", `res'.outer_weights)
+			matrix rownames `outerW' = `loadrownames'
+			matrix colnames `outerW' = `loadcolnames'
 		}
+		/* End of the PLS algorithm */
+		
+		/* Label the LVs */
+		local now "`c(current_date)', `c(current_time)'"
+		local now : list clean now
+		foreach var of varlist `alllatents' {
+			label variable `var' "Scores of `var' latent variable [`now']"
+		}
+		/* End of labeling the LVs */
+		
+		/* Compute the model parameters' variances */
+		tempname xload_v path_v
+		
+		if ("`boot'" == "") {
+			mata: `xload_v' = ///
+				plssem_lv( ///
+					st_data(., "`allstdindicators'", "`touse'"), ///
+					st_data(., "`alllatents'", "`touse'"), ///
+					"`alllatents'", ///
+					"`binary'")
+			if ("`structural'" != "") {
+				mata: `path_v' = `res'.path_v
+			}
+		}
+		else {
+			tempname res_bs
+			
+			mata: `res_bs' = ///
+				plssem_boot( ///
+					st_data(., "`allstdindicators'", "`touse'"), ///
+					st_data(., "`alllatents'", "`touse'"), ///
+					st_matrix("`adj_meas'"), ///
+					st_matrix("`adj_struct'"), ///
+					st_matrix("`modes'"), ///
+					"`alllatents'", ///
+					"`binary'", ///
+					strtoreal("`tol'"), ///
+					strtoreal("`maxiter'"), ///
+					"`touse'", ///
+					"`wscheme'", ///
+					"`convcrit'", ///
+					st_numscalar("`struct_sc'"), ///
+					st_numscalar("`rawsum_sc'"), ///
+					strtoreal("`boot'"), ///
+					strtoreal("`seed'"), ///
+					1)
+			mata: `xload_v' = `res_bs'.xloadings_v
+			if ("`structural'" != "") {
+				mata: `path_v' = `res_bs'.path_v
+			}
+		}
+		/* End of computing the model parameters' variances */
+	} // end of -capture-
+	local rc = _rc
+	if (`rc' == 1) {
+		display
+		display as error "you pressed the Break key; " _continue
+		display as error "calculation interrupted"
 	}
-	/* End of computing the model parameters' variances */
-
+	if (`rc' >= 1) {
+		/* Clean up */
+		foreach var in `allstdindicators' {
+			capture quietly drop `var'
+		}
+		if ("`rawsum'" != "") {
+			foreach var in `alllatents' {
+				quietly replace `var' = rs_`var'
+				capture quietly drop rs_`var'
+			}
+		}
+		if ("`missing'" != "") {
+			tempvar __touse__
+			quietly generate `__touse__' = e(sample)
+			mata: st_store(., tokens("`: list uniq allindicators'"), "`__touse__'", ///
+				`original_data')
+		}
+		if ("`cleanup'" == "") {
+			capture mata: cleanup()
+		}
+		/* End of cleaning up */
+		
+		error `rc'
+	}
+	
 	/* Compute the table of measurement loadings */
 	tempname loadings xloadings annihilate_se loadings_se xloadings_se
 
@@ -889,6 +928,14 @@ program Estimate_mat, eclass byable(recall)
 	ereturn local cmdline "plssem `cmdline'"
 	ereturn local cmd "plssem"
 
+	if ("`missing'" != "") {
+		tempname __touse__ imp_data
+		quietly generate `__touse__' = e(sample)
+		mata: st_matrix("`imp_data'", ///
+			st_data(., tokens("`: list uniq allindicators'"), "`__touse__'"))
+		matrix colnames `imp_data' = `: list uniq allindicators'
+		ereturn matrix imputed_data = `imp_data'
+	}
 	if ("`structural'" != "") {
 		if ("`rawsum'" == "") {
 			ereturn matrix reldiff = `matreldiff'
@@ -952,8 +999,8 @@ program Estimate_mat, eclass byable(recall)
 			local nodiscrim `discrimtable'
 		}
 		Display_mat, `nostructural' digits(`digits') boot(`boot') ///
-			`header' `meastable' `nodiscrim' `structtable' `stats' `corrind' ///
-			`corrlv' `crossload' cutoff(`cutoff') binary(`binary') `rawsum'
+			`header' `meastable' `nodiscrim' `structtable' `loadpval' `stats' ///
+			`corrind' `corrlv' `crossload' cutoff(`cutoff') binary(`binary') `rawsum'
 	}
 	/* End of displaying results */
 
@@ -964,6 +1011,7 @@ program Estimate_mat, eclass byable(recall)
 			display as error "maximum number of iterations reached"
 			display as error _skip(9) "the solution provided may not be acceptable; " _continue
 			display as error "try to increase the 'maxiter' option"
+		}
 	}
 	/* End of 'convergence not attained' message */
 	
@@ -977,11 +1025,14 @@ program Estimate_mat, eclass byable(recall)
 			capture quietly drop rs_`var'
 		}
 	}
+	if ("`missing'" != "") {
+		mata: st_store(., tokens("`: list uniq allindicators'"), "`__touse__'", ///
+			`original_data')
+	}
 	if ("`cleanup'" == "") {
 		capture mata: cleanup()
 	}
 	/* End of cleaning up */
-	}
 end
 
 program Compare_mat, eclass sortpreserve
@@ -991,9 +1042,9 @@ program Compare_mat, eclass sortpreserve
 		Boot(numlist integer >0 max=1) Seed(numlist max=1) Tol(real 1e-7) ///
 		MAXiter(integer 100) MISsing(string) k(numlist integer >0 max=1) ///
 		INIT(string) DIGits(integer 3) noHEADer noMEAStable noDISCRIMtable ///
-		noSTRUCTtable STATs GRoup(string) CORRelate(string) RAWsum noSCale ///
-		CONVcrit(string) noCLeanup ]
-
+		noSTRUCTtable LOADPval STATs GRoup(string) CORRelate(string) RAWsum ///
+		noSCale CONVcrit(string) noCLeanup ]
+	
 	/* Options:
 	   --------
 		 structural(name)								--> structural model specification
@@ -1015,23 +1066,24 @@ program Compare_mat, eclass sortpreserve
 		 nodiscrimtable									--> do not show the discriminant validity
 																				table
 		 nostructtable									--> do not show the structural table
+		 loadpval												--> show the loadings' p-values
 		 stats													--> print a table of summary statistics for
 																				the indicators
-		 group(string)									--> performs multigroup analysis; accepts
+		 group(string)									--> perform multigroup analysis; accepts
 																				the suboptions reps(#), method(), plot,
 																				alpha and groupseed(numlist max=1);
 																				method() accepts either 'permutation',
 																				'bootstrap' or 'normal'; groupseed(numlist
 																				max=1) accepts an optional seed for
 																				multigroup analysis
-		 correlate(string)							--> reports the correlation among the
+		 correlate(string)							--> report the correlation among the
 																				indicators, the LVs as well as the cross
 																				loadings; accepts any combination of 'mv',
 																				'lv' and 'cross' (i.e. cross-loadings);
 																				suboption 'cutoff()' can be used to avoid
 																				showing correlations smaller than the
 																				specified value
-		 rawsum													--> estimates the latent scores as the raw
+		 rawsum													--> estimate the latent scores as the raw
 																				sum of the indicators
 		 noscale												--> manifest variables are not scaled but
 																				only centered
@@ -1079,7 +1131,7 @@ program Compare_mat, eclass sortpreserve
 	if ("`structural'" != "") {
 		local whatstr "`whatstr' path"
 	}
-
+	
 	/* Parse the group() option */
 	tokenize `"`group'"', parse(",")
 	local ngroupvars : word count `1'
@@ -1140,7 +1192,7 @@ program Compare_mat, eclass sortpreserve
 	local allindicators = e(mvs)
 	local allreflective = e(reflective)
 	local nlv : word count `alllatents'
-
+	
 	foreach what in `whatstr' {
 		tempname tmp_`what' whole_`what' loadrownames_`what' loadcolnames_`what'
 		if ("`what'" == "path") {
@@ -1195,6 +1247,16 @@ program Compare_mat, eclass sortpreserve
 		error 2001
 	}
 
+	if ("`missing'" != "") {
+		/* Save original data set */
+		tempname original_data
+		mata: `original_data' = st_data(., "`: list uniq allindicators'", "`touse'")
+		
+		/* Recovery of missing values */
+		mata: st_store(., tokens("`: list uniq allindicators'"), "`touse'", ///
+			st_matrix("e(imputed_data)"))
+	}
+	
 	_estimates hold `ehold', restore
 	
 	/* Compute group values and sizes */
@@ -1228,7 +1290,7 @@ program Compare_mat, eclass sortpreserve
 	
 	tempname zerovar tmp_mata
 	forvalues ng = 1/`ngroups' {
-		preserve
+		capture quietly preserve
 		
 		tempvar touse_gr
 		quietly generate `touse_gr' = `touse'
@@ -1322,10 +1384,10 @@ program Compare_mat, eclass sortpreserve
 			}
 		}
 		
-		restore
+		capture quietly restore
 	}
 	if (`zerovar') {
-		restore
+		capture quietly restore
 		_estimates unhold `ehold'
 		display as error "at least one indicator has zero variance in one of the groups"
 		exit
@@ -1484,11 +1546,29 @@ program Compare_mat, eclass sortpreserve
 		_estimates unhold `ehold'
 		if (`rc' == 1) {
 			display
-			display as error "you pressed the Break key;" _continue
+			display as error "you pressed the Break key; " _continue
 			display as error "calculation interrupted"
-			error `rc'
 		}
-		else if (`rc' > 1) {
+		if (`rc' >= 1) {
+			/* Clean up */
+			foreach var in `allstdindicators' {
+				capture quietly drop `var'
+			}
+			if ("`rawsum'" != "") {
+				foreach var in `alllatents' {
+					quietly replace `var' = rs_`var'
+					capture quietly drop rs_`var'
+				}
+			}
+			if ("`missing'" != "") {
+				mata: st_store(., tokens("`: list uniq allindicators'"), "`touse'", ///
+					`original_data')
+			}
+			if ("`cleanup'" == "") {
+				capture mata: cleanup()
+			}
+			/* End of cleaning up */
+			
 			error `rc'
 		}
 	}
@@ -1577,6 +1657,7 @@ program Compare_mat, eclass sortpreserve
 		}
 	}
 	
+	/* Display results */
 	if ("`rawsum'" == "") {
 		if ("`structural'" != "") {
 			mkheader, digits(5)
@@ -1634,6 +1715,11 @@ program Compare_mat, eclass sortpreserve
 			}
 			display as text _skip(`skip3') "Group `ng': `grpvarlbl`ng''"
 		}
+		display as text _skip(`skip1') "group sizes:"
+		forvalues ng = 1/`ngroups' {
+			local grpvarlbl`ng' = `groupsizes'[`ng', 1]
+			display as text _skip(`skip3') "Group `ng': `grpvarlbl`ng''"
+		}
 	}
 	
 	if ("`plot'" != "") {
@@ -1688,6 +1774,7 @@ program Compare_mat, eclass sortpreserve
 			capture quietly drop `reslbl'* id
 		}
 	}
+	/* End of displaying results */
 	
 	/* Clean up */
 	foreach var in `allstdindicators' {
@@ -1699,19 +1786,23 @@ program Compare_mat, eclass sortpreserve
 			capture quietly drop rs_`var'
 		}
 	}
+	if ("`missing'" != "") {
+		mata: st_store(., tokens("`: list uniq allindicators'"), "`touse'", ///
+			`original_data')
+	}
 	if ("`cleanup'" == "") {
 		capture mata: cleanup()
 	}
+	/* End of cleaning up */
 
-	/* Return */
-	// ereturn local method = "`method'"
-	// ereturn matrix comparison = `results'
+	/* Return values */
+	// nothing!
 end
 
 program Display_mat
 	version 14.2
 	syntax [, noSTRuctural DIGits(integer 3) noHEADer noMEAStable ///
-		noDISCRIMtable noSTRUCTtable stats corrind corrlv crossload ///
+		noDISCRIMtable noSTRUCTtable LOADPval stats corrind corrlv crossload ///
 		CUToff(real 0) BINary(namelist min=1) RAWsum * ]
 	
 	if (`digits' < 0) {
@@ -1802,15 +1893,51 @@ program Display_mat
 			matrix rownames `loadings_d' = `:rowfullnames `loadings'' "Cronbach" "DG"
 			matrix colnames `loadings_d' = `:colfullnames `loadings''
 		}
-		//if (!`isboot') {
-			local title_meas "Measurement model - Standardized loadings"
-		//}
-		//else {
-		//	local title_meas "Measurement model - Standardized loadings (Bootstrap)"
-		//}
+		local title_meas "Measurement model - Standardized loadings"
 		mktable, matrix(`loadings_d') digits(`digits') firstcolname("") ///
 			title(`title_meas') firstcolwidth(14) colwidth(14) ///
 			hlines(`num_ind' `num_ind_plus_2') novlines
+		
+		if ("`loadpval'" != "") {
+			tempname adj_meas loadings_se nindblock loadings_df loadings_pval
+			matrix `adj_meas' = e(adj_meas)
+			matrix `loadings_se' = e(loadings_se)
+			mata: st_matrix("`nindblock'", colsum(st_matrix("`adj_meas'")))
+			mata: st_matrix("`loadings_df'", ///
+				st_matrix("`adj_meas'")*(st_numscalar("e(N)") - 1))
+			local alllatents = e(lvs)
+			if (`num_lv_B' > 0) {
+				local indi = 1
+				local p = 1
+				foreach lv in `alllatents' {
+					local nbl = `nindblock'[1, `p']
+					forvalues k = 1/`nbl' {
+						if (`: list lv in allformative') {
+							matrix `loadings_df'[`indi', `p'] = `loadings_df'[`indi', `p'] - ///
+								`nindblock'[1, `p']
+						}
+						else {
+							matrix `loadings_df'[`indi', `p'] = `loadings_df'[`indi', `p'] - 1
+						}
+						local ++indi
+					}
+					local ++p
+				}
+			}
+			mata: st_matrix("`loadings_pval'", 2*ttail(st_matrix("`loadings_df'"), ///
+				abs(st_matrix("`loadings'") :/ st_matrix("`loadings_se'"))))
+			matrix rownames `loadings_pval' = `:rowfullnames `loadings''
+			matrix colnames `loadings_pval' = `:colfullnames `loadings''
+			if (!`isboot') {
+				local title_meas "Measurement model - Standardized loadings p-values"
+			}
+			else {
+				local title_meas "Measurement model - Standardized loadings p-values (Bootstrap)"
+			}
+			mktable, matrix(`loadings_pval') digits(`digits') firstcolname("") ///
+				title(`title_meas') firstcolwidth(14) colwidth(14) ///
+				hlines(`num_ind') novlines
+		}
 	}
 
 	if ("`discrimtable'" == "") {

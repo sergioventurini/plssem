@@ -159,6 +159,12 @@ an option used with {cmd:estat total}, provides a graphical representation of
 the total effects decomposition.
 
 {phang}
+{opt method(unobshet_method)},
+an option used with {cmd:estat unobshet}, allows choosing the method to use for
+assessing the presence of unobserved heterogeneity; available methods are {cmd:rebus}
+and {cmd:fimix}; default is {cmd:rebus}.
+
+{phang}
 {opt numclass(#)},
 an option used with {cmd:estat unobshet}, allows to manually set the number of
 classes to use in the REBUS analysis; minimum is 2. If not specified, the number of classes
@@ -246,7 +252,7 @@ in the measurement/outer model and for endogenous latent variables in the
 structural/inner model.
 
 {pstd}
-The computed variables will replace those already present in the data set.
+The newly computed predictions will replace those already present in the data set.
 
 
 {marker options_predict}{...}
@@ -336,7 +342,11 @@ Personality and Social Psychology, 51, 1173-1182.
 
 {marker Hairetal2017}{...}
 {phang}
-Hair, J. F., Hult, G. T. M., Ringle, C. M., and Sarstedt, M. 2017. {it:A Primer on Partial Least Squares Structural Equation Modeling (PLS-SEM)}. 2nd edition. Sage.
+Hair, J. F., Hult, G. T. M., Ringle, C. M., and Sarstedt, M. 2017. {it:A Primer on Partial Least Squares Structural Equation Modeling (PLS-SEM)}. Second edition. Sage.
+
+{marker Hairetal2018}{...}
+{phang}
+Hair, J. F., Sarstedt, M., Ringle, C. M., and Gudergan, S. P. 2018. {it:Advanced Issues in Partial Least Squares Structural Equation Modeling}. Sage.
 
 {marker Sobel1982}{...}
 {phang}

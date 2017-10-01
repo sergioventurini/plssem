@@ -1,5 +1,5 @@
 *!plssem_estat version 0.3.0
-*!Written 16Sep2017
+*!Written 30Sep2017
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -72,7 +72,7 @@ program indirect, rclass
 	tempname normperc alpha_cl
 	scalar `alpha_cl' = 1 - ((1 - `level')/2)
 	scalar `normperc' = invnormal(`alpha_cl')
-		
+	
 	/* Parse indirect statements (dep1 med1 indep1, dep2 med2 indep2, etc.) */
 	local effects : list clean effects
 	tokenize `"`effects'"', parse(",")
@@ -95,7 +95,8 @@ program indirect, rclass
 		display as error "a maximum of 5 indirect effects are allowed"
 		error 103
 	}
-
+	/* End parsing indirect statements */
+	
 	tempname sobel_se sobel_z sobel_pv indirect sobel_lci sobel_uci
 	tempname indmeas reg3coef reg3coef_bs reg3var
 	tempname dommat dommat2 moimat moimat2 //doimat doimat2
@@ -105,7 +106,7 @@ program indirect, rclass
 	else {
 		matrix `indmeas' = J(10, `num_effects', .)
 	}
-
+	
 	tempname ehold
 	_estimates hold `ehold'
 
@@ -545,8 +546,21 @@ program REBUS, rclass
 		local name "rebus_class"
 	}
 	if ("`e(binarylvs)'" != "") {
-		display as error "currently the REBUS approach implementation doesn't allow for binary latent variables"
+		display as error "currently the REBUS implementation doesn't allow for binary latent variables"
 		exit
+	}
+	local knnimp "knn"
+	local isknnimp : list knnimp in props
+	local meanimp "mean"
+	local ismeanimp : list meanimp in props
+	if (`isknnimp') {
+		local missing "knn"
+	}
+	else if (`ismeanimp') {
+		local missing "mean"
+	}
+	else {
+		local missing ""
 	}
 	
 	/* Global model */
@@ -577,6 +591,17 @@ program REBUS, rclass
 	quietly generate byte `__touse__' = e(sample)
 	quietly count if `__touse__'
 	local N = r(N)
+	
+	if ("`missing'" != "") {
+		/* Save original data set */
+		local allindicators = e(mvs)
+		tempname original_data
+		mata: `original_data' = st_data(., "`: list uniq allindicators'", "`__touse__'")
+		
+		/* Recovery of missing values */
+		mata: st_store(., tokens("`: list uniq allindicators'"), "`__touse__'", ///
+			st_matrix("e(imputed_data)"))
+	}
 	
 	/* Clustering residuals using Ward hierarchical linkage */
 	tempvar rebus_clus
@@ -824,7 +849,7 @@ program REBUS, rclass
 		mata: `class_st' = (`class_st' \ `class')
 	}
 	mata: `gqi' = ///
-		rebus_gqi(`indstd_st', `lat_st', `out_res_st', `inn_res_st', `class_st')
+		plssem_rebus_gqi(`indstd_st', `lat_st', `out_res_st', `inn_res_st', `class_st')
 	tempname gqi_final
 	mata: st_numscalar("`gqi_final'", `gqi')
 	/* End final REBUS calculations */
@@ -860,7 +885,7 @@ program REBUS, rclass
 				strtoreal("`reps'"), ///
 				strtoreal("`seed'"), ///
 				1)
-		}		
+		}
 		if (_rc != 0) {
 			if (_rc == 409) {
 				display as error "at least one indicator has zero variance " _continue
@@ -1068,7 +1093,13 @@ program REBUS, rclass
 	local now "`c(current_date)', `c(current_time)'"
 	local now : list clean now
 	label variable `name' "REBUS classification [`now']"
-
+	
+	/* Clean up */
+	if ("`missing'" != "") {
+		mata: st_store(., tokens("`: list uniq allindicators'"), "`__touse__'", ///
+			`original_data')
+	}
+	
 	/* Return values */
 	return scalar nclasses = `numclass'
 	return scalar GQI = `gqi_final'
@@ -1085,7 +1116,7 @@ end
 program FIMIX, rclass
 	version 14.2
 	syntax [ , Method(string) Numclass(numlist integer >1 max=1) ///
-		MAXCLass(integer 20) MAXITer(integer 30000) Stop(real 0.005) ///
+		MAXCLass(integer 20) MAXITer(integer 30000) Stop(real 1.e-15) ///
 		REStart(numlist integer >1 max=1) SEed(numlist max=1) ///
 		name(string) DIGits(integer 3) ]
 
@@ -1118,8 +1149,48 @@ program FIMIX, rclass
 			the presence of unobserved heterogeneity.
 	 */
 	
-	display "Coming soon! :)"
+	display "FIMIX estimation will be available soon! :)"
 	exit
+	
+	local boot "bootstrap"
+	local isboot : list boot in props
+	if (`isboot') {
+		display as error "the global model used the 'boot()' option, which slows down excessively the REBUS calculations"
+		display as error "try refitting the global model without bootstrap"
+		exit
+	}
+	if ("`name'" != "") & (`: word count `name'' != 1) {
+		display as error "the 'name' option must include a single word"
+		exit
+	}
+	if ("`name'" == "") {
+		local name "fimix_class"
+	}
+	if ("`e(binarylvs)'" != "") {
+		display as error "currently the FIMIX implementation doesn't allow for binary latent variables"
+		exit
+	}
+	
+	tempvar __touse__
+	quietly generate byte `__touse__' = e(sample)
+	quietly count if `__touse__'
+	local N = r(N)
+
+	/* Set temporary variables */
+	local allindicators = e(mvs)
+	local alllatents = e(lvs)
+	local allreflective = e(reflective)
+	local num_ind : word count `allindicators'
+	local num_lv : word count `alllatents'
+	tempname endo
+	tempvar __touseloc__
+	quietly generate byte `__touseloc__' = .
+	mata: `endo' = colsum(st_matrix("e(adj_struct)"))
+	mata: `endo' = (`endo' :> 0)
+	foreach var in `allindicators' {
+		local allstdindicators "`allstdindicators' std`var'"
+	}
+	local allstdindicators : list clean allstdindicators
 	
 	/* Run the FIMIX algorithm */
 	// display
@@ -1127,7 +1198,7 @@ program FIMIX, rclass
 	capture noisily {
 		mata: `res_fimix' = ///
 			plssem_fimix( ///
-				st_data(., "`allindicators'"), ///			 note: `__touse__' not used here
+				st_data(., "`alllatents'"), ///			 note: `__touse__' not used here
 				st_matrix("e(adj_meas)"), ///
 				st_matrix("e(adj_struct)"), ///
 				"`allindicators'", ///
@@ -1147,12 +1218,15 @@ program FIMIX, rclass
 				strtoreal("`numclass'"), ///
 				strtoreal("`maxiter'"), ///
 				strtoreal("`stop'"), ///
+				strtoreal("`seed'"), ///
 				1)
 		
+		/*
 		mata: st_local("iter", strofreal(`res_fimix'.niter))
 		mata: st_local("rN0", strofreal(`res_fimix'.rN0))
 		mata: st_local("rN_lte_5", strofreal(`res_fimix'.rN_lte_5))
 		mata: st_store(., "`rebus_class'", `res_fimix'.fimix_class)
+		*/
 	}
 	if (_rc != 0) {
 		if (real("`rN0'")) {

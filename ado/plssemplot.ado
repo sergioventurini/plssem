@@ -1,5 +1,5 @@
 *!plssemplot version 0.2.0
-*!Written 30Aug2017
+*!Written 30Sept2017
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -36,11 +36,24 @@ program _plssemplot
 	// check that estimation sample has not changed
 	// checkestimationsample
 	
-	local struct "structural"
-	local rawsum "rawsum"
 	local props = e(properties)
+	local struct "structural"
 	local isstruct : list struct in props
+	local rawsum "rawsum"
 	local israwsum : list rawsum in props
+	local knnimp "knn"
+	local isknnimp : list knnimp in props
+	local meanimp "mean"
+	local ismeanimp : list meanimp in props
+	if (`isknnimp') {
+		local missing "knn"
+	}
+	else if (`ismeanimp') {
+		local missing "mean"
+	}
+	else {
+		local missing ""
+	}
 
 	if ("`innermodel'" != "") {
 		if (!`isstruct') {
@@ -72,7 +85,8 @@ program _plssemplot
 	
 	if ("`outermodel'" != "") {
 		display as error "this feature will be available soon! :)"
-		/* tempname adjmat adjmat_full
+		/*
+		tempname adjmat adjmat_full
 		local nlvs : word count `e(lvs)'
 		local nmvs : word count `e(mvs)'
 		local all_nm "`: colnames e(adj_meas)' `: rownames e(adj_meas)'"
@@ -98,7 +112,8 @@ program _plssemplot
 			scatteropt(msymbol(O)) arrowgap(1) scheme(sj)
 		
 		restore
-		mata: mata drop `adjmat_full' */
+		mata: mata drop `adjmat_full'
+		*/
 	}
 	
 	if ("`stats'" != "") {
@@ -116,13 +131,32 @@ program _plssemplot
 				local block_lv "`block_lv' `ind_lv'"
 			}
 		}
+		
+		if ("`missing'" != "") {
+			/* Save original data set */
+			local allindicators = e(mvs)
+			tempname original_data
+			mata: `original_data' = st_data(., "`: list uniq allindicators'", "`__touse__'")
+			
+			/* Recovery of missing values */
+			mata: st_store(., tokens("`: list uniq allindicators'"), "`__touse__'", ///
+				st_matrix("e(imputed_data)"))
+		}
+		
 		quietly summarize `block_lv' if `__touse__'
 		local jsize = (r(max) - r(min))*.15
-		graph matrix `block_lv' if `__touse__', half title(`stats') ///
+		if ("`missing'" == "") {
+			local stats_title "`stats'"
+		}
+		else {
+			local stats_title "`stats' (imputed)"
+		}
+		graph matrix `block_lv' if `__touse__', half title(`stats_title') ///
 			maxes(ylab(#6, grid) xlab(#6, grid)) msymbol(oh) jitter(`jsize') ///
 			jitterseed(1406) scheme(sj)
 		
-		/* local num_block : word count `block_lv'
+		/*
+		local num_block : word count `block_lv'
 		forvalues i = 1/`num_block' {
 			forvalues j = 1/`num_block' {
 				if (`i' == `j') {
@@ -223,7 +257,14 @@ program _plssemplot
 			}
 		}
 		graph combine `toplot', imargin(vsmall) ///
-			graphregion(margin(l=22 r=22)) title(`stats') scheme(sj) */
+			graphregion(margin(l=22 r=22)) title(`stats') scheme(sj)
+		*/
+		
+		/* Clean up */
+		if ("`missing'" != "") {
+			mata: st_store(., tokens("`: list uniq allindicators'"), "`__touse__'", ///
+				`original_data')
+		}
 	}
 	
 	if ("`scores'" != "") {

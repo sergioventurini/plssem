@@ -1,5 +1,5 @@
 *!plssem_mata version 0.3.0
-*!Written 16Sep2017
+*!Written 30Sep2017
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -26,17 +26,23 @@ capture mata: mata drop ///
 	plssem_mga_boot() ///
 	plssem_mga_boot_diff() ///
 	scale() ///
+	unscale() ///
 	sd() ///
 	which() ///
 	cronbach() ///
 	meanimp() ///
 	knnimp() ///
-	rebus_cm() ///
-	rebus_gqi() ///
+	euclidean_dist() ///
+	rdirichlet() ///
+	plssem_rebus_cm() ///
+	plssem_rebus_gqi() ///
 	plssem_struct_rebus() ///
 	plssem_rebus() ///
 	plssem_rebus_ptest() ///
+	plssem_struct_matrix() ///
 	plssem_struct_fimix() ///
+	plssem_fimix_ll() ///
+	plssem_fimix_estep() ///
 	plssem_fimix() ///
 	cleanup()
 
@@ -54,6 +60,7 @@ struct plssem_struct {
 	real matrix xloadings				// matrix of estimated cross loadings
 	real matrix path						// matrix of estimated path coefficients
 	real matrix path_v					// matrix of estimated path coefficient variances
+	real matrix inner_v					// diagonal matrix of inner relation variances
 	real matrix scores					// matrix of estimated latent scores
 	real matrix total_effects		// matrix of estimated total effects
 	real matrix inner_weights		// matrix of estimated inner weights
@@ -92,9 +99,13 @@ struct plssem_struct_rebus {
 	real scalar stop						// REBUS stopping criterion
 }
 
+struct plssem_struct_matrix {
+	real matrix mat							// generic real matrix
+}
+
 struct plssem_struct_fimix {
 	real scalar niter						// number of iterations to reach convergence
-	real colvector rebus_class	// column vector of the final attributed classes
+	real colvector fimix_class	// column vector of the final attributed classes
 	real colvector touse_vec		// column vector for the observations used
 	real scalar rN0							// indicator that any of the classes is empty
 	real scalar rN_lte_5				// indicator that any of the classes has 5
@@ -141,6 +152,7 @@ void plssem_scale(real matrix X, string scalar stdind, string scalar touse,
 		st_store(., std_ind, touse, scale(X))
 	}
 	else {
+		//st_store(., std_ind, touse, X :- mean(X))
 		st_store(., std_ind, touse, X)
 	}
 }
@@ -167,13 +179,16 @@ real matrix plssem_scale_mat(real matrix X, real colvector touse,
 		 - Xsc				--> real matrix of the standardized indicators
 	*/
 	
-	real matrix Xsc
-
+	real matrix X_touse, Xsc
+	
+	X_touse = X[selectindex(touse), .]
+	
 	if (scale == "") {
-		Xsc = scale(X[selectindex(touse), .])
+		Xsc = scale(X_touse)
 	}
 	else {
-		Xsc = X[selectindex(touse), .]
+		//Xsc = X_touse :- mean(X_touse)
+		Xsc = X_touse
 	}
 	
 	return(Xsc)
@@ -391,7 +406,8 @@ struct plssem_struct scalar plssem_base(real matrix X, real matrix Yinit,
 	struct plssem_struct scalar res
 
 	real matrix W, w_old, w_new, C, E, Yhat, Ycor, Ytilde, Ydep, Yindep, mf, ///
-		fscores, T, beta, beta_v, Yexo, Yendo, Ypred, Whist, xlambda, lambda, Snew
+		fscores, T, beta, beta_v, Yexo, Yendo, Ypred, Whist, xlambda, lambda, ///
+		Snew, s2_mat
 	real scalar iter, delta, P, Q, p, n, minval, maxval, converged
 	real rowvector endo, diff, isnotbinary, r2, r2_a
 	real colvector Mind, Sind, predec
@@ -572,7 +588,11 @@ struct plssem_struct scalar plssem_base(real matrix X, real matrix Yinit,
 	if (structural) {
 		// Path coefficients estimation
 		real matrix xx, xxm1, xy, H, V
-		real scalar sse, sst, s2
+		real scalar nendo, sse, sst, s2, jj
+		
+		nendo = sum(endo :> 0)
+		s2_mat = J(nendo, nendo, 0)
+		jj = 1
 		
 		for (p = 1; p <= P; p++) {
 			if (endo[1, p]) {
@@ -592,6 +612,8 @@ struct plssem_struct scalar plssem_base(real matrix X, real matrix Yinit,
 					s2 = sse/(n - cols(Yexo))
 					V = s2 * xxm1
 					beta_v[Sind, p] = diagonal(V)[|2 \ .|]
+					s2_mat[jj, jj] = s2
+					jj++
 				}
 				else {
 					logitcmd = "quietly logit " + lvs_vec[p] + " " + ///
@@ -628,6 +650,7 @@ struct plssem_struct scalar plssem_base(real matrix X, real matrix Yinit,
 	else {
 		beta = .
 		beta_v = .
+		s2_mat = .
 		ret = .
 		Snew = .
 	}
@@ -649,6 +672,7 @@ struct plssem_struct scalar plssem_base(real matrix X, real matrix Yinit,
 	res.xloadings = xlambda
 	res.path = beta
 	res.path_v = beta_v
+	res.inner_v = s2_mat
 	res.scores = Yhat
 	res.total_effects = ret
 	res.inner_weights = E
@@ -865,7 +889,7 @@ struct plssem_struct_boot scalar plssem_boot(real matrix X, real matrix Yinit,
 											chosen
 		 - B					--> (optional) real scalar number of bootstrap replications
 											(default 100)
-		 - seed				--> (optional) real scalar bootstrap seed
+		 - seed				--> (optional) real scalar providing the bootstrap seed
 		 - noisily		--> (optional) real scalar; if not 0, it prints the bootstrap
 											iterations
 	*/
@@ -890,7 +914,7 @@ struct plssem_struct_boot scalar plssem_boot(real matrix X, real matrix Yinit,
 	Q = rows(M)   			// number of manifest variables
 	n = rows(X)
 	
-	// Boostrap resampling parameters
+	// Boostrap resampling settings
 	if (B == .) {
 		B = 100
 	}
@@ -1318,7 +1342,7 @@ class AssociativeArray scalar plssem_mga_perm(real matrix X, real matrix Yinit,
 		 - group			--> real colvector containing the group variable
 		 - B					--> (optional) real scalar number of permutation replications
 											(default 100)
-		 - seed				--> (optional) real scalar permutation seed
+		 - seed				--> (optional) real scalar providing the permutation seed
 		 - noisily		--> (optional) real scalar; if not 0, it prints the
 											permutation iterations
 	*/
@@ -1537,7 +1561,7 @@ class AssociativeArray scalar plssem_mga_boot(real matrix X, real matrix Yinit,
 		 - group			--> real colvector containing the group variable
 		 - B					--> (optional) real scalar number of bootstrap replications
 											(default 100)
-		 - seed				--> (optional) real scalar bootstrap seed
+		 - seed				--> (optional) real scalar providing the bootstrap seed
 		 - noisily		--> (optional) real scalar; if not 0, it prints the
 											bootstrap iterations
 	*/
@@ -1742,7 +1766,7 @@ real matrix scale(real matrix X, |real scalar biased, real rowvector scale, ///
 	
 	/* Returned value:
 		 ---------------
-		 - Xs --> real matrix with columns that have been centered and/or scaled
+		 - Xs 		--> real matrix with columns that have been centered and/or scaled
 	*/
 
 	real matrix cen, sc, sc_inv, Xc, Xcs
@@ -1773,6 +1797,39 @@ real matrix scale(real matrix X, |real scalar biased, real rowvector scale, ///
 	Xcs = Xc * sc_inv
 
 	return(Xcs)
+}
+
+real matrix unscale(real matrix Xs, real rowvector scale, ///
+	real rowvector center)
+{
+	/* Description:
+		 ------------
+		 Function that unstandardizes the columns of a real matrix Xs
+	*/
+	
+	/* Arguments:
+		 ----------
+		 - Xs			--> real matrix whose columns are standardized
+		 - scale	--> real rowvector containing the column scales
+									(after centering)
+		 - center	--> real rowvector containing the column centers
+	*/
+	
+	/* Returned value:
+		 ---------------
+		 - X 			--> real matrix with columns that have been unstandardized
+	*/
+
+	real matrix cen, sc, Xunscaled, X
+	real scalar n
+	
+	n = rows(Xs)
+	cen = J(n, 1, center)
+	sc = diag(scale)
+	Xunscaled = Xs * sc
+	X = Xunscaled + cen
+
+	return(X)
 }
 
 real rowvector sd(real matrix X, |real scalar biased)
@@ -1983,12 +2040,12 @@ void knnimp(real matrix X, string scalar vars, real scalar k,
 											data table
 	*/
 
-	real matrix Ximp, D, Xsub, ur, xvals, xfreqs
-	real scalar n, Q, N, R, V, v, i, q, mostfreq, D_idx, knew
-	real colvector complete_idx, incomplete_idx, disti, tmp_idx
+	real matrix Ximp, Xsub, ur, xvals, xfreqs
+	real scalar n, Q, N, R, V, v, i, skip, skip_b, j, q, mostfreq, D_idx, knew
+	real colvector complete_idx, incomplete_idx, disti, tmp_idx, D
 	real rowvector vars_nonmiss
 	string rowvector vars_vec, vars_touse
-	string scalar meas, todisp
+	string scalar meas, todisp, spaces
 	
 	n = rows(X)												// number of observations
 	Q = cols(X)
@@ -2005,78 +2062,146 @@ void knnimp(real matrix X, string scalar vars, real scalar k,
 	incomplete_idx = selectindex(rowmissing(X) :> 0)
 	R = n - N													// number of incomplete observations
 	
-	stata("quietly set matsize " + strofreal(Q*n), 0)
-	
-	if (noisily) {
-		printf("\n")
-		printf("{txt}Imputing missing values using k nearest neighbor ")
-		printf("{txt}(using k = " + strtrim(strofreal(k, "%9.0f")))
-		printf("{txt})\n")
-		displayflush()
-	}
-	
-	for (i = 1; i <= R; i++) {
+	if (R > 0) {
 		if (noisily) {
-			if (i == 1) {
-				printf("{txt}1")
+			printf("{txt}\n")
+			printf("{txt}Imputing ")
+			printf("{res}%f", R)
+			printf("{txt} missing values using k nearest neighbors ")
+			printf("{txt}(with k = " + strtrim(strofreal(k, "%9.0f")))
+			printf("{txt})\n")
+			printf("{hline 4}{c +}{hline 3} 1 ")
+			printf("{hline 3}{c +}{hline 3} 2 ")
+			printf("{hline 3}{c +}{hline 3} 3 ")
+			printf("{hline 3}{c +}{hline 3} 4 ")
+			printf("{hline 3}{c +}{hline 3} 5\n")
+		}
+		skip = 0
+		skip_b = 0
+		
+		for (i = 1; i <= R; i++) {
+			if (noisily & (skip_b == 0)) {
+				if (mod(i, 50) == 0) {
+					todisp = strtrim(strofreal(i, "%9.0f"))
+					if (strlen(todisp) < strlen(strofreal(R))) {
+						skip = strlen(strofreal(R)) - strlen(todisp)
+					}
+					spaces = ""
+					for (j = 1; j <= (skip + 3); j++) {
+						spaces = spaces + char(32)
+					}
+					printf("{txt}." + spaces + todisp + "\n")
+					skip = 0
+				}
+				else {
+					printf("{txt}.")
+				}
+				displayflush()
 			}
-			else if (mod(i, 10) == 0) {
-				todisp = strtrim(strofreal(i, "%9.0f"))
-				printf("{txt}" + todisp)
+			skip_b = 0
+			
+			vars_nonmiss = selectindex(colnonmissing(X[incomplete_idx[i], .]))
+			vars_touse = vars_vec[vars_nonmiss]
+			tmp_idx = selectindex(rowmissing(X[., vars_nonmiss]) :== 0)
+			tmp_idx = (tmp_idx, range(1, rows(tmp_idx), 1))
+			D_idx = tmp_idx[selectindex(incomplete_idx[i] :== tmp_idx[., 1]), 2]
+			disti = euclidean_dist(X[tmp_idx[., 1], vars_nonmiss], D_idx)
+			disti[D_idx] = max(disti)
+			disti = (disti, tmp_idx)
+			disti = sort(disti, 1)					// ties are randomly broken
+			Xsub = X[disti[1..k, 2], .]
+			knew = k
+			while (anyof(colmissing(Xsub), knew)) {
+				knew++
+				Xsub = X[disti[1..knew, 2], .]
 			}
-			else {
-				printf("{txt}.")
+			for (q = 1; q <= Q; q++) {
+				if (hasmissing(X[incomplete_idx[i], q])) {
+					if (strpos(categ, vars_vec[q])) {
+						ur = uniqrows(Xsub[., q], 1)
+						xvals = ur[., 1]
+						xfreqs = ur[., 2]
+						mostfreq = xvals[which(xfreqs, "max")[1]]
+						Ximp[incomplete_idx[i], q] = ///
+							editmissing(Ximp[incomplete_idx[i], q], mostfreq)
+					}
+					else {
+						if (st_vartype(vars_vec[q]) != "float") {
+							stata("quietly recast float " + vars_vec[q])
+						}
+						Ximp[incomplete_idx[i], q] = ///
+							editmissing(Ximp[incomplete_idx[i], q], mean(Xsub[., q]))
+					}
+				}
 			}
+		}
+		if (noisily) {
+			printf("\n")
 			displayflush()
 		}
 		
-		vars_nonmiss = selectindex(colnonmissing(X[incomplete_idx[i], .]))
-		vars_touse = vars_vec[vars_nonmiss]
-		tmp_idx = selectindex(rowmissing(X[., vars_nonmiss]) :== 0)
-		tmp_idx = (tmp_idx, range(1, rows(tmp_idx), 1))
-		stata("matrix dissimilarity D = " + invtokens(vars_touse) + ", " + meas, 0)
-		D = st_matrix("D")
-		D_idx = tmp_idx[selectindex(incomplete_idx[i] :== tmp_idx[., 1]), 2]
-		disti = D[., D_idx]
-		disti[D_idx] = max(disti)
-		disti = (disti, tmp_idx)
-		disti = sort(disti, 1)					// ties are randomly broken
-		Xsub = X[disti[1..k, 2], .]
-		knew = k
-		while (anyof(colmissing(Xsub), knew)) {
-			knew++
-			Xsub = X[disti[1..knew, 2], .]
-		}
-		for (q = 1; q <= Q; q++) {
-			if (hasmissing(X[incomplete_idx[i], q])) {
-				if (strpos(categ, vars_vec[q])) {
-					ur = uniqrows(Xsub[., q], 1)
-					xvals = ur[., 1]
-					xfreqs = ur[., 2]
-					mostfreq = xvals[which(xfreqs, "max")[1]]
-					Ximp[incomplete_idx[i], q] = ///
-						editmissing(Ximp[incomplete_idx[i], q], mostfreq)
-				}
-				else {
-					if (st_vartype(vars_vec[q]) != "float") {
-						stata("quietly recast float " + vars_vec[q])
-					}
-					Ximp[incomplete_idx[i], q] = ///
-						editmissing(Ximp[incomplete_idx[i], q], mean(Xsub[., q]))
-				}
-			}
-		}
+		stata("capture quietly matrix drop D", 1)
+		st_store(., vars_vec, touse, Ximp)
 	}
-	if (noisily) {
-		printf("\n")
-		displayflush()
-	}
-	
-	stata("capture quietly matrix drop D", 1)
-	st_store(., vars_vec, touse, Ximp)
 }
 
-real colvector rebus_cm(real matrix e, real matrix f, real matrix loads, ///
+real matrix rdirichlet(real scalar n, real rowvector alpha)
+{
+	/* Description:
+		 ------------
+		 Function that generates random deviates from a Dirichlet distribution
+	*/
+	
+	/* Arguments:
+		 ----------
+		 - n 			--> real scalar providing the number of deviates to draw
+		 - alpha	--> real rowvector containing the Dirichlet parameters
+	*/
+	
+	/* Returned value:
+		 ---------------
+		 - out		--> real colvector containing the generated Dirichlet deviates
+	*/
+	
+	real scalar l
+	real matrix out_mat
+	
+	l = length(alpha)
+	
+	out_mat = rgamma(n, 1, alpha, 1)
+	
+	return(out_mat :/ rowsum(out_mat))
+}
+
+real colvector euclidean_dist(real matrix X, real scalar idx)
+{
+	/* Description:
+		 ------------
+		 Function that computes the dissimilarities among a set of observations
+	*/
+	
+	/* Arguments:
+		 ----------
+		 - X					--> real matrix containing the data
+		 - idx 				--> real scalar providing the row index of X for which to
+											calculate the dissimilarities
+	*/
+	
+	/* Returned value:
+		 ---------------
+		 - D					--> vector of dissimilarities
+	*/
+	
+	real colvector D
+	real scalar n
+	
+	n = rows(X)
+	D = sqrt(rowsum((X - J(n, 1, 1)*X[idx, .]):^2))
+	
+	return(D)
+}
+
+real colvector plssem_rebus_cm(real matrix e, real matrix f, real matrix loads, ///
 	real rowvector r2)
 {
 	/* Description:
@@ -2119,7 +2244,7 @@ real colvector rebus_cm(real matrix e, real matrix f, real matrix loads, ///
 	return(cm)
 }
 
-real scalar rebus_gqi(real matrix ind, real matrix lat, real matrix e, ///
+real scalar plssem_rebus_gqi(real matrix ind, real matrix lat, real matrix e, ///
 	real matrix f, real colvector cl)
 {
 	/* Description:
@@ -2230,7 +2355,7 @@ struct plssem_struct_rebus scalar plssem_rebus(real matrix X, real matrix M,
 	
 	/* Returned value:
 		 ---------------
-		 - res --> scalar plssem_struct_rebus structure containing the results
+		 - res_rebus	--> scalar plssem_struct_rebus structure containing the results
 	*/
 
 	struct plssem_struct_rebus scalar res_rebus
@@ -2327,7 +2452,7 @@ struct plssem_struct_rebus scalar plssem_rebus(real matrix X, real matrix M,
 			}
 			y_hat = y_local * path[., selectindex(endo)]
 			inn_res = (y_local[., selectindex(endo)] - y_hat)
-			cm = (cm, rebus_cm(out_res, inn_res, loads, r2))
+			cm = (cm, plssem_rebus_cm(out_res, inn_res, loads, r2))
 		}
 		new_class = J(length(old_class), 1, .)
 		new_class[selectindex(touse_vec), 1] = which(cm, "min")
@@ -2415,7 +2540,7 @@ real colvector plssem_rebus_ptest(real matrix X, real matrix M, real matrix S,
 		 - numclass		--> real scalar providing the number of REBUS classes
 		 - B					--> (optional) real scalar number of permutation replications
 											(default 100)
-		 - seed				--> (optional) real scalar permutation seed
+		 - seed				--> (optional) real scalar providing the permutation seed
 		 - noisily		--> (optional) real scalar; if not 0, it prints the
 											permutation iterations
 	*/
@@ -2548,28 +2673,129 @@ real colvector plssem_rebus_ptest(real matrix X, real matrix M, real matrix S,
 			inn_res_st = (inn_res_st \ inn_res)
 			class_st = (class_st \ class_reb)
 		}
-		gqi_perm[b, 1] = rebus_gqi(indstd_st, lat_st, out_res_st, inn_res_st, class_st)
+		gqi_perm[b, 1] = plssem_rebus_gqi(indstd_st, lat_st, out_res_st, inn_res_st, class_st)
 	}
 	
 	return(gqi_perm)
 }
 
-struct plssem_struct_fimix scalar plssem_fimix(real matrix X, real matrix M,
-	real matrix S, string scalar ind, string scalar stdind, string scalar latents,
-	string scalar binary, real scalar tol, real scalar maxit, string scalar touse,
-	string scalar scheme, string scalar crit, string scalar init,
-	string scalar scale, real scalar structural, real scalar rawsum,
-	string scalar rebus_cl, real scalar numclass, real scalar maxit_reb,
-	real scalar stop, |real scalar noisily)
+real scalar plssem_fimix_ll(real matrix eta, real matrix xi,
+	real matrix P_ik, real rowvector rho, 
+	struct plssem_struct_matrix colvector B,
+	struct plssem_struct_matrix colvector Gamma,
+	struct plssem_struct_matrix colvector Psi)
 {
 	/* Description:
 		 ------------
-		 Function that implements the FIMIX-PLS algorithm
+		 Function that computes the complete log-likelihood in the FIMIX-PLS method
 	*/
 	
 	/* Arguments:
 		 ----------
-		 - X					--> real matrix containing the observed manifest variables
+		 - eta				--> real matrix containing the endogenous latent variables
+		 - xi			 		--> real matrix containing the exogenous latent variables
+		 - P_ik			 	--> real matrix containing the posterior membership probability
+		 - rho				--> real colvector the mixing proportions
+		 - B					--> struct plssem_struct_matrix colvector containing some
+											inner model coefficients (endogenous latent variables)
+		 - Gamma			--> struct plssem_struct_matrix colvector containing some
+											inner model coefficients (exogenous latent variables)
+		 - Psi				--> struct plssem_struct_matrix colvector containing some
+											inner model coefficients (variances)
+	*/
+	
+	/* Returned value:
+		 ---------------
+		 - ll					--> real scalar corresponding to the log-likelihood value
+	*/
+
+	real scalar i, n, k, K, ll
+	
+	n = rows(eta)
+	K = length(B)
+	ll = 0
+	
+	for (i = 1; i <= n; i++) {
+		for (k = 1; k <= K; k++) {
+			ll = ll + P_ik[i, k]*(lnmvnormalden(B[k, 1].mat'*eta[i, .]' + ///
+				Gamma[k, 1].mat*xi[i, .]', Psi[k, 1].mat, eta[i, .]) + ///
+				ln(rho[k]))
+		}
+	}
+	
+	return(ll)
+}
+
+real matrix plssem_fimix_estep(real rowvector rho, real matrix eta,
+	real matrix xi, struct plssem_struct_matrix colvector B,
+	struct plssem_struct_matrix colvector Gamma,
+	struct plssem_struct_matrix colvector Psi)
+{
+	/* Description:
+		 ------------
+		 Function that computes the posterior mixture proportions in the FIMIX-PLS
+		 method
+	*/
+	
+	/* Arguments:
+		 ----------
+		 - rho				--> real colvector the mixing proportions
+		 - eta				--> real matrix containing the endogenous latent variables
+		 - xi			 		--> real matrix containing the exogenous latent variables
+		 - B					--> struct plssem_struct_matrix colvector containing some
+											inner model coefficients (endogenous latent variables)
+		 - Gamma			--> struct plssem_struct_matrix colvector containing some
+											inner model coefficients (exogenous latent variables)
+		 - Psi				--> struct plssem_struct_matrix colvector containing some
+											inner model coefficients (variances)
+	*/
+	
+	/* Returned value:
+		 ---------------
+		 - P_ik				--> real matrix containing the posterior mixture proportions
+	*/
+
+	real scalar P_ik, i, n, k, P, K
+	real matrix tmp
+	
+	n = rows(eta)
+	P = cols(eta)
+	K = length(B)
+	P_ik = J(n, K, .)
+	
+	for (i = 1; i <= n; i++) {
+		for (k = 1; k <= K; k++) {
+			P_ik[i, k] = exp(lnmvnormalden(B[k, 1].mat'*eta[i, .]' + ///
+				Gamma[k, 1].mat*xi[i, .]', Psi[k, 1].mat, eta[i, .]))*rho[k]
+			/*
+			tmp = (I(P) - B[k, 1].mat)'*eta[i, .]' - Gamma[k, 1].mat*xi[i, .]'
+			P_ik[i, k] = exp(-.5*P*ln(2*pi()) - .5*ln(det(Psi[k, 1].mat)) - ///
+				.5*quadcross(tmp, diagonal(1 :/ Psi[k, 1].mat), tmp))*rho[k]
+			*/
+		}
+	}
+	//P_ik = P_ik :/ rowsum(P_ik)
+	P_ik = J(n, K, 1) :/ (J(n, K, 1) - (P_ik :- rowsum(P_ik)) :/ P_ik)
+	
+	return(P_ik)
+}
+
+struct plssem_struct_fimix scalar plssem_fimix(real matrix Y, real matrix M,
+	real matrix S, string scalar ind, string scalar stdind, string scalar latents,
+	string scalar binary, real scalar tol, real scalar maxit, string scalar touse,
+	string scalar scheme, string scalar crit, string scalar init,
+	string scalar scale, real scalar structural, real scalar rawsum,
+	string scalar fimix_cl, real scalar K, real scalar maxit_fim,
+	real scalar stop, |real scalar seed, real scalar noisily)
+{
+	/* Description:
+		 ------------
+		 Function that implements the FIMIX-PLS method using an EM algorithm
+	*/
+	
+	/* Arguments:
+		 ----------
+		 - Y					--> real matrix containing the latent variables
 		 - M					--> real matrix containing the measurement model adjacency
 											matrix
 		 - S			 		--> real matrix containing the structural model adjacency
@@ -2598,149 +2824,143 @@ struct plssem_struct_fimix scalar plssem_fimix(real matrix X, real matrix M,
 											and 0 otherwise
 		 - rawsum			--> real scalar equal to 1 if the 'rawsum' option has been
 											chosen
-		 - rebus_cl		--> string scalar providing the variable with the REBUS
+		 - fimix_cl		--> string scalar providing the variable with the FIMIX
 											classes
-		 - numclass		--> real scalar providing the number of REBUS classes
-		 - maxit_reb	--> real scalar providing the maximum number of REBUS
+		 - K					--> real scalar providing the number of FIMIX classes
+		 - maxit_fim	--> real scalar providing the maximum number of FIMIX
 											iterations
-		 - stop				--> real scalar providing the REBUS stopping criterion
-		 - noisily		--> (optional) real scalar; if not 0, it prints the bootstrap
+		 - stop				--> real scalar providing the FIMIX stopping criterion
+		 - seed				--> (optional) real scalar providing the seed
+		 - noisily		--> (optional) real scalar; if not 0, it prints the EM
 											iterations
 	*/
 	
 	/* Returned value:
 		 ---------------
-		 - res --> scalar plssem_struct_rebus structure containing the results
+		 - res_fimix	--> scalar plssem_struct_fimix structure containing the results
 	*/
 
 	struct plssem_struct_fimix scalar res_fimix
-	struct plssem_struct scalar res
-	struct plssem_struct colvector localmodels
+	struct plssem_struct_matrix scalar mat
+	struct plssem_struct_matrix colvector B, Gamma, Psi
 
-	real matrix cm, Xsc, Yinit, Xreb, Xrebsc, Xreb_all, Xrebsc_all, ow, path, ///
-		loads, y, y_local, block, x_hat, y_hat, out_res, inn_res
-	real scalar iter, N, nchanged, k, P, p, rN0, rN_lte_5
-	string scalar touse_loc_name
-	real colvector modes, touse_vec, rebus_class, touse_loc, old_class, ///
-		new_class, class_freq
-	real rowvector r2, endo
+	real matrix P_ik, eta, xi, y, x, xx, xy, yhat, B_k, Gamma_k, Psi_k
+	real scalar V, iter, n, N, i, k, nendo, nexo, P, p, jj, sse, omega, ///
+		rN0, rN_lte_5, delta_ll, old_ll, new_ll
+	real colvector touse_vec, Sind, beta_tmp, beta
+	real rowvector rho, endo, exo
 	
-	iter = 1
-	P = cols(M)
-	touse_vec = st_data(., touse)
-	N = sum(touse_vec)
-	nchanged = N
-	
-	rebus_class = st_data(., rebus_cl)
-	localmodels = J(numclass, 1, res)
-	modes = J(P, 1, 0)
-	endo = (colsum(S)	:> 0)			 // indicators for the endogenous latent variables
-	
+	if (seed != .) {
+		rseed(seed)
+	}
 	if (noisily == .) {
 		noisily = 1
 	}
 	
-	(void) st_addvar("byte", touse_loc_name = st_tempname())
+	iter = 1
+	touse_vec = st_data(., touse)
+	P = cols(Y)
+	n = rows(Y)
+	N = sum(touse_vec)
+	V = mindouble()
+	endo = (colsum(S)	:> 0)			 // indicators for the endogenous latent variables
+	exo = (colsum(S) :== 0)			 // indicators for the exogenous latent variables
+	eta = Y[., selectindex(endo)]
+	xi = Y[., selectindex(exo)]
+	nendo = cols(eta)
+	nexo = cols(xi)
 	
-	old_class = rebus_class
-	while ((iter <= maxit_reb) & (nchanged > N*stop)) {
-		/*
+	B = J(K, 1, mat)
+	Gamma = J(K, 1, mat)
+	Psi = J(K, 1, mat)
+		
+	// Random initialization
+	P_ik = rdirichlet(N, J(1, K, 1/K))
+	rho = mean(P_ik)
+	
+	// EM iterations
+	old_ll = V
+	delta_ll = maxdouble()
+	while ((iter <= maxit_fim) & (delta_ll > stop)) {
 		if (noisily) {
-			if (iter == 1) {
-				printf("{txt}REBUS iteration 1")
-			}
-			else if (mod(iter, 5) == 0) {
-				todisp = strtrim(strofreal(iter, "%9.0f"))
-				printf("{txt}" + todisp)
+			/*
+			if (mod(b, 50) == 0) {
+				todisp = strtrim(strofreal(b, "%9.0f"))
+				if (strlen(todisp) < strlen(strofreal(B))) {
+					skip = strlen(strofreal(B)) - strlen(todisp)
+				}
+				spaces = ""
+				for (i = 1; i <= (skip + 3); i++) {
+					spaces = spaces + char(32)
+				}
+				printf("{txt}." + spaces + todisp + "\n")
+				skip = 0
 			}
 			else {
 				printf("{txt}.")
 			}
+			*/
 			displayflush()
 		}
-		*/
 		
-		cm = J(N, 0, .)
-		for (k = 1; k <= numclass; k++) {
-			touse_loc = touse_vec :* (old_class :== k)
-			st_store(., touse_loc_name, touse_loc)
-			
-			// Standardize the MVs (if required)
-			if (scale == "") {
-				Xsc = scale(X[selectindex(touse_loc), .])
-			}
-			else {
-				Xsc = X[selectindex(touse_loc), .]
-			}
-			
-			// Check that there are no zero-variance indicators
-			if (any(selectindex(sd(Xsc) :== 0))) {
-				_error(409)
-			}
-			
-			// Initialize the LVs
-			Yinit = plssem_init_mat(Xsc,  M, ind, stdind, latents, touse_loc_name, ///
-				rawsum, init)
-			
-			// Run the PLS algorithm
-			localmodels[k, 1] = plssem_base(Xsc, Yinit, M, S, modes, latents, ///
-				binary, tol, maxit, touse_loc_name, scheme, crit, structural, rawsum)
-			
-			Xreb = X[selectindex(touse_loc), .]
-			Xrebsc = scale(Xreb)
-			ow = localmodels[k, 1].outer_weights
-			path = localmodels[k, 1].path
-			path = editmissing(path, 0)
-			loads = localmodels[k, 1].loadings
-			r2 = localmodels[k, 1].r2
-			r2 = r2[., selectindex(r2 :!= .)]
-			//y = Xrebsc * ow ???
-			
-			Xreb_all = X[selectindex(touse_vec), .]
-			Xrebsc_all = scale(Xreb_all, 0, sd(Xreb), mean(Xreb))
-			y_local = Xrebsc_all * ow
-			out_res = J(N, 0, .)
+		// Compute B, Gamma and Psi
+		for (k = 1; k <= K; k++) {
+			beta = J(P, P, 0)
+			B_k = J(nendo, nendo, 0)
+			Gamma_k = J(nendo, nexo, 0)
+			Psi_k = J(nendo, nendo, 0)
+			jj = 1
 			for (p = 1; p <= P; p++) {
-				block = selectindex(loads[., p] :!= .)
-				x_hat = y_local[., p] * loads[block, p]'
-				out_res = (out_res, (Xrebsc_all[., block] - x_hat))
+				Sind = selectindex(S[., p])
+				if (endo[1, p]) {
+					//x = (J(n, 1, 1), Y[., Sind])
+					x = Y[., Sind]
+					y = Y[., p]
+					xx = quadcross(x, P_ik[., k], x)
+					xy = quadcross(x, P_ik[., k], y)
+					beta_tmp = qrsolve(xx, xy)
+					//beta[Sind, p] = beta_tmp[|2 \ .|]
+					beta[Sind, p] = beta_tmp
+					yhat = x * beta_tmp
+					sse = quadcross((y - yhat), P_ik[., k], (y - yhat))
+					omega = sse/(n*rho[k])
+					Psi_k[jj, jj] = omega
+					jj++
+				}
 			}
-			y_hat = y_local * path[., selectindex(endo)]
-			inn_res = (y_local[., selectindex(endo)] - y_hat)
-			cm = (cm, rebus_cm(out_res, inn_res, loads, r2))
+			B_k = beta[selectindex(endo), selectindex(endo)]
+			Gamma_k = beta[selectindex(exo), selectindex(endo)]'
+			/*
+			B_k
+			Gamma_k
+			Psi_k
+			*/
+			B[k, 1].mat = B_k
+			Gamma[k, 1].mat = Gamma_k
+			Psi[k, 1].mat = Psi_k
 		}
-		new_class = J(length(old_class), 1, .)
-		new_class[selectindex(touse_vec), 1] = which(cm, "min")
-		nchanged = sum(old_class :!= new_class)
-		old_class = new_class
 		
-		class_freq = uniqrows(new_class, 1)[., 2]
-		if (anyof(class_freq, 0)) {
-			rN0 = 1
-			break
-		}
-		else {
-			rN0 = 0
-		}
-		if (any(class_freq :<= 5)) {
-			rN_lte_5 = 1
-			break
-		}
-		else {
-			rN_lte_5 = 0
-		}
+		// E-step
+		P_ik = plssem_fimix_estep(rho, eta, xi, B, Gamma, Psi)
+		_editmissing(P_ik, 0)
+		rho = mean(P_ik)
+		
+		// Compute the loglikelihood
+		new_ll = plssem_fimix_ll(eta, xi, P_ik, rho, B, Gamma, Psi)
+		delta_ll = (new_ll - old_ll)
+		old_ll = new_ll
 		
 		iter++
 	}
 	
 	// Assigning results to structure's members
 	res_fimix.niter = (iter - 1)
-	res_fimix.rebus_class = new_class
-	res_fimix.touse_vec = touse_vec
+	res_fimix.fimix_class = .
+	res_fimix.touse_vec = .
 	res_fimix.rN0 = rN0
 	res_fimix.rN_lte_5 = rN_lte_5
-	res_fimix.nclass = numclass
-	res_fimix.maxiter = maxit_reb
+	res_fimix.nclass = K
+	res_fimix.maxiter = maxit_fim
 	res_fimix.stop = stop
 	
 	return(res_fimix)
@@ -2798,16 +3018,22 @@ mata: mata mosave plssem_mga_perm_diff(), dir(PERSONAL) replace
 mata: mata mosave plssem_mga_boot(), dir(PERSONAL) replace
 mata: mata mosave plssem_mga_boot_diff(), dir(PERSONAL) replace
 mata: mata mosave scale(), dir(PERSONAL) replace
+mata: mata mosave unscale(), dir(PERSONAL) replace
 mata: mata mosave sd(), dir(PERSONAL) replace
 mata: mata mosave which(), dir(PERSONAL) replace
 mata: mata mosave cronbach(), dir(PERSONAL) replace
 mata: mata mosave meanimp(), dir(PERSONAL) replace
 mata: mata mosave knnimp(), dir(PERSONAL) replace
-mata: mata mosave rebus_cm(), dir(PERSONAL) replace
-mata: mata mosave rebus_gqi(), dir(PERSONAL) replace
+mata: mata mosave euclidean_dist(), dir(PERSONAL) replace
+mata: mata mosave rdirichlet(), dir(PERSONAL) replace
+mata: mata mosave plssem_rebus_cm(), dir(PERSONAL) replace
+mata: mata mosave plssem_rebus_gqi(), dir(PERSONAL) replace
 mata: mata mosave plssem_struct_rebus(), dir(PERSONAL) replace
 mata: mata mosave plssem_rebus(), dir(PERSONAL) replace
 mata: mata mosave plssem_rebus_ptest(), dir(PERSONAL) replace
+mata: mata mosave plssem_struct_matrix(), dir(PERSONAL) replace
 mata: mata mosave plssem_struct_fimix(), dir(PERSONAL) replace
+mata: mata mosave plssem_fimix_ll(), dir(PERSONAL) replace
+mata: mata mosave plssem_fimix_estep(), dir(PERSONAL) replace
 mata: mata mosave plssem_fimix(), dir(PERSONAL) replace
 mata: mata mosave cleanup(), dir(PERSONAL) replace
