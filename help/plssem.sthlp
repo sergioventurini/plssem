@@ -159,7 +159,7 @@ indicates the maximum number of iterations the algorithm runs. The default is
 iterations to reach convergence, typically less than 10. 
 
 {phang}{opt missing(imputation_method)}
-povides the choice for the method to use for imputing the indicator missing values. Possible
+provides the choice for the method to use for imputing the indicator missing values. Possible
 choices are {bf:mean} (i.e. the mean of the available indicators) or {bf:knn} (i.e. the k-th
 nearest neighbor method).
 
@@ -342,7 +342,7 @@ Norwegian University of Science and Technology{break}
 {synopt:{cmd:e(formative)}}list of latent variables measured in a formative way{p_end}
 {synopt:{cmd:e(struct_eqs)}}equations defining the structural model{p_end}
 {synopt:{cmd:e(properties)}}choices of initialization, weighting scheme, imputation method, 
-whether the boostrap has been used, whether the model has a structural part, whether the
+whether the bootstrap has been used, whether the model has a structural part, whether the
 {cmd:rawsum} option has been used, and whether the manifest variables have been scaled or
 not{p_end}
 

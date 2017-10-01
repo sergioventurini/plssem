@@ -246,10 +246,9 @@ that will contain the final classification obtained with the REBUS algorithm.
 {title:Description for predict}
 
 {pstd}
-{cmd:predict} creates new variables containing linear predictions and residuals.
-These quantities are provided only for reflective blocks of manifest variables
-in the measurement/outer model and for endogenous latent variables in the
-structural/inner model.
+{cmd:predict} creates new variables containing linear predictions and residuals. These
+quantities are provided only for reflective blocks of manifest variables in the
+measurement/outer model and for endogenous latent variables in the structural/inner model.
 
 {pstd}
 The newly computed predictions will replace those already present in the data set.
