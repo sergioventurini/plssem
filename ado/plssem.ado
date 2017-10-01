@@ -814,7 +814,7 @@ program Estimate, eclass byable(recall)
 		local kk = 1
 		matrix `indstats' = J(`num_ind', 7, .)
 		foreach ind in `allindicators' {
-			quietly summarize `ind' if `touse', detail
+			quietly summarize `ind' if `touse_nomiss', detail
 			matrix `indstats'[`kk', 1] = r(mean)
 			matrix `indstats'[`kk', 2] = r(sd)
 			matrix `indstats'[`kk', 3] = r(p50)

@@ -1,5 +1,5 @@
 *!mktable_indirect version 0.1.0
-*!Written 30Aug2017
+*!Written 01Oct2017
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -153,7 +153,7 @@ program mktable_indirect
 		display as text _skip(0) "`title'"
 	}
 	else {
-		display as text _skip(0) "`title'" " (bootstrap)"
+		display as text _skip(0) "`title'" " (Bootstrap)"
 	}
 	display as text "`firstline'"
 	display as text "`title1'"
