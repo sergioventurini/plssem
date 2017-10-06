@@ -1,50 +1,7 @@
 *!plssem_mata version 0.3.0
-*!Written 30Sep2017
+*!Written 06OCt2017
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
-
-capture mata: mata drop ///
-	plssem_struct() ///
-	plssem_scale() ///
-	plssem_scale_mat() ///
-	plssem_init() ///
-	plssem_init_mat() ///
-	plssem_base() ///
-	plssem_lv() ///
-	plssem_pval() ///
-	plssem_pathtab() ///
-	plssem_struct_boot() ///
-	plssem_boot() ///
-	plssem_boot_lm() ///
-	plssem_boot_pm() ///
-	plssem_boot_lv() ///
-	plssem_boot_pv() ///
-	plssem_reliability() ///
-	plssem_vif() ///
-	plssem_mga_perm() ///
-	plssem_mga_perm_diff() ///
-	plssem_mga_boot() ///
-	plssem_mga_boot_diff() ///
-	scale() ///
-	unscale() ///
-	sd() ///
-	which() ///
-	cronbach() ///
-	meanimp() ///
-	knnimp() ///
-	euclidean_dist() ///
-	rdirichlet() ///
-	plssem_rebus_cm() ///
-	plssem_rebus_gqi() ///
-	plssem_struct_rebus() ///
-	plssem_rebus() ///
-	plssem_rebus_ptest() ///
-	plssem_struct_matrix() ///
-	plssem_struct_fimix() ///
-	plssem_fimix_ll() ///
-	plssem_fimix_estep() ///
-	plssem_fimix() ///
-	cleanup()
 
 version 14.2
 mata:
@@ -402,9 +359,9 @@ struct plssem_struct scalar plssem_base(real matrix X, real matrix Yinit,
 		 - res --> scalar plssem_struct structure containing the estimated
 							 quantities (loadings, path coefficients, etc.)
 	*/
-
+	
 	struct plssem_struct scalar res
-
+	
 	real matrix W, w_old, w_new, C, E, Yhat, Ycor, Ytilde, Ydep, Yindep, mf, ///
 		fscores, T, beta, beta_v, Yexo, Yendo, Ypred, Whist, xlambda, lambda, ///
 		Snew, s2_mat
@@ -413,7 +370,7 @@ struct plssem_struct scalar plssem_base(real matrix X, real matrix Yinit,
 	real colvector Mind, Sind, predec
 	string rowvector lvs_vec
 	string scalar logitcmd
-
+	
 	iter = 1
 	delta = 1e6
 	P = cols(M)   			// number of latent variables
@@ -432,7 +389,7 @@ struct plssem_struct scalar plssem_base(real matrix X, real matrix Yinit,
 	lambda = J(Q, P, .)
 	r2 = J(1, P, .)
 	r2_a = J(1, P, .)
-
+	
 	// Indicators for the binary latent variables
 	lvs_vec = tokens(latents)
 	isnotbinary = J(1, P, 1)
@@ -450,7 +407,7 @@ struct plssem_struct scalar plssem_base(real matrix X, real matrix Yinit,
 			W = M * diag(1 :/ sd(X * M))
 			w_old = rowsum(W)'
 			Whist = w_old
-
+			
 			while (delta >= tol & iter <= maxit) {
 				// Step 1: inner weights estimation
 				E = J(P, P, 0)
@@ -477,7 +434,7 @@ struct plssem_struct scalar plssem_base(real matrix X, real matrix Yinit,
 						}
 					}
 				}
-
+				
 				// Step 2: inner approximation
 				Ytilde = Yhat * E
 				Ytilde = scale(Ytilde)
@@ -522,7 +479,7 @@ struct plssem_struct scalar plssem_base(real matrix X, real matrix Yinit,
 
 				// Step 5: convergence check
 				if (crit == "relative") {
-					delta = max(abs(w_old - w_new) :/ w_new)
+					delta = max(abs((w_old - w_new) :/ w_new))
 					// delta = mreldif(w_old, w_new)
 				}
 				else if (crit == "square") {
@@ -1199,7 +1156,7 @@ real matrix plssem_boot_pv(real matrix path)
 	return(pathcoef_v)
 }
 
-real matrix plssem_reliability(real matrix X, real matrix load, real matrix ave,
+real matrix plssem_reliability(real matrix X, real matrix load,
 	real colvector mode)
 {
 	/* Description:
@@ -1211,7 +1168,6 @@ real matrix plssem_reliability(real matrix X, real matrix load, real matrix ave,
 		 ----------
 		 - X					--> real matrix containing the observed manifest variables
 		 - load				--> real matrix containing the estimated outer loadings
-		 - ave				--> real matrix containing the AVE
 		 - mode				--> real colvector containing the modes of the latent
 											variables (each element must be either 0 ["reflective"]
 											or 1 ["formative"])
@@ -1222,24 +1178,35 @@ real matrix plssem_reliability(real matrix X, real matrix load, real matrix ave,
 		 - relcoef --> real matrix containing the (cross) loading variances
 	*/
 
-	real matrix relcoef, M
-	real scalar P, p
-	real rowvector nind, num, den
+	real matrix relcoef, M, Mind, V, scores
+	real scalar P, p, k, num, den
+	real rowvector S, lambdas
 
 	P = cols(load)   			// number of latent variables
 	relcoef = J(2, P, 0)
+	V = .
+	S = .
 
 	M = (load :!= .)
 	relcoef[1, .] = cronbach(X, M)
-	nind = colsum(M)
-	num = colsum(load) :^ 2
-	den = num + nind :* (J(1, P, 1) - ave)
-	relcoef[2, .] = num :/ den
+	
 	for (p = 1; p <= P; p++) {
-			if (mode[p]) {
-				relcoef[1, p] = .
-				relcoef[2, p] = .
-			}
+		Mind = selectindex(M[., p])
+		k = rows(Mind)
+		if (k == 1) {
+			relcoef[2, p] = 1
+			continue
+		}
+		symeigensystem(correlation(X[., Mind]), V, S)
+		scores = scale(X[., Mind], 1) * V
+		lambdas = correlation((X[., Mind], scores[, 1]))[|(k + 1), 1 \ (k + 1), k|]
+		num = sum(lambdas)^2
+		den = num + (k - sum(lambdas :^ 2))
+		relcoef[2, p] = num/den
+		if (mode[p]) {
+			relcoef[1, p] = .
+			relcoef[2, p] = .
+		}
 	}
 	
 	return(relcoef)
@@ -1935,7 +1902,7 @@ real rowvector cronbach(real matrix X, real matrix M)
 		 ---------------
 		 - alpha	--> real matrix containing the Cronbach's reliability coefficients
 	*/
-
+	
 	real matrix Mind
 	real scalar P, n, p, k, l, r_bar
 	real rowvector alpha
@@ -1953,6 +1920,9 @@ real rowvector cronbach(real matrix X, real matrix M)
 		l = k*(k - 1)/2
 		r_bar = sum(lowertriangle(correlation(X[., Mind]), 0))/l
 		alpha[p] = k/(1/r_bar + (k - 1))
+		if (alpha[p] < 0) {
+			alpha[p] = 0
+		}
 	}
 	
 	return(alpha)
@@ -2233,12 +2203,12 @@ real colvector plssem_rebus_cm(real matrix e, real matrix f, real matrix loads, 
 	com = diag(rowsum(loads :^ 2))
 	left = rowsum(e2 * luinv(com), .)
 	left = left / colsum(left)
-
+	
 	f2 = f :^ 2
 	r2_mat = diag(r2)
 	right = rowsum(f2 * luinv(r2_mat), .)
 	right = right / colsum(right)
-
+	
 	cm = (N - 2)*sqrt(left :* right)
 	
 	return(cm)
@@ -2388,6 +2358,7 @@ struct plssem_struct_rebus scalar plssem_rebus(real matrix X, real matrix M,
 	(void) st_addvar("byte", touse_loc_name = st_tempname())
 	
 	old_class = rebus_class
+	
 	while ((iter <= maxit_reb) & (nchanged > N*stop)) {
 		/*
 		if (noisily) {
@@ -2404,11 +2375,17 @@ struct plssem_struct_rebus scalar plssem_rebus(real matrix X, real matrix M,
 			displayflush()
 		}
 		*/
-		
 		cm = J(N, 0, .)
 		for (k = 1; k <= numclass; k++) {
 			touse_loc = touse_vec :* (old_class :== k)
 			st_store(., touse_loc_name, touse_loc)
+			
+			// Check that there are no zero-variance indicators
+			if (any(selectindex(sd(X[selectindex(touse_loc), .]) :== 0))) {
+				printf("{err}some variables during the REBUS calculations turned out to have zero variance\n")
+				printf("{err}try reducing the number of classes\n")
+				_error(1)
+			}
 			
 			// Standardize the MVs (if required)
 			if (scale == "") {
@@ -2420,7 +2397,9 @@ struct plssem_struct_rebus scalar plssem_rebus(real matrix X, real matrix M,
 			
 			// Check that there are no zero-variance indicators
 			if (any(selectindex(sd(Xsc) :== 0))) {
-				_error(409)
+				printf("{err}some variables during the REBUS calculations turned out to have zero variance\n")
+				printf("{err}try reducing the number of classes\n")
+				_error(1)
 			}
 			
 			// Initialize the LVs
@@ -2430,7 +2409,6 @@ struct plssem_struct_rebus scalar plssem_rebus(real matrix X, real matrix M,
 			// Run the PLS algorithm
 			localmodels[k, 1] = plssem_base(Xsc, Yinit, M, S, modes, latents, ///
 				binary, tol, maxit, touse_loc_name, scheme, crit, structural, rawsum)
-			
 			Xreb = X[selectindex(touse_loc), .]
 			Xrebsc = scale(Xreb)
 			ow = localmodels[k, 1].outer_weights
@@ -2628,12 +2606,21 @@ real colvector plssem_rebus_ptest(real matrix X, real matrix M, real matrix S,
 			touse_loc = touse_vec :* (rebclass_p :== k)
 			st_store(., touse_loc_name, touse_loc)
 			
+			// Check that there are no zero-variance indicators
+			if (any(selectindex(X[selectindex(touse_loc), .] :== 0))) {
+				printf("{err}some variables during the REBUS calculations turned out to have zero variance\n")
+				printf("{err}try reducing the number of classes\n")
+				_error(1)
+			}
+			
 			// Standardize the MVs (if required)
 			Xsc = plssem_scale_mat(X, touse_loc, scale)
 			
 			// Check that there are no zero-variance indicators
 			if (any(selectindex(sd(Xsc) :== 0))) {
-				_error(409)
+				printf("{err}some variables during the REBUS calculations turned out to have zero variance\n")
+				printf("{err}try reducing the number of classes\n")
+				_error(1)
 			}
 			
 			// Initialize the LVs
@@ -2996,44 +2983,6 @@ end
 
 ********************************************************************************
 
-mata: mata mosave plssem_struct(), dir(PERSONAL) replace
-mata: mata mosave plssem_scale(), dir(PERSONAL) replace
-mata: mata mosave plssem_scale_mat(), dir(PERSONAL) replace
-mata: mata mosave plssem_init(), dir(PERSONAL) replace
-mata: mata mosave plssem_init_mat(), dir(PERSONAL) replace
-mata: mata mosave plssem_base(), dir(PERSONAL) replace
-mata: mata mosave plssem_lv(), dir(PERSONAL) replace
-mata: mata mosave plssem_pval(), dir(PERSONAL) replace
-mata: mata mosave plssem_pathtab(), dir(PERSONAL) replace
-mata: mata mosave plssem_struct_boot(), dir(PERSONAL) replace
-mata: mata mosave plssem_boot(), dir(PERSONAL) replace
-mata: mata mosave plssem_boot_lm(), dir(PERSONAL) replace
-mata: mata mosave plssem_boot_pm(), dir(PERSONAL) replace
-mata: mata mosave plssem_boot_lv(), dir(PERSONAL) replace
-mata: mata mosave plssem_boot_pv(), dir(PERSONAL) replace
-mata: mata mosave plssem_reliability(), dir(PERSONAL) replace
-mata: mata mosave plssem_vif(), dir(PERSONAL) replace
-mata: mata mosave plssem_mga_perm(), dir(PERSONAL) replace
-mata: mata mosave plssem_mga_perm_diff(), dir(PERSONAL) replace
-mata: mata mosave plssem_mga_boot(), dir(PERSONAL) replace
-mata: mata mosave plssem_mga_boot_diff(), dir(PERSONAL) replace
-mata: mata mosave scale(), dir(PERSONAL) replace
-mata: mata mosave unscale(), dir(PERSONAL) replace
-mata: mata mosave sd(), dir(PERSONAL) replace
-mata: mata mosave which(), dir(PERSONAL) replace
-mata: mata mosave cronbach(), dir(PERSONAL) replace
-mata: mata mosave meanimp(), dir(PERSONAL) replace
-mata: mata mosave knnimp(), dir(PERSONAL) replace
-mata: mata mosave euclidean_dist(), dir(PERSONAL) replace
-mata: mata mosave rdirichlet(), dir(PERSONAL) replace
-mata: mata mosave plssem_rebus_cm(), dir(PERSONAL) replace
-mata: mata mosave plssem_rebus_gqi(), dir(PERSONAL) replace
-mata: mata mosave plssem_struct_rebus(), dir(PERSONAL) replace
-mata: mata mosave plssem_rebus(), dir(PERSONAL) replace
-mata: mata mosave plssem_rebus_ptest(), dir(PERSONAL) replace
-mata: mata mosave plssem_struct_matrix(), dir(PERSONAL) replace
-mata: mata mosave plssem_struct_fimix(), dir(PERSONAL) replace
-mata: mata mosave plssem_fimix_ll(), dir(PERSONAL) replace
-mata: mata mosave plssem_fimix_estep(), dir(PERSONAL) replace
-mata: mata mosave plssem_fimix(), dir(PERSONAL) replace
-mata: mata mosave cleanup(), dir(PERSONAL) replace
+mata: mata mlib create lplssem, dir(PERSONAL) replace
+mata: mata mlib add lplssem *()
+mata: mata mlib index

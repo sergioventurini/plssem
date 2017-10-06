@@ -1,5 +1,5 @@
 *!plssemmat version 0.3.0
-*!Written 30Sep2017
+*!Written 04Oct2017
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -816,7 +816,6 @@ program Estimate_mat, eclass byable(recall)
 		plssem_reliability( ///
 			st_data(., "`allindicators'", "`touse'"), ///
 			st_matrix("`loadings'"), ///
-			st_matrix("`ave'"), ///
 			st_matrix("`modes'")))
 	matrix rownames `relcoef' = "Cronbach" "DG"
 	matrix colnames `relcoef' = `loadcolnames'

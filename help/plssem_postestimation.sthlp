@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 0.0.1  30Dec2016}{...}
+{* *! version 0.0.1  06Oct2017}{...}
 {vieweralsosee "plssem" "help plssem"}{...}
 {vieweralsosee "plssemplot" "help plssemplot"}{...}
 {viewerjumpto "Postestimation commands" "plssem postestimation##description"}{...}

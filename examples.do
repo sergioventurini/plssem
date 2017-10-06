@@ -134,10 +134,15 @@ set seed 123
 generate ITEM1 = rbinomial(6, .5)
 generate ITEM2 = rbinomial(6, .5)
 generate ITEM3 = rbinomial(6, .5)
-/* kdensity ITEM1
+/*
+kdensity ITEM1
 kdensity ITEM2
-kdensity ITEM3 */
-plssem (lv1 > ITEM1) (lv2 > ITEM2-ITEM3), structural(lv1 lv2)
+kdensity ITEM3
+*/
+plssem (lv1 > ITEM1) (lv2 > ITEM2-ITEM3), structural(lv1 lv2) digits(8)
+
+set matsize 10000
+estat unobshet, method(rebus)
 
 /* Example 12 */
 /* ---------- */
