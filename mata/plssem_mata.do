@@ -1,5 +1,5 @@
 *!plssem_mata version 0.3.0
-*!Written 06OCt2017
+*!Written 07OCt2017
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -2381,7 +2381,7 @@ struct plssem_struct_rebus scalar plssem_rebus(real matrix X, real matrix M,
 			st_store(., touse_loc_name, touse_loc)
 			
 			// Check that there are no zero-variance indicators
-			if (any(selectindex(sd(X[selectindex(touse_loc), .]) :== 0))) {
+			if (anyof(sd(X[selectindex(touse_loc), .]), 0)) {
 				printf("{err}some variables during the REBUS calculations turned out to have zero variance\n")
 				printf("{err}try reducing the number of classes\n")
 				_error(1)
@@ -2396,7 +2396,7 @@ struct plssem_struct_rebus scalar plssem_rebus(real matrix X, real matrix M,
 			}
 			
 			// Check that there are no zero-variance indicators
-			if (any(selectindex(sd(Xsc) :== 0))) {
+			if (anyof(sd(Xsc), 0)) {
 				printf("{err}some variables during the REBUS calculations turned out to have zero variance\n")
 				printf("{err}try reducing the number of classes\n")
 				_error(1)
@@ -2527,7 +2527,7 @@ real colvector plssem_rebus_ptest(real matrix X, real matrix M, real matrix S,
 		 ---------------
 		 - res --> scalar plssem_struct_rebus structure containing the results
 	*/
-
+	
 	struct plssem_struct scalar res
 	struct plssem_struct colvector localmodels
 	
@@ -2607,7 +2607,7 @@ real colvector plssem_rebus_ptest(real matrix X, real matrix M, real matrix S,
 			st_store(., touse_loc_name, touse_loc)
 			
 			// Check that there are no zero-variance indicators
-			if (any(selectindex(X[selectindex(touse_loc), .] :== 0))) {
+			if (anyof(sd(X[selectindex(touse_loc), .]), 0)) {
 				printf("{err}some variables during the REBUS calculations turned out to have zero variance\n")
 				printf("{err}try reducing the number of classes\n")
 				_error(1)
@@ -2617,7 +2617,7 @@ real colvector plssem_rebus_ptest(real matrix X, real matrix M, real matrix S,
 			Xsc = plssem_scale_mat(X, touse_loc, scale)
 			
 			// Check that there are no zero-variance indicators
-			if (any(selectindex(sd(Xsc) :== 0))) {
+			if (anyof(sd(Xsc), 0)) {
 				printf("{err}some variables during the REBUS calculations turned out to have zero variance\n")
 				printf("{err}try reducing the number of classes\n")
 				_error(1)
