@@ -282,7 +282,7 @@ plssem (Expectation > CUEX1-CUEX3) (Satisfaction > CUSA1-CUSA3) ///
 	wscheme("path") digits(4) correlate(mv lv cross, cutoff(.3)) //boot(50)
 
 estat unobshet, test reps(300) //plot
-estat unobshet, numclass(5) stop(.1) name("rebus_cluster_f") method("fimix")
+estat unobshet, numclass(5) stop(.1) method("fimix")
 estat unobshet, stop(1e-3) method("fimix") restart(3) groups(1/8)
 	
 /* Example 20 */
