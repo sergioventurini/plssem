@@ -1,5 +1,5 @@
 *!plssem_estat version 0.3.0
-*!Written 30Sep2017
+*!Written 31Mar2018
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -227,7 +227,7 @@ program indirect, rclass
 		hlines(`ind_line') level(`level') //novlines
 
 	/* Return values */
-	return matrix indirect = `indmeas'
+	return matrix indirect `indmeas'
 end
 
 program total, rclass
@@ -346,7 +346,7 @@ program total, rclass
 	}
 
 	/* Return values */
-	return matrix total = `alleffects_new'
+	return matrix total `alleffects_new'
 end
 
 program plssem_vif, rclass
@@ -381,15 +381,16 @@ program plssem_vif, rclass
 	}
 	
 	/* Return values */
-	return matrix strvif = `strvif'
+	return matrix strvif `strvif'
 end
 
-program unobshet, rclass
+program unobshet
 	version 14.2
-	syntax [ , Method(string) Numclass(numlist integer >1 max=1) ///
+	syntax [ , Method(string) Numclass(numlist integer >=1 max=1) ///
 		MAXCLass(integer 20) Dendrogram MAXITer(integer 50) Stop(real 0.005) ///
-		Test Reps(numlist integer >1 max=1) SEed(numlist max=1) Plot ///
-		name(string) DIGits(integer 3) ]
+		Test Reps(numlist integer >1 max=1) REStart(numlist integer >=1 max=1) ///
+		SEed(numlist max=1) Plot name(string) DIGits(integer 3) ///
+		GRoups(numlist integer >=1 <=20 min=1 sort) ]
 
 	/* Options:
 	   --------
@@ -410,12 +411,19 @@ program unobshet, rclass
 		 test														--> permutation test
 		 reps(numlist integer >1 max=1)	--> number of permutation test replications
 																				(default is 50)
+		 restart(numlist integer >=1
+						 max=1)									--> number of repetitions of the EM
+																				algorithm in FIMIX-PLS (default is 10)
 		 seed(numlist max=1)						--> permutation test seed number
 		 plot														--> plot of the empirical distribution
 																				for the permutation test statistic
 		 name(string)										--> variable name where to store the final
 																				rebus classification
 		 digits(integer 3)							--> number of digits to display (default 3)
+		 groups(numlist integer >=1
+						<=20 min=1 sort)				--> list of group numbers for which to
+																				compare the corresponding fit indices
+																				using FIMIX-PLS
 	 */
 	 
 	 /* Description:
@@ -448,10 +456,11 @@ end
 
 program REBUS, rclass
 	version 14.2
-	syntax [ , Method(string) Numclass(numlist integer >1 max=1) ///
+	syntax [ , Method(string) Numclass(numlist integer >=1 max=1) ///
 		MAXCLass(integer 20) Dendrogram MAXITer(integer 50) Stop(real 0.005) ///
-		Test Reps(numlist integer >1 max=1) SEed(numlist max=1) Plot ///
-		name(string) DIGits(integer 3) ]
+		Test Reps(numlist integer >1 max=1) REStart(numlist integer >=1 max=1) ///
+		SEed(numlist max=1) Plot name(string) DIGits(integer 3) ///
+		GRoups(numlist integer >=1 <=20 min=1 sort) ]
 
 	/* Options:
 	   --------
@@ -472,12 +481,18 @@ program REBUS, rclass
 		 test														--> permutation test
 		 reps(numlist integer >1 max=1)	--> number of permutation test replications
 																				(default is 50)
+		 restart(numlist integer >=1
+						 max=1)									--> number of repetitions of the EM
 		 seed(numlist max=1)						--> permutation test seed number
 		 plot														--> plot of the empirical distribution
 																				for the permutation test statistic
 		 name(string)										--> variable name where to store the final
-																				REBUS classification
+																				REBUS-PLS classification
 		 digits(integer 3)							--> number of digits to display (default 3)
+		 groups(numlist integer >=1
+						<=20 min=1 sort)				--> list of group numbers for which to
+																				compare the corresponding fit indices
+																				using FIMIX-PLS
 	 */
 	 
 	 /* Description:
@@ -487,7 +502,7 @@ program REBUS, rclass
 	 */
 	
 	if ("`e(formative)'" != "") {
-		display as error "the REBUS approach can't be used with formative blocks"
+		display as error "the REBUS-PLS approach can't be used with formative blocks"
 		error 198
 	}
 	local props = e(properties)
@@ -526,7 +541,7 @@ program REBUS, rclass
 	local boot "bootstrap"
 	local isboot : list boot in props
 	if (`isboot') {
-		display as error "the global model used the 'boot()' option, which slows down excessively the REBUS calculations"
+		display as error "the global model used the 'boot()' option, which slows down excessively the REBUS-PLS calculations"
 		display as error "try refitting the global model without bootstrap"
 		exit
 	}
@@ -546,7 +561,7 @@ program REBUS, rclass
 		local name "rebus_class"
 	}
 	if ("`e(binarylvs)'" != "") {
-		display as error "currently the REBUS implementation doesn't allow for binary latent variables"
+		display as error "currently the REBUS-PLS implementation doesn't allow for binary latent variables"
 		exit
 	}
 	local knnimp "knn"
@@ -614,7 +629,7 @@ program REBUS, rclass
 			quietly cluster dendrogram `rebus_clus' if `__touse__', ///
 				xlabel(, angle(90) labsize(*.5)) ytitle("Euclidean distance") ///
 				subtitle("(based on residuals from the global model)") ///
-				title("Dendrogram for PLS-SEM REBUS analysis") scheme(sj) ///
+				title("Dendrogram for REBUS-PLS analysis") scheme(sj) ///
 				name(`dendplot', replace)
 		}
 		if (_rc != 0) {
@@ -720,8 +735,7 @@ program REBUS, rclass
 	}
 	local allstdindicators : list clean allstdindicators
 	
-	/* Run the REBUS algorithm */
-	// display
+	/* Run the REBUS-PLS algorithm */
 	tempname res_rebus
 	capture noisily {
 		mata: `res_rebus' = ///
@@ -770,7 +784,7 @@ program REBUS, rclass
 			display as error "at least one indicator has zero variance in one of the iterations"
 		}
 		else {
-			display as error "something went wrong in the REBUS calculations"
+			display as error "something went wrong in the REBUS-PLS calculations"
 		}
 		display as error "try reducing the number of classes " _continue
 		display as error "or relaxing any of the stopping criteria"
@@ -787,9 +801,8 @@ program REBUS, rclass
 			display as text "done!"
 		}
 	}
-	//display
 	*/
-	/* End of REBUS algorithm */
+	/* End of REBUS-PLS algorithm */
 	
 	/* Checking that the established classes have enough observations */
 	forvalues k = 1/`numclass' {
@@ -852,7 +865,7 @@ program REBUS, rclass
 		plssem_rebus_gqi(`indstd_st', `lat_st', `out_res_st', `inn_res_st', `class_st')
 	tempname gqi_final
 	mata: st_numscalar("`gqi_final'", `gqi')
-	/* End final REBUS calculations */
+	/* End final REBUS-PLS calculations */
 
 	/* Permutation test */
 	if ("`test'" != "") {
@@ -892,7 +905,7 @@ program REBUS, rclass
 				display as error "in one of the iterations of the permutation test"
 			}
 			else {
-				display as error "something went wrong in the REBUS permutation test"
+				display as error "something went wrong in the REBUS-PLS permutation test"
 			}
 			restore
 			_estimates unhold `globalmodel'
@@ -928,7 +941,6 @@ program REBUS, rclass
 			local firsttodelete = `oldN' + 1
 			quietly drop in `firsttodelete'/l
 		}
-		display
 	}
 	/* End permutation test */
 
@@ -1037,15 +1049,11 @@ program REBUS, rclass
 
 	tempname maxlen
 	mata: st_numscalar("`maxlen'", max(st_matrix("`alllen'")))
+  local firstcollbl ""	
 	local `maxlen' = max(strlen("`firstcollbl'"), `maxlen') + 2
-	if (`numclass' == 2) {
-		local colw = 11
-	}
-	else {
-		local colw = 9
-	}
+	local colw = max(9, `digits' + 5)
 
-	local title "REBUS classes"
+	local title "REBUS-PLS classes"
 	local firstcollbl ""
 	mktable, matrix(`results_n') digits(`digits') firstcolname(`firstcollbl') ///
 		title(`title') firstcolwidth(``maxlen'') colwidth(`colw') hlines(3) ///
@@ -1092,7 +1100,7 @@ program REBUS, rclass
 	mata: st_store(., "`name'", "`__touse__'", `rebus_c')
 	local now "`c(current_date)', `c(current_time)'"
 	local now : list clean now
-	label variable `name' "REBUS classification [`now']"
+	label variable `name' "REBUS-PLS classification [`now']"
 	
 	/* Clean up */
 	if ("`missing'" != "") {
@@ -1107,7 +1115,7 @@ program REBUS, rclass
 	
 	/* Maximum number of iterations reached */
 	if (`iter' > `maxiter') {
-		display as error "warning: REBUS algorithm did not converge"
+		display as error "warning: REBUS-PLS algorithm did not converge"
 		display as error "the solution provided may not be acceptable; " _continue
 		display as error "try to relax any of the stopping criteria"
 	}
@@ -1115,10 +1123,10 @@ end
 
 program FIMIX, rclass
 	version 14.2
-	syntax [ , Method(string) Numclass(numlist integer >1 max=1) ///
-		MAXCLass(integer 20) MAXITer(integer 30000) Stop(real 1.e-15) ///
-		REStart(numlist integer >1 max=1) SEed(numlist max=1) ///
-		name(string) DIGits(integer 3) ]
+	syntax [ , Method(string) Numclass(numlist integer >=1 max=1) ///
+		MAXCLass(integer 20) MAXITer(integer 30000) Stop(real 1.e-5) ///
+		REStart(numlist integer >=1 max=1) SEed(numlist max=1) ///
+		name(string) DIGits(integer 3) GRoups(numlist integer >=1 <=20 min=1 sort) ]
 
 	/* Options:
 	   --------
@@ -1133,14 +1141,18 @@ program FIMIX, rclass
 																				classes (default 20)
 		 maxiter(integer 30000)					--> maximum number of iterations (default
 																				30000)
-		 stop(real 1e-15)								--> stopping criterion (default 1e-15)
-		 restart(numlist integer >1
-						 max=1)									--> number of permutation test replications
-																				(default is 50)
+		 stop(real 1e-5)								--> stopping criterion (default 1e-5)
+		 restart(numlist integer >=1
+						 max=1)									--> number of repetitions of the EM
+																				algorithm in FIMIX-PLS (default is 10)
 		 seed(numlist max=1)						--> permutation test seed number
 		 name(string)										--> variable name where to store the final
-																				FIMIX classification
+																				FIMIX-PLS classification
 		 digits(integer 3)							--> number of digits to display (default 3)
+		 groups(numlist integer >=1
+						<=20 min=1 sort)				--> list of group numbers for which to
+																				compare the corresponding fit indices
+																				using FIMIX-PLS
 	 */
 	 
 	 /* Description:
@@ -1149,15 +1161,51 @@ program FIMIX, rclass
 			the presence of unobserved heterogeneity.
 	 */
 	
-	display "FIMIX estimation will be available soon! :)"
-	exit
-	
+	local props = e(properties)
+	local struct "structural"
+	local isstruct : list struct in props
+	if (!`isstruct') {
+		display as error "the fitted plssem model includes only the measurement part"
+		error 198
+	}
+	local rawsum "rawsum"
+	local israwsum : list rawsum in props
+	local cc "relative"
+	local isrelative : list cc in props
+	if (`isrelative') {
+		local convcrit "relative"
+	}
+	else {
+		local convcrit "square"
+	}
+	local initmet "indsum"
+	local isindsum : list initmet in props
+	if (`isindsum') {
+		local init "indsum"
+	}
+	else {
+		local init "eigen"
+	}
+	local indscale "scaled"
+	local isscaled : list indscale in props
+	if (`isscaled') {
+		local scale ""
+	}
+	else {
+		local scale "noscale"
+	}
 	local boot "bootstrap"
 	local isboot : list boot in props
 	if (`isboot') {
-		display as error "the global model used the 'boot()' option, which slows down excessively the REBUS calculations"
+		display as error "the global model used the 'boot()' option, which slows down excessively the FIMIX-PLS calculations"
 		display as error "try refitting the global model without bootstrap"
 		exit
+	}
+	if ("`seed'" != "") {
+		if (`seed' < 0 | `seed' >  2^31-1) {
+			display as error "'seed()' option requires a value between 0 and 2^31-1"
+			exit
+		}
 	}
 	if ("`name'" != "") & (`: word count `name'' != 1) {
 		display as error "the 'name' option must include a single word"
@@ -1167,7 +1215,27 @@ program FIMIX, rclass
 		local name "fimix_class"
 	}
 	if ("`e(binarylvs)'" != "") {
-		display as error "currently the FIMIX implementation doesn't allow for binary latent variables"
+		display as error "currently the FIMIX-PLS implementation doesn't allow for binary latent variables"
+		exit
+	}
+	local knnimp "knn"
+	local isknnimp : list knnimp in props
+	local meanimp "mean"
+	local ismeanimp : list meanimp in props
+	if (`isknnimp') {
+		local missing "knn"
+	}
+	else if (`ismeanimp') {
+		local missing "mean"
+	}
+	else {
+		local missing ""
+	}
+	if ("`restart'" == "") {
+		local restart = 10
+	}
+	if ("`numclass'" == "") {
+		display as error "the 'numclass' option must include one value for FIMIX-PLS"
 		exit
 	}
 	
@@ -1176,6 +1244,80 @@ program FIMIX, rclass
 	quietly count if `__touse__'
 	local N = r(N)
 
+	if ("`missing'" != "") {
+		/* Save original data set */
+		local allindicators = e(mvs)
+		tempname original_data
+		mata: `original_data' = st_data(., "`: list uniq allindicators'", "`__touse__'")
+		
+		/* Recovery of missing values */
+		mata: st_store(., tokens("`: list uniq allindicators'"), "`__touse__'", ///
+			st_matrix("e(imputed_data)"))
+	}
+
+	if (`N' < 5*`numclass') {
+		display as text "warning: the number of classes chosen seems to be too large"
+		display as text "calculations may abort; " _continue
+		display as text "in this case, consider reducing the number of classes"
+	}
+	
+  /* Parse global model e(cmdline) */
+  local cmdline = e(cmdline)
+  local trash
+  gettoken cmdline options : cmdline, parse(",")
+  gettoken trash options : options, parse(",")
+
+  local mm_start = strpos(`"`cmdline'"', "(")
+  if (strpos(`"`cmdline'"', "if")) {
+    local mm_end = strpos(`"`cmdline'"', "if") - `mm_start' - 1
+  }
+  else {
+    local mm_end = strlen(`"`cmdline'"')
+  }
+  local mm = substr(`"`cmdline'"', `mm_start', `mm_end')
+  local mm : list clean mm
+
+  tokenize `"`options'"', parse(")")
+  local tok_i = 1
+  while (substr(`"``tok_i''"', 1, 3) != "str") & (`"``tok_i''"' != "") {
+    local ++tok_i
+  }
+  local sm_full = `"``tok_i''"' + ")"
+  tokenize `"``tok_i''"', parse("(")
+  local sm = `"`3'"'
+  local sm : list clean sm
+  local options : list options - sm_full
+  local options : list clean options
+
+  // the following code doesn't work
+  /*
+  tokenize `"`options'"', parse(")")
+  local tok_i = 1
+  while (substr(`"``tok_i''"', 1, 3) != "dig") & (`"``tok_i''"' != "") {
+    local ++tok_i
+  }
+  local options_digits = `"``tok_i''"' + ")"
+  local options : list options - options_digits
+  local options : list clean options
+  */
+  local options "tol(`e(tolerance)') maxiter(`e(maxiter)') wscheme("
+  local ws_centroid "centroid"
+  local ws_factor "factor"
+  local ws_path "path"
+  if (`: list ws_centroid in props') {
+    local scheme "centroid"
+  }
+  else if (`: list ws_factor in props') {
+    local scheme "factor"
+  }
+  else if (`: list ws_path in props') {
+    local scheme "path"
+  }
+  local options "`options'`scheme')"
+  if ("`e(binarylvs)'" != "") {
+    local options "`options' binary(`e(binarylvs)')"
+  }
+  
 	/* Set temporary variables */
 	local allindicators = e(mvs)
 	local alllatents = e(lvs)
@@ -1183,68 +1325,310 @@ program FIMIX, rclass
 	local num_ind : word count `allindicators'
 	local num_lv : word count `alllatents'
 	tempname endo
-	tempvar __touseloc__
-	quietly generate byte `__touseloc__' = .
 	mata: `endo' = colsum(st_matrix("e(adj_struct)"))
 	mata: `endo' = (`endo' :> 0)
 	foreach var in `allindicators' {
 		local allstdindicators "`allstdindicators' std`var'"
 	}
 	local allstdindicators : list clean allstdindicators
-	
-	/* Run the FIMIX algorithm */
-	// display
+
+	/* Run the FIMIX-PLS algorithm */
 	tempname res_fimix
-	capture noisily {
-		mata: `res_fimix' = ///
-			plssem_fimix( ///
-				st_data(., "`alllatents'"), ///			 note: `__touse__' not used here
-				st_matrix("e(adj_meas)"), ///
-				st_matrix("e(adj_struct)"), ///
-				"`allindicators'", ///
-				"`allstdindicators'", ///
-				"`alllatents'", ///
-				"`e(binarylvs)'", ///
-				st_numscalar("e(tolerance)"), ///
-				st_numscalar("e(maxiter)"), ///
-				"`__touse__'", ///
-				"`scheme'", ///
-				"`convcrit'", ///
-				"`init'", ///
-				"`scale'", ///
-				strtoreal("`isstruct'"), ///
-				strtoreal("`israwsum'"), ///
-				"`rebus_class'", ///
-				strtoreal("`numclass'"), ///
-				strtoreal("`maxiter'"), ///
-				strtoreal("`stop'"), ///
-				strtoreal("`seed'"), ///
-				1)
-		
-		/*
-		mata: st_local("iter", strofreal(`res_fimix'.niter))
-		mata: st_local("rN0", strofreal(`res_fimix'.rN0))
-		mata: st_local("rN_lte_5", strofreal(`res_fimix'.rN_lte_5))
-		mata: st_store(., "`rebus_class'", `res_fimix'.fimix_class)
-		*/
+	if ("`groups'" == "") {
+		capture noisily {
+			mata: `res_fimix' = ///
+				plssem_fimix( ///
+					st_data(., "`alllatents'"), ///			 note: `__touse__' not used here
+					st_matrix("e(adj_meas)"), ///
+					st_matrix("e(adj_struct)"), ///
+					"`allindicators'", ///
+					"`allstdindicators'", ///
+					"`alllatents'", ///
+					"`e(binarylvs)'", ///
+					st_numscalar("e(tolerance)"), ///
+					st_numscalar("e(maxiter)"), ///
+					"`__touse__'", ///
+					"`scheme'", ///
+					"`convcrit'", ///
+					"`init'", ///
+					"`scale'", ///
+					strtoreal("`isstruct'"), ///
+					strtoreal("`israwsum'"), ///
+					strtoreal("`numclass'"), ///
+					strtoreal("`maxiter'"), ///
+					strtoreal("`stop'"), ///
+					strtoreal("`restart'"), ///
+					strtoreal("`seed'"), ///
+					1, 0)
+			
+			mata: st_local("iter", strofreal(`res_fimix'.niter))
+			mata: st_local("rN0", strofreal(`res_fimix'.rN0))
+			mata: st_local("rN_lte_5", strofreal(`res_fimix'.rN_lte_5))
+			mata: st_local("fimix_ll", strofreal(max(`res_fimix'.ll)))
+		}
+		if (_rc != 0) {
+			if (mod(`iter', 5) == 0) {
+				display as error " aborting"
+			}
+			else {
+				display as error "aborting"
+			}
+			if (real("`rN0'")) {
+				display as error "one class is empty"
+			}
+			else if (real("`rN_lte_5'")) {
+				display as error "too few observations (5 or less) assigned to a single class"
+			}
+			else if (_rc == 409) {
+				display as error "at least one indicator has zero variance in one of the iterations"
+			}
+			else {
+				display as error "something went wrong in the FIMIX-PLS calculations"
+			}
+			display as error "try reducing the number of classes " _continue
+			display as error "or relaxing any of the stopping criteria"
+			exit
+		}
 	}
-	if (_rc != 0) {
-		if (real("`rN0'")) {
-			display as error "one class is empty"
+	else {
+		display
+		display as text "Computing FIMIX-PLS solution with..."
+		
+		tempname ic_groups ic_tmp
+		foreach g of numlist `groups' {
+			if (`g' == 1) {
+				display as text "  --> " as result `g' as text " group  " _continue
+			}
+			else {
+				display as text "  --> " as result `g' as text " groups " _continue
+			}
+			capture noisily {
+				mata: `res_fimix' = ///
+					plssem_fimix( ///
+						st_data(., "`alllatents'"), ///			 note: `__touse__' not used here
+						st_matrix("e(adj_meas)"), ///
+						st_matrix("e(adj_struct)"), ///
+						"`allindicators'", ///
+						"`allstdindicators'", ///
+						"`alllatents'", ///
+						"`e(binarylvs)'", ///
+						st_numscalar("e(tolerance)"), ///
+						st_numscalar("e(maxiter)"), ///
+						"`__touse__'", ///
+						"`scheme'", ///
+						"`convcrit'", ///
+						"`init'", ///
+						"`scale'", ///
+						strtoreal("`isstruct'"), ///
+						strtoreal("`israwsum'"), ///
+						`g', ///
+						strtoreal("`maxiter'"), ///
+						strtoreal("`stop'"), ///
+						strtoreal("`restart'"), ///
+						strtoreal("`seed'"), ///
+						0, 1)
+				
+				mata: st_local("iter", strofreal(`res_fimix'.niter))
+				mata: st_local("rN0", strofreal(`res_fimix'.rN0))
+				mata: st_local("rN_lte_5", strofreal(`res_fimix'.rN_lte_5))
+				mata: st_local("fimix_ll", strofreal(max(`res_fimix'.ll)))
+			}
+			if (_rc != 0) {
+				if (mod(`iter', 5) == 0) {
+					display as error " aborting"
+				}
+				else {
+					display as error "aborting"
+				}
+				if (real("`rN0'")) {
+					display as error "one class is empty"
+				}
+				else if (real("`rN_lte_5'")) {
+					display as error "too few observations (5 or less) assigned to a single class"
+				}
+				else if (_rc == 409) {
+					display as error "at least one indicator has zero variance in one of the iterations"
+				}
+				else {
+					display as error "something went wrong in the FIMIX-PLS calculations"
+				}
+				display as error "try relaxing any of the stopping criteria"
+				exit
+			}
+			
+			mata: st_matrix("`ic_tmp'", `res_fimix'.ic)
+			matrix `ic_groups' = (nullmat(`ic_groups'), `ic_tmp')
+			local ic_cn "`ic_cn' `g'"
 		}
-		else if (real("`rN_lte_5'")) {
-			display as error "too few observations (5 or less) assigned to a single class"
+	}
+	/* End of FIMIX-PLS algorithm */
+	
+  /* Display results */
+  local skip1 = 1
+  local skip3 = 3
+	
+	if ("`groups'" == "") {
+		tempname tmp strb nonmiss alllen numeff
+		matrix `tmp' = e(struct_b)
+		matrix `strb' = vec(`tmp')
+		local nrows = rowsof(`tmp')
+		local ncols = colsof(`tmp')
+		local totrows = `nrows'*`ncols'
+		matrix `nonmiss' = J(`totrows', 1, 0)
+		local strb_rn : rowfullnames `strb'
+		forvalues i = 1/`totrows' {
+			if (!missing(`strb'[`i', 1])) {
+				matrix `nonmiss'[`i', 1] = 1
+				local nm_tmp `: word `i' of `strb_rn''
+				local tok_i = 1
+				tokenize `"`nm_tmp'"', parse(":")
+				while ("``tok_i''" != "") {
+					if (`tok_i' == 1) {
+						local nm_Y "``tok_i''"
+					}
+					else if (`tok_i' == 3) {
+						local nm_X "``tok_i''"
+					}
+					local ++tok_i
+				}
+				local strbok_rn "`strbok_rn' `nm_X':`nm_Y'"
+			}
 		}
-		else if (_rc == 409) {
-			display as error "at least one indicator has zero variance in one of the iterations"
+		mata: st_numscalar("`numeff'", colsum(st_matrix("`nonmiss'")))
+		local neff = `numeff'
+		matrix `alllen' = J(`neff', 1, .)
+		local resnm : subinstr local strbok_rn ":" "->", all
+		forvalues j = 1/`neff' {
+			local nm : word `j' of `resnm'
+			local nm_len : strlen local nm
+			matrix `alllen'[`j', 1] = `nm_len' + 2
 		}
-		else {
-			display as error "something went wrong in the FIMIX calculations"
+
+		tempname results_n results_p results_ic tmp_mat
+		local nind : word count `allindicators'
+		forvalues k = 1/`numclass' {
+			local grp_cn `grp_cn' "Class_`k'"
 		}
-		display as error "try reducing the number of classes " _continue
-		display as error "or relaxing any of the stopping criteria"
-		restore
-		_estimates unhold `globalmodel'
-		exit
+		matrix `results_n' = J(3, 1 + `numclass', .)
+		matrix rownames `results_n' = "Observations" "Percentage" "Mixture%%weight"
+		matrix colnames `results_n' = "Global" `grp_cn'
+		matrix `results_p' = J(`neff', 1 + `numclass', .)
+		matrix rownames `results_p' = `resnm'
+		matrix colnames `results_p' = "Global" `grp_cn'
+
+		tempname global_N
+		scalar `global_N' = e(N)
+		matrix `results_n'[1, 1] = e(N)
+		matrix `results_n'[2, 1] = 100
+
+		local b_i = 1
+		forvalues i = 1/`totrows' {
+			if (`nonmiss'[`i', 1]) {
+				matrix `results_p'[`b_i', 1] = `strb'[`i', 1]
+				local ++b_i
+			}
+		}
+		
+		tempname fimixclassfreq fimixrho
+		mata: st_matrix("`fimixclassfreq'", uniqrows(`res_fimix'.fimix_class, 1)[., 2])
+		mata: st_matrix("`fimixrho'", `res_fimix'.rho)
+		forvalues k = 1/`numclass' {
+			mata: st_matrix("`tmp'", `res_fimix'.path[`k', 1].mat)
+			matrix `strb' = vec(`tmp')
+
+			matrix `results_n'[1, 1 + `k'] = `fimixclassfreq'[`k', 1]
+			matrix `results_n'[2, 1 + `k'] = `fimixclassfreq'[`k', 1]/`global_N'*100
+			matrix `results_n'[3, 1 + `k'] = `fimixrho'[1, `k']
+			
+			local b_i = 1
+			forvalues i = 1/`totrows' {
+				if (`nonmiss'[`i', 1]) {
+					matrix `results_p'[`b_i', 1 + `k'] = `strb'[`i', 1]
+					local ++b_i
+				}
+			}
+		}
+		
+		mata: st_matrix("`results_ic'", `res_fimix'.ic)
+		matrix rownames `results_ic' = "AIC" "AIC3" "AIC4" "BIC" "CAIC" "HQ" ///
+																	 "MDL5" "LnL" "EN" "NFI" "NEC"
+		matrix colnames `results_ic' = "Value"
+		
+		mkheader, digits(5) fimix_it(`iter') fimix_ll(`fimix_ll')
+		
+		tempname maxlen
+		mata: st_numscalar("`maxlen'", max(st_matrix("`alllen'")))
+		local firstcollbl ""
+		local `maxlen' = max(strlen("`firstcollbl'"), `maxlen') + 2
+		local colw = max(10, `digits' + 5)
+
+		local title "FIMIX-PLS classes"
+		mktable, matrix(`results_n') digits(`digits') firstcolname(`firstcollbl') ///
+			title(`title') firstcolwidth(``maxlen'') colwidth(`colw') hlines(3) ///
+			novlines total rebus fimix
+
+		local title "Path coefficients"
+		local firstcollbl ""
+		mktable, matrix(`results_p') digits(`digits') firstcolname(`firstcollbl') ///
+			title(`title') firstcolwidth(``maxlen'') colwidth(`colw') hlines(`neff') ///
+			novlines total
+		
+		local title "Fit indices"
+		local firstcollbl ""
+		mktable, matrix(`results_ic') digits(`digits') firstcolname(`firstcollbl') ///
+			title(`title') firstcolwidth(``maxlen'') colwidth(`colw') hlines(11) ///
+			novlines total
+	}
+	else {
+		matrix rownames `ic_groups' = "AIC" "AIC3" "AIC4" "BIC" "CAIC" "HQ" ///
+																	"MDL5" "LnL" "EN" "NFI" "NEC"
+		matrix colnames `ic_groups' = `ic_cn'
+
+		local colw = max(11, `digits' + 5)
+		local title "FIMIX-PLS comparison"
+		local firstcollbl "Groups"
+		mktable, matrix(`ic_groups') digits(`digits') firstcolname(`firstcollbl') ///
+			title(`title') firstcolwidth(8) colwidth(`colw') hlines(11) ///
+			novlines total
+	}
+  /* End of display */
+
+	/* Save final classification */
+	if ("`groups'" == "") {
+		capture drop `name'
+		quietly generate int `name' = .
+		mata: st_store(., "`name'", "`__touse__'", `res_fimix'.fimix_class)
+		local now "`c(current_date)', `c(current_time)'"
+		local now : list clean now
+		label variable `name' "FIMIX-PLS classification [`now']"
+	}
+	
+	/* Clean up */
+	if ("`missing'" != "") {
+		mata: st_store(., tokens("`: list uniq allindicators'"), "`__touse__'", ///
+			`original_data')
+	}
+	
+	/* Return values */
+	if ("`groups'" == "") {
+		return scalar nclasses = `numclass'
+		tempname ll ll_c ll_restart
+		mata: st_matrix("`ll'", `res_fimix'.ll)
+		mata: st_matrix("`ll_c'", `res_fimix'.ll_c)
+		mata: st_matrix("`ll_restart'", `res_fimix'.ll_restart)
+		return matrix loglik_restart `ll_restart'
+		return matrix loglik_c `ll_c'
+		return matrix loglik `ll'
+		return matrix fitindices `results_ic'
+	}
+	else {
+		return matrix fitindices `ic_groups'
+	}
+	
+	/* Maximum number of iterations reached */
+	if (`iter' > `maxiter') {
+		display as error "warning: FIMIX-PLS algorithm did not converge"
+		display as error "the solution provided may not be acceptable; " _continue
+		display as error "try to relax any of the stopping criteria"
 	}
 end

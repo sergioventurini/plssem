@@ -1,7 +1,54 @@
 *!plssem_mata version 0.3.0
-*!Written 07OCt2017
+*!Written 31Mar2018
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
+
+capture mata: mata drop ///
+	plssem_struct() ///
+	plssem_scale() ///
+	plssem_scale_mat() ///
+	plssem_init() ///
+	plssem_init_mat() ///
+	plssem_base() ///
+	plssem_lv() ///
+	plssem_pval() ///
+	plssem_pathtab() ///
+	plssem_struct_boot() ///
+	plssem_boot() ///
+	plssem_boot_lm() ///
+	plssem_boot_pm() ///
+	plssem_boot_lv() ///
+	plssem_boot_pv() ///
+	plssem_reliability() ///
+	plssem_vif() ///
+	plssem_mga_perm() ///
+	plssem_mga_perm_diff() ///
+	plssem_mga_boot() ///
+	plssem_mga_boot_diff() ///
+	scale() ///
+	unscale() ///
+	sd() ///
+	which() ///
+	cronbach() ///
+	meanimp() ///
+	knnimp() ///
+	euclidean_dist() ///
+	rdirichlet() ///
+	plssem_rebus_cm() ///
+	plssem_rebus_gqi() ///
+	plssem_struct_rebus() ///
+	plssem_rebus() ///
+	plssem_rebus_ptest() ///
+	plssem_struct_matrix() ///
+	plssem_struct_fimix() ///
+	plssem_fimix_ll() ///
+	plssem_fimix_ll_em() ///
+	plssem_fimix_estep() ///
+	plssem_fimix_ic() ///
+	plssem_fimix() ///
+	print_struct_matrix() ///
+	prod() ///
+	cleanup()
 
 version 14.2
 mata:
@@ -46,7 +93,7 @@ struct plssem_struct_boot {
 
 struct plssem_struct_rebus {
 	real scalar niter						// number of iterations to reach convergence
-	real colvector rebus_class	// column vector of the final attributed classes
+	real colvector rebus_class	// column vector of the final class memberships
 	real colvector touse_vec		// column vector for the observations used
 	real scalar rN0							// indicator that any of the classes is empty
 	real scalar rN_lte_5				// indicator that any of the classes has 5
@@ -62,14 +109,23 @@ struct plssem_struct_matrix {
 
 struct plssem_struct_fimix {
 	real scalar niter						// number of iterations to reach convergence
-	real colvector fimix_class	// column vector of the final attributed classes
-	real colvector touse_vec		// column vector for the observations used
+	real colvector fimix_class	// column vector of the final class memberships
+	real colvector touse_vec		// column vector of the observations used
 	real scalar rN0							// indicator that any of the classes is empty
 	real scalar rN_lte_5				// indicator that any of the classes has 5
 															// observations or less
 	real scalar nclass					// number of classes
-	real scalar maxiter					// maximum number of REBUS iterations
-	real scalar stop						// REBUS stopping criterion
+	real scalar maxiter					// maximum number of FIMIX iterations
+	real scalar stop						// FIMIX stopping criterion
+	real scalar restart					// number of restarts of the EM algorithm
+	real rowvector rho					// row vector of mixture proportions
+	struct plssem_struct_matrix ///
+		colvector path						// column vector structure with path coefficients
+	real colvector ll						// column vector of incomplete loglikelihood values
+	real colvector ll_c					// column vector of complete loglikelihood values
+	real colvector ll_restart		// column vector of incomplete loglikelihood
+															//   values across the different restarts
+	real matrix ic							// real matrix of information criteria
 }
 
 void plssem_scale(real matrix X, string scalar stdind, string scalar touse,
@@ -898,7 +954,7 @@ struct plssem_struct_boot scalar plssem_boot(real matrix X, real matrix Yinit,
 	
 	if (noisily) {
 		printf("{txt}\n")
-		printf("{txt}Bootstrap replications (")
+		printf("{txt}PLS-SEM --> Bootstrap replications (")
 		printf("{res}%f", B)
 		printf("{txt})\n")
 		printf("{hline 4}{c +}{hline 3} 1 ")
@@ -1374,7 +1430,7 @@ class AssociativeArray scalar plssem_mga_perm(real matrix X, real matrix Yinit,
 	
 	if (noisily) {
 		printf("{txt}\n")
-		printf("{txt}Permutation replications (")
+		printf("{txt}Multigroup analysis --> Permutation test replications (")
 		printf("{res}%f", B)
 		printf("{txt})\n")
 		printf("{hline 4}{c +}{hline 3} 1 ")
@@ -1586,7 +1642,7 @@ class AssociativeArray scalar plssem_mga_boot(real matrix X, real matrix Yinit,
 	
 	if (noisily) {
 		printf("{txt}\n")
-		printf("{txt}Bootstrap replications (")
+		printf("{txt}Multigroup analysis --> Bootstrap replications (")
 		printf("{res}%f", B)
 		printf("{txt})\n")
 		printf("{hline 4}{c +}{hline 3} 1 ")
@@ -2035,7 +2091,7 @@ void knnimp(real matrix X, string scalar vars, real scalar k,
 	if (R > 0) {
 		if (noisily) {
 			printf("{txt}\n")
-			printf("{txt}Imputing ")
+			printf("{txt}PLS-SEM --> Imputing ")
 			printf("{res}%f", R)
 			printf("{txt} missing values using k nearest neighbors ")
 			printf("{txt}(with k = " + strtrim(strofreal(k, "%9.0f")))
@@ -2335,7 +2391,7 @@ struct plssem_struct_rebus scalar plssem_rebus(real matrix X, real matrix M,
 	real matrix cm, Xsc, Yinit, Xreb, Xrebsc, Xreb_all, Xrebsc_all, ow, path, ///
 		loads, y, y_local, block, x_hat, y_hat, out_res, inn_res
 	real scalar iter, N, nchanged, k, P, p, rN0, rN_lte_5
-	string scalar touse_loc_name
+	string scalar touse_loc_name, todisp
 	real colvector modes, touse_vec, rebus_class, touse_loc, old_class, ///
 		new_class, class_freq
 	real rowvector r2, endo
@@ -2565,7 +2621,7 @@ real colvector plssem_rebus_ptest(real matrix X, real matrix M, real matrix S,
 	
 	if (noisily) {
 		printf("{txt}\n")
-		printf("{txt}Permutation replications (")
+		printf("{txt}REBUS-PLS --> Permutation replications (")
 		printf("{res}%f", B)
 		printf("{txt})\n")
 		printf("{hline 4}{c +}{hline 3} 1 ")
@@ -2666,7 +2722,57 @@ real colvector plssem_rebus_ptest(real matrix X, real matrix M, real matrix S,
 	return(gqi_perm)
 }
 
-real scalar plssem_fimix_ll(real matrix eta, real matrix xi,
+real scalar plssem_fimix_ll(real matrix eta, real matrix xi, real rowvector rho,
+	struct plssem_struct_matrix colvector B,
+	struct plssem_struct_matrix colvector Gamma,
+	struct plssem_struct_matrix colvector Psi)
+{
+	/* Description:
+		 ------------
+		 Function that computes the incomplete log-likelihood for the FIMIX-PLS
+		 method
+	*/
+	
+	/* Arguments:
+		 ----------
+		 - eta				--> real matrix containing the endogenous latent variables
+		 - xi			 		--> real matrix containing the exogenous latent variables
+		 - rho				--> real colvector the mixing proportions
+		 - B					--> struct plssem_struct_matrix colvector containing some
+											inner model coefficients (endogenous latent variables)
+		 - Gamma			--> struct plssem_struct_matrix colvector containing some
+											inner model coefficients (exogenous latent variables)
+		 - Psi				--> struct plssem_struct_matrix colvector containing some
+											inner model coefficients (variances)
+	*/
+	
+	/* Returned value:
+		 ---------------
+		 - ll					--> real scalar corresponding to the log-likelihood value
+	*/
+
+	real scalar i, n, k, K, P, ll, ll_i, f_ik
+	real colvector zeta
+	
+	n = rows(eta)
+	K = length(B)
+	P = cols(eta)
+	ll = 0
+	
+	for (i = 1; i <= n; i++) {
+		ll_i = 0
+		for (k = 1; k <= K; k++) {
+			zeta = (I(P) - B[k, 1].mat)'*eta[i, .]' - Gamma[k, 1].mat*xi[i, .]'
+			f_ik = lnmvnormalden(J(1, P, 0), Psi[k, 1].mat, zeta)
+			ll_i = ll_i + rho[k]*exp(f_ik)
+		}
+		ll = ll + ln(ll_i)
+	}
+	
+	return(ll)
+}
+
+real scalar plssem_fimix_ll_em(real matrix eta, real matrix xi,
 	real matrix P_ik, real rowvector rho, 
 	struct plssem_struct_matrix colvector B,
 	struct plssem_struct_matrix colvector Gamma,
@@ -2674,7 +2780,7 @@ real scalar plssem_fimix_ll(real matrix eta, real matrix xi,
 {
 	/* Description:
 		 ------------
-		 Function that computes the complete log-likelihood in the FIMIX-PLS method
+		 Function that computes the complete log-likelihood for the FIMIX-PLS method
 	*/
 	
 	/* Arguments:
@@ -2696,17 +2802,19 @@ real scalar plssem_fimix_ll(real matrix eta, real matrix xi,
 		 - ll					--> real scalar corresponding to the log-likelihood value
 	*/
 
-	real scalar i, n, k, K, ll
+	real scalar i, n, k, K, P, ll, f_ik
+	real colvector zeta
 	
 	n = rows(eta)
+	P = cols(eta)
 	K = length(B)
 	ll = 0
 	
 	for (i = 1; i <= n; i++) {
 		for (k = 1; k <= K; k++) {
-			ll = ll + P_ik[i, k]*(lnmvnormalden(B[k, 1].mat'*eta[i, .]' + ///
-				Gamma[k, 1].mat*xi[i, .]', Psi[k, 1].mat, eta[i, .]) + ///
-				ln(rho[k]))
+			zeta = (I(P) - B[k, 1].mat)'*eta[i, .]' - Gamma[k, 1].mat*xi[i, .]'
+			f_ik = lnmvnormalden(J(1, P, 0), Psi[k, 1].mat, zeta)
+			ll = ll + P_ik[i, k]*(f_ik + ln(rho[k]))
 		}
 	}
 	
@@ -2742,8 +2850,8 @@ real matrix plssem_fimix_estep(real rowvector rho, real matrix eta,
 		 - P_ik				--> real matrix containing the posterior mixture proportions
 	*/
 
-	real scalar P_ik, i, n, k, P, K
-	real matrix tmp
+	real scalar P_ik, i, n, k, K, P, f_ik
+	real colvector zeta
 	
 	n = rows(eta)
 	P = cols(eta)
@@ -2752,13 +2860,9 @@ real matrix plssem_fimix_estep(real rowvector rho, real matrix eta,
 	
 	for (i = 1; i <= n; i++) {
 		for (k = 1; k <= K; k++) {
-			P_ik[i, k] = exp(lnmvnormalden(B[k, 1].mat'*eta[i, .]' + ///
-				Gamma[k, 1].mat*xi[i, .]', Psi[k, 1].mat, eta[i, .]))*rho[k]
-			/*
-			tmp = (I(P) - B[k, 1].mat)'*eta[i, .]' - Gamma[k, 1].mat*xi[i, .]'
-			P_ik[i, k] = exp(-.5*P*ln(2*pi()) - .5*ln(det(Psi[k, 1].mat)) - ///
-				.5*quadcross(tmp, diagonal(1 :/ Psi[k, 1].mat), tmp))*rho[k]
-			*/
+			zeta = (I(P) - B[k, 1].mat)'*eta[i, .]' - Gamma[k, 1].mat*xi[i, .]'
+			f_ik = lnmvnormalden(J(1, P, 0), Psi[k, 1].mat, zeta)
+			P_ik[i, k] = rho[k]*exp(f_ik)
 		}
 	}
 	//P_ik = P_ik :/ rowsum(P_ik)
@@ -2767,13 +2871,75 @@ real matrix plssem_fimix_estep(real rowvector rho, real matrix eta,
 	return(P_ik)
 }
 
+real matrix plssem_fimix_ic(real scalar lnL, real scalar lnL_1, real scalar N,
+	real scalar Q, real scalar R, real scalar K, real matrix P_ik)
+{
+	/* Description:
+		 ------------
+		 Function that computes the information criteria for a FIMIX-PLS analysis
+	*/
+	
+	/* Arguments:
+		 ----------
+		 - lnL				--> real scalar providing the model's loglikelihood value
+		 - lnL_1			--> real scalar providing the model's loglikelihood value
+											when K = 1
+		 - N					--> real scalar providing the sample size
+		 - Q			 		--> real scalar providing the number of endogenous latent
+											variables
+		 - R					--> real scalar providing the number of coefficients in the
+											inner model
+		 - K					--> real scalar providing the number of classes/segments
+		 - P_ik				--> real matrix containing the a posteriori probability of
+											observation i belonging to segment k
+	*/
+	
+	/* Returned value:
+		 ---------------
+		 - ic					--> real matrix containing the information criteria, that is
+											- AIC		Akaike's Information Criterion
+											- AIC3	Modified AIC with Factor 3
+											- AIC4	Modified AIC with Factor 4
+											- BIC		Bayesian Information Criteria
+											- CAIC	Consistent AIC
+											- HQ		Hannan Quinn Criterion
+											- MDL5	Minimum Description Length with Factor 5
+											- LnL		Log-likelihood
+											- EN		Entropy Statistic (Normed)
+											- NFI		Non-Fuzzy Index
+											- NEC		Normalized Entropy Criterion
+	*/
+	
+	real scalar NK, ES
+	real matrix ic
+	
+	NK = (K - 1) + K*R + K*Q
+	ES = -sum(P_ik :* ln(P_ik))
+	
+	ic = J(11, 1, .)
+	
+	ic[1, 1] = -2*lnL + 2*NK
+	ic[2, 1] = -2*lnL + 3*NK
+	ic[3, 1] = -2*lnL + 4*NK
+	ic[4, 1] = -2*lnL + ln(N)*NK
+	ic[5, 1] = -2*lnL + (ln(N) + 1)*NK
+	ic[6, 1] = -2*lnL + 2*ln(ln(N))*NK
+	ic[7, 1] = -2*lnL + 5*ln(N)*NK
+	ic[8, 1] = lnL
+	ic[9, 1] = 1 - ES/(N*ln(K))
+	ic[10, 1] = (K*sum(P_ik :^ 2) - N)/(N*(K - 1))
+	ic[11, 1] = ES/(lnL - lnL_1)
+	
+	return(ic)
+}
+
 struct plssem_struct_fimix scalar plssem_fimix(real matrix Y, real matrix M,
 	real matrix S, string scalar ind, string scalar stdind, string scalar latents,
 	string scalar binary, real scalar tol, real scalar maxit, string scalar touse,
 	string scalar scheme, string scalar crit, string scalar init,
 	string scalar scale, real scalar structural, real scalar rawsum,
-	string scalar fimix_cl, real scalar K, real scalar maxit_fim,
-	real scalar stop, |real scalar seed, real scalar noisily)
+	real scalar K, real scalar maxit_fim, real scalar stop, |real scalar restart,
+	real scalar seed, real scalar noisily, real scalar groups)
 {
 	/* Description:
 		 ------------
@@ -2811,15 +2977,17 @@ struct plssem_struct_fimix scalar plssem_fimix(real matrix Y, real matrix M,
 											and 0 otherwise
 		 - rawsum			--> real scalar equal to 1 if the 'rawsum' option has been
 											chosen
-		 - fimix_cl		--> string scalar providing the variable with the FIMIX
-											classes
 		 - K					--> real scalar providing the number of FIMIX classes
 		 - maxit_fim	--> real scalar providing the maximum number of FIMIX
 											iterations
 		 - stop				--> real scalar providing the FIMIX stopping criterion
+		 - restart		--> (optional) real scalar number of repetitions of the EM
+											algorithm (default 10)
 		 - seed				--> (optional) real scalar providing the seed
 		 - noisily		--> (optional) real scalar; if not 0, it prints the EM
 											iterations
+		 - groups			--> (optional) real scalar; indicator of whether many
+											FIMIX-PLS are required
 	*/
 	
 	/* Returned value:
@@ -2829,14 +2997,23 @@ struct plssem_struct_fimix scalar plssem_fimix(real matrix Y, real matrix M,
 
 	struct plssem_struct_fimix scalar res_fimix
 	struct plssem_struct_matrix scalar mat
-	struct plssem_struct_matrix colvector B, Gamma, Psi
+	struct plssem_struct_matrix colvector B, Gamma, Psi, B_best, Gamma_best, ///
+		Psi_best, path_coef, path_coef_best
 
-	real matrix P_ik, eta, xi, y, x, xx, xy, yhat, B_k, Gamma_k, Psi_k
-	real scalar V, iter, n, N, i, k, nendo, nexo, P, p, jj, sse, omega, ///
-		rN0, rN_lte_5, delta_ll, old_ll, new_ll
-	real colvector touse_vec, Sind, beta_tmp, beta
-	real rowvector rho, endo, exo
+	real matrix P_ik, P_ik_best, eta, xi, y, x, xx, xy, yhat, beta, beta_tmp, ///
+		B_k, Gamma_k, Psi_k, ic
+	real scalar iter, n, N, i, k, r, nendo, nexo, P, p, jj, sse, omega, ///
+		rN0, rN_lte_5, delta_Q, old_Q, new_Q, new_ll, old_ll, iter_best, ///
+		lnL_best, lnL_c_best, ll_restart, R, Q, lnL_1, skip
+	real colvector touse_vec, Sind, tau, iter_all, lnL_all, ///
+		lnL_c_all, fimix_class, class_freq, lnL_iter, lnL_c_iter, lnL_iter_best, ///
+		lnL_c_iter_best
+	real rowvector rho, endo, exo, rho_best
+	string scalar todisp, spaces
 	
+	if (restart == .) {
+		restart = 10
+	}
 	if (seed != .) {
 		rseed(seed)
 	}
@@ -2844,37 +3021,44 @@ struct plssem_struct_fimix scalar plssem_fimix(real matrix Y, real matrix M,
 		noisily = 1
 	}
 	
-	iter = 1
 	touse_vec = st_data(., touse)
 	P = cols(Y)
 	n = rows(Y)
 	N = sum(touse_vec)
-	V = mindouble()
 	endo = (colsum(S)	:> 0)			 // indicators for the endogenous latent variables
 	exo = (colsum(S) :== 0)			 // indicators for the exogenous latent variables
-	eta = Y[., selectindex(endo)]
-	xi = Y[., selectindex(exo)]
+	eta = Y[selectindex(touse_vec), selectindex(endo)]
+	xi = Y[selectindex(touse_vec), selectindex(exo)]
 	nendo = cols(eta)
 	nexo = cols(xi)
 	
 	B = J(K, 1, mat)
 	Gamma = J(K, 1, mat)
 	Psi = J(K, 1, mat)
-		
-	// Random initialization
-	P_ik = rdirichlet(N, J(1, K, 1/K))
-	rho = mean(P_ik)
-	
-	// EM iterations
-	old_ll = V
-	delta_ll = maxdouble()
-	while ((iter <= maxit_fim) & (delta_ll > stop)) {
-		if (noisily) {
-			/*
-			if (mod(b, 50) == 0) {
-				todisp = strtrim(strofreal(b, "%9.0f"))
-				if (strlen(todisp) < strlen(strofreal(B))) {
-					skip = strlen(strofreal(B)) - strlen(todisp)
+	path_coef = J(K, 1, mat)
+	iter_all = J(restart, 1, .)
+	lnL_all = J(restart, 1, .)
+	lnL_c_all = J(restart, 1, .)
+	ic = J(11, 1, .)
+
+	if ((noisily) & (restart > 1)) {
+		printf("{txt}\n")
+		printf("{txt}FIMIX-PLS --> EM algorithm runs (")
+		printf("{res}%f", restart)
+		printf("{txt})\n")
+		printf("{hline 4}{c +}{hline 3} 1 ")
+		printf("{hline 3}{c +}{hline 3} 2 ")
+		printf("{hline 3}{c +}{hline 3} 3 ")
+		printf("{hline 3}{c +}{hline 3} 4 ")
+		printf("{hline 3}{c +}{hline 3} 5\n")
+	}
+	skip = 0
+	for (r = 1; r <= restart; r++) {
+		if ((noisily) & (restart > 1)) {
+			if (mod(r, 50) == 0) {
+				todisp = strtrim(strofreal(r, "%9.0f"))
+				if (strlen(todisp) < strlen(strofreal(restart))) {
+					skip = strlen(strofreal(restart)) - strlen(todisp)
 				}
 				spaces = ""
 				for (i = 1; i <= (skip + 3); i++) {
@@ -2886,11 +3070,22 @@ struct plssem_struct_fimix scalar plssem_fimix(real matrix Y, real matrix M,
 			else {
 				printf("{txt}.")
 			}
-			*/
+			displayflush()
+		}
+		if (groups) {
+			printf("{txt}.")
 			displayflush()
 		}
 		
-		// Compute B, Gamma and Psi
+		// Reset likelihood vectors at each EM run
+		lnL_iter = J(0, 1, .)
+		lnL_c_iter = J(0, 1, .)
+		
+		// Random initialization of P_ik
+		P_ik = rdirichlet(N, J(1, K, 1/K))
+
+		// Initial M-step (compute B, Gamma and Psi)
+		rho = mean(P_ik)
 		for (k = 1; k <= K; k++) {
 			beta = J(P, P, 0)
 			B_k = J(nendo, nendo, 0)
@@ -2900,57 +3095,273 @@ struct plssem_struct_fimix scalar plssem_fimix(real matrix Y, real matrix M,
 			for (p = 1; p <= P; p++) {
 				Sind = selectindex(S[., p])
 				if (endo[1, p]) {
-					//x = (J(n, 1, 1), Y[., Sind])
-					x = Y[., Sind]
-					y = Y[., p]
+					//x = (J(N, 1, 1), Y[., Sind])
+					x = Y[selectindex(touse_vec), Sind]
+					y = Y[selectindex(touse_vec), p]
 					xx = quadcross(x, P_ik[., k], x)
 					xy = quadcross(x, P_ik[., k], y)
-					beta_tmp = qrsolve(xx, xy)
-					//beta[Sind, p] = beta_tmp[|2 \ .|]
-					beta[Sind, p] = beta_tmp
-					yhat = x * beta_tmp
+					tau = qrsolve(xx, xy)
+					//beta[Sind, p] = tau[|2 \ .|]
+					beta[Sind, p] = tau
+					yhat = x * tau
 					sse = quadcross((y - yhat), P_ik[., k], (y - yhat))
-					omega = sse/(n*rho[k])
+					omega = sse/(N*rho[k])
 					Psi_k[jj, jj] = omega
 					jj++
 				}
 			}
 			B_k = beta[selectindex(endo), selectindex(endo)]
 			Gamma_k = beta[selectindex(exo), selectindex(endo)]'
-			/*
-			B_k
-			Gamma_k
-			Psi_k
-			*/
 			B[k, 1].mat = B_k
 			Gamma[k, 1].mat = Gamma_k
 			Psi[k, 1].mat = Psi_k
 		}
 		
-		// E-step
-		P_ik = plssem_fimix_estep(rho, eta, xi, B, Gamma, Psi)
-		_editmissing(P_ik, 0)
-		rho = mean(P_ik)
+		// EM iterations
+		iter = 1
+		new_Q = mindouble()/2 //plssem_fimix_ll_em(eta, xi, P_ik, rho, B, Gamma, Psi)
+		delta_Q = maxdouble()/2
+		while ((iter <= maxit_fim) & (delta_Q >= stop)) {
+			/*
+			if (noisily) {
+				if (iter == 1) {
+					printf("{txt}FIMIX iteration 1")
+				}
+				else if (mod(iter, 5) == 0) {
+					todisp = strtrim(strofreal(iter, "%9.0f"))
+					printf("{txt}" + todisp)
+				}
+				else {
+					printf("{txt}.")
+				}
+				displayflush()
+			}
+			*/
+			
+			// E-step
+			P_ik = plssem_fimix_estep(rho, eta, xi, B, Gamma, Psi)
+			_editmissing(P_ik, 0)
+
+			old_Q = new_Q
+			old_ll = new_ll
+			
+			// M-step (compute B, Gamma and Psi)
+			rho = mean(P_ik)
+			for (k = 1; k <= K; k++) {
+				beta = J(P, P, 0)
+				B_k = J(nendo, nendo, 0)
+				Gamma_k = J(nendo, nexo, 0)
+				Psi_k = J(nendo, nendo, 0)
+				jj = 1
+				for (p = 1; p <= P; p++) {
+					Sind = selectindex(S[., p])
+					if (endo[1, p]) {
+						//x = (J(N, 1, 1), Y[., Sind])
+						x = Y[selectindex(touse_vec), Sind]
+						y = Y[selectindex(touse_vec), p]
+						xx = quadcross(x, P_ik[., k], x)
+						xy = quadcross(x, P_ik[., k], y)
+						tau = qrsolve(xx, xy)
+						//beta[Sind, p] = tau[|2 \ .|]
+						beta[Sind, p] = tau
+						yhat = x * tau
+						sse = quadcross((y - yhat), P_ik[., k], (y - yhat))
+						omega = sse/(N*rho[k])
+						Psi_k[jj, jj] = omega
+						jj++
+					}
+				}
+				B_k = beta[selectindex(endo), selectindex(endo)]
+				Gamma_k = beta[selectindex(exo), selectindex(endo)]'
+				B[k, 1].mat = B_k
+				Gamma[k, 1].mat = Gamma_k
+				Psi[k, 1].mat = Psi_k
+				beta_tmp = select(beta, rowsum(beta))
+				beta_tmp = select(beta_tmp, colsum(beta_tmp))
+				path_coef[k, 1].mat = beta_tmp
+				_editvalue(path_coef[k, 1].mat, 0, .)
+			}
+			
+			// Compute the complete and incomplete loglikelihood
+			new_Q = plssem_fimix_ll_em(eta, xi, P_ik, rho, B, Gamma, Psi)
+			delta_Q = abs(new_Q - old_Q)
+			lnL_c_iter = (lnL_c_iter \ new_Q)
+			new_ll = plssem_fimix_ll(eta, xi, rho, B, Gamma, Psi)
+			lnL_iter = (lnL_iter \ new_ll)
+			
+			iter++
+		}
+		iter_all[r] = (iter - 1)
+		lnL_all[r] = new_ll
+		lnL_c_all[r] = new_Q
 		
-		// Compute the loglikelihood
-		new_ll = plssem_fimix_ll(eta, xi, P_ik, rho, B, Gamma, Psi)
-		delta_ll = (new_ll - old_ll)
-		old_ll = new_ll
-		
-		iter++
+		if (r == 1) {
+			iter_best = (iter - 1)
+			lnL_best = new_ll
+			lnL_c_best = new_Q
+			B_best = B
+			Gamma_best = Gamma
+			path_coef_best = path_coef
+			Psi_best = Psi
+			rho_best = rho
+			P_ik_best = P_ik
+			lnL_iter_best = lnL_iter
+			lnL_c_iter_best = lnL_c_iter
+		}
+		else {
+			if (lnL_all[r] > lnL_best) {
+				iter_best = (iter - 1)
+				lnL_best = new_ll
+				lnL_c_best = new_Q
+				B_best = B
+				Gamma_best = Gamma
+				path_coef_best = path_coef
+				Psi_best = Psi
+				rho_best = rho
+				P_ik_best = P_ik
+				lnL_iter_best = lnL_iter
+				lnL_c_iter_best = lnL_c_iter
+			}
+		}
+	}
+	if ((noisily) & (restart > 1)) {
+		printf("{txt}\n")
+		displayflush()
+	}
+	if (groups) {
+		printf("{txt}\n")
+		displayflush()
 	}
 	
+	// Final classification
+	fimix_class = which(P_ik_best, "max")
+	class_freq = uniqrows(fimix_class, 1)[., 2]
+	if (anyof(class_freq, 0)) {
+		rN0 = 1
+	}
+	else {
+		rN0 = 0
+	}
+	if (any(class_freq :<= 5)) {
+		rN_lte_5 = 1
+	}
+	else {
+		rN_lte_5 = 0
+	}
+	
+	// Information criteria and fit indices
+	B = J(1, 1, mat)
+	Gamma = J(1, 1, mat)
+	Psi = J(1, 1, mat)
+	beta = J(P, P, 0)
+	Psi_k = J(nendo, nendo, 0)
+	jj = 1
+	for (p = 1; p <= P; p++) {
+		Sind = selectindex(S[., p])
+		if (endo[1, p]) {
+			//x = (J(N, 1, 1), Y[., Sind])
+			x = Y[selectindex(touse_vec), Sind]
+			y = Y[selectindex(touse_vec), p]
+			xx = quadcross(x, x)
+			xy = quadcross(x, y)
+			tau = qrsolve(xx, xy)
+			//beta[Sind, p] = tau[|2 \ .|]
+			beta[Sind, p] = tau
+			yhat = x * tau
+			sse = quadcross((y - yhat), (y - yhat))
+			omega = sse/N
+			Psi_k[jj, jj] = omega
+			jj++
+		}
+	}
+	B[1, 1].mat = beta[selectindex(endo), selectindex(endo)]
+	Gamma[1, 1].mat = beta[selectindex(exo), selectindex(endo)]'
+	Psi[1, 1].mat = Psi_k
+	lnL_1 = plssem_fimix_ll(eta, xi, J(1, 1, 1), B, Gamma, Psi)
+
+	Q = length(selectindex(endo))
+	R = sum(S[., selectindex(endo)])
+	//R = R + Q  // to use if intercepts are included in the inner model regressions
+	ic = plssem_fimix_ic(lnL_best, lnL_1, N, Q, R, K, P_ik_best)
+	
 	// Assigning results to structure's members
-	res_fimix.niter = (iter - 1)
-	res_fimix.fimix_class = .
-	res_fimix.touse_vec = .
+	res_fimix.niter = iter_best
+	res_fimix.fimix_class = fimix_class
+	res_fimix.touse_vec = touse_vec
 	res_fimix.rN0 = rN0
 	res_fimix.rN_lte_5 = rN_lte_5
 	res_fimix.nclass = K
 	res_fimix.maxiter = maxit_fim
 	res_fimix.stop = stop
+	res_fimix.restart = restart
+	res_fimix.rho = rho_best
+	res_fimix.path = path_coef_best
+	res_fimix.ll = lnL_iter_best
+	res_fimix.ll_c = lnL_c_iter_best
+	res_fimix.ll_restart = lnL_all
+	res_fimix.ic = ic
 	
 	return(res_fimix)
+}
+
+void print_struct_matrix(struct plssem_struct_matrix colvector A)
+{
+	/* Description:
+		 ------------
+		 Function that prints the elements of a struct of plssem_struct_matrix
+		 objects
+	*/
+	
+	/* Arguments:
+		 ----------
+		 - A					--> struct of plssem_struct_matrix objects in a colvector
+											layout
+	*/
+	
+	/* Returned value:
+		 ---------------
+		 - void 			--> no object returned
+	*/
+
+	real scalar i, j, nr, nc
+	
+	nr = rows(A)
+	nc = cols(A)
+	
+	for (i = 1; i <= nr; i++) {
+		for (j = 1; j <= nc; j++) {
+			A[i, j].mat
+		}
+	}
+}
+
+real scalar prod(real vector v)
+{
+	/* Description:
+		 ------------
+		 Function that computes the product of a vector's elements
+	*/
+	
+	/* Arguments:
+		 ----------
+		 - v					--> vector of real elements
+	*/
+	
+	/* Returned value:
+		 ---------------
+		 - res 				--> product of the v vector's elements
+	*/
+
+	real scalar i, nr, res
+	
+	nr = length(v)
+	
+	res = 1
+	for (i = 1; i <= nr; i++) {
+		res = res*v[i]
+	}
+	
+	return(res)
 }
 
 void cleanup()
@@ -2979,10 +3390,64 @@ void cleanup()
 		rmexternal(names[i])
 	}
 }
+
 end
 
 ********************************************************************************
 
 mata: mata mlib create lplssem, dir(PERSONAL) replace
-mata: mata mlib add lplssem *()
+// mata: mata describe *()
+// mata: mata mlib add lplssem *()
+mata: mata mlib add lplssem ///
+	plssem_struct() ///
+	plssem_scale() ///
+	plssem_scale_mat() ///
+	plssem_init() ///
+	plssem_init_mat() ///
+	plssem_base() ///
+	plssem_lv() ///
+	plssem_pval() ///
+	plssem_pathtab() ///
+	plssem_struct_boot() ///
+	plssem_boot() ///
+	plssem_boot_lm() ///
+	plssem_boot_pm() ///
+	plssem_boot_lv() ///
+	plssem_boot_pv() ///
+	plssem_reliability() ///
+	plssem_vif() ///
+	plssem_mga_perm() ///
+	plssem_mga_perm_diff() ///
+	plssem_mga_boot() ///
+	plssem_mga_boot_diff() ///
+	scale() ///
+	unscale() ///
+	sd() ///
+	which() ///
+	cronbach() ///
+	meanimp() ///
+	knnimp() ///
+	euclidean_dist() ///
+	rdirichlet() ///
+	plssem_rebus_cm() ///
+	plssem_rebus_gqi() ///
+	plssem_struct_rebus() ///
+	plssem_rebus() ///
+	plssem_rebus_ptest() ///
+	plssem_struct_matrix() ///
+	plssem_struct_fimix() ///
+	plssem_fimix_ll() ///
+	plssem_fimix_ll_em() ///
+	plssem_fimix_estep() ///
+	plssem_fimix_ic() ///
+	plssem_fimix() ///
+	print_struct_matrix() ///
+	prod() ///
+	cleanup()
 mata: mata mlib index
+mata: mata describe using lplssem
+
+copy "/Users/Sergio/Library/Application Support/Stata/ado/personal/lplssem.mlib" ///
+	"/Users/Sergio/dev/plssem/mlib/lplssem.mlib", replace
+copy "/Users/Sergio/Library/Application Support/Stata/ado/personal/lplssem.mlib" ///
+	"/Users/Sergio/Dropbox (Personal)/plssem/mlib/lplssem.mlib", replace

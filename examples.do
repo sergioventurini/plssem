@@ -129,7 +129,7 @@ bysort group: plssem (Expectation > CUEX1-CUEX3) (Satisfaction > CUSA1-CUSA3) //
 /* Example 11 */
 /* ---------- */
 clear all
-set obs 1000
+set obs 100
 set seed 123
 generate ITEM1 = rbinomial(6, .5)
 generate ITEM2 = rbinomial(6, .5)
@@ -141,8 +141,8 @@ kdensity ITEM3
 */
 plssem (lv1 > ITEM1) (lv2 > ITEM2-ITEM3), structural(lv1 lv2) digits(8)
 
-set matsize 10000
-estat unobshet, method(rebus)
+// [ERROR] ==> try running the example twice; the second time it usually gives an error
+estat unobshet, method(rebus) numclass(2) digits(5) dendro test plot reps(1000)
 
 /* Example 12 */
 /* ---------- */
@@ -283,6 +283,7 @@ plssem (Expectation > CUEX1-CUEX3) (Satisfaction > CUSA1-CUSA3) ///
 
 estat unobshet, test reps(300) //plot
 estat unobshet, numclass(5) stop(.1) name("rebus_cluster_f") method("fimix")
+estat unobshet, stop(1e-3) method("fimix") restart(3) groups(1/8)
 	
 /* Example 20 */
 /* ---------- */

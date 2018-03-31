@@ -1,5 +1,5 @@
 *!plssem version 0.3.0
-*!Written 04Oct2017
+*!Written 31Mar2018
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -2009,10 +2009,10 @@ program Display
 			matrix rownames `loadings_pval' = `:rowfullnames `loadings''
 			matrix colnames `loadings_pval' = `:colfullnames `loadings''
 			if (!`isboot') {
-				local title_meas "Measurement model - Standardized loadings p-values"
+				local title_meas "Measurement model - Standardized loading p-values"
 			}
 			else {
-				local title_meas "Measurement model - Standardized loadings p-values (Bootstrap)"
+				local title_meas "Measurement model - Standardized loading p-values (Bootstrap)"
 			}
 			mktable, matrix(`loadings_pval') digits(`digits') firstcolname("") ///
 				title(`title_meas') firstcolwidth(14) colwidth(14) ///

@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 0.0.1  06Oct2017}{...}
+{* *! version 0.0.1  31Mar2018}{...}
 {vieweralsosee "plssem" "help plssem"}{...}
 {vieweralsosee "plssemplot" "help plssemplot"}{...}
 {viewerjumpto "Postestimation commands" "plssem postestimation##description"}{...}
@@ -90,7 +90,7 @@ Display the assessment for the presence of unobserved heterogeneity
 {cmd:estat} {cmdab:un:obshet},
 {cmdab:m:ethod(}{it:methodname}{cmd:)} [{opt n:umclass(#)} {opt maxcl:ass(#)}
 {opt d:endrogram} {opt maxit:er(#)} {opt s:top(#)}  {opt t:est} {opt r:eps(#)}
-{opt se:ed(#)} {opt p:lot} {cmdab:name(}{it:varname}{cmd:)}
+{opt res:tart(#)} {opth gr:oups(numlist)} {opt se:ed(#)} {opt p:lot} {cmdab:name(}{it:varname}{cmd:)}
 {opt dig:its(#)}]
 
 
@@ -127,8 +127,9 @@ of the equations in the structural part of a PLS-SEM model. With the
 
 {pstd} {cmd:estat unobshet}
 assesses the presence of unobserved heterogeneity in the fitted PLS-SEM model
-using the {it:methodname} approach. Currently, only the REBUS approach
-({help plssem_postestimation##Trinchera2007:Trinchera 2007}) is implemented.
+using the {it:methodname} approach. Currently, the REBUS-PLS
+({help plssem_postestimation##Trinchera2007:Trinchera 2007}) and FIMIX-PLS approaches
+({help plssem_postestimation##Hahnetal2002:Hahn et al. 2007}) are implemented.
  
  
 {marker options_estat}{...}
@@ -159,7 +160,7 @@ an option used with {cmd:estat total}, provides a graphical representation of
 the total effects decomposition.
 
 {phang}
-{opt method(unobshet_method)},
+{opt method(methodname)},
 an option used with {cmd:estat unobshet}, allows choosing the method to use for
 assessing the presence of unobserved heterogeneity; available methods are {cmd:rebus}
 and {cmd:fimix}; default is {cmd:rebus}.
@@ -167,10 +168,10 @@ and {cmd:fimix}; default is {cmd:rebus}.
 {phang}
 {opt numclass(#)},
 an option used with {cmd:estat unobshet}, allows to manually set the number of
-classes to use in the REBUS analysis; minimum is 2. If not specified, the number of classes
-is automatically chosen based on the Calinski-Harabasz pseudo-F index stopping
-rule as implemented in {helpb cluster stop:cluster stop}. In this case, a Ward
-hierarchical clustering algorithm is used.
+classes to use in the REBUS-PLS analysis; minimum is 2. If not specified, the
+number of classes is automatically chosen based on the Calinski-Harabasz
+pseudo-F index stopping rule as implemented in {helpb cluster stop:cluster stop}. In
+this case, a Ward hierarchical clustering algorithm is used.
 
 {phang}
 {opt maxclass(#)},
@@ -188,12 +189,12 @@ number of classes.
 {phang}
 {opt maxiter(#)},
 an option used with {cmd:estat unobshet}, allows to set the maximum number
-of iterations the REBUS algorithm runs; default is {cmd:50}.
+of iterations the REBUS-PLS algorithm runs; default is {cmd:50}.
 
 {phang}
 {opt stop(#)},
 an option used with {cmd:estat unobshet}, allows to set the stopping rule for
-the REBUS algorithm; this refers to the stability on class composition from one
+the REBUS-PLS algorithm; this refers to the stability on class composition from one
 iteration to the other. More specifically, the rule involves the percentage of
 units changing class from one iteration to the other; default is {cmd:0.005}
 (i.e. 0.5%).
@@ -201,7 +202,7 @@ units changing class from one iteration to the other; default is {cmd:0.005}
 {phang}
 {opt test},
 an option used with {cmd:estat unobshet}, allows to specify whether a
-permutation test for the Global Quality Index (GQI) of a REBUS solution must
+permutation test for the Global Quality Index (GQI) of a REBUS-PLS solution must
 be performed.
 
 {phang}
@@ -210,20 +211,37 @@ an option used with {cmd:estat unobshet}, allows to set the number of replicatio
 of the permutation test on the GQI; default is {cmd:50}.
 
 {phang}
+{opt restart(#)},
+an option used with {cmd:estat unobshet} when the FIMIX-PLS method is chosen,
+allows to set the number of EM algortihm runs in the estimation of the
+mixture model's parameters; default is {cmd:10}.
+
+{phang}
+{opth groups(numlist)},
+an option used with {cmd:estat unobshet} when the FIMIX-PLS method is chosen,
+allows to compute the solution for a range of selected group number values and
+compare them using a set of fit indices, namely Akaike's information criterion
+(AIC), modified AIC with factor 3 (AIC3), modified AIC with factor 4 (AIC4),
+Bayesian information criterion (BIC), consistent AIC (CAIC),
+Hannan-Quinn criterion (HQ), minimum description length with factor 5 (MDL5),
+log-likelihood (LnL), entropy statistic (EN), non-fuzzy index (NFI),
+normalized entropy criterion (NEC).
+
+{phang}
 {opt seed(#)},
-an option used with {cmd:estat unobshet}, allows to set the seed for the
-permutation test on the GQI.
+an option used with {cmd:estat unobshet} when the REBUS-PLS method is chosen,
+allows to set the seed for the permutation test on the GQI.
 
 {phang}
 {opt plot},
-an option used with {cmd:estat unobshet}, allows to visualize the empirical
-distribution (i.e. the histogram) corresponding to the replications of the
-permutation test on the GQI.
+an option used with {cmd:estat unobshet} when the REBUS-PLS method is chosen,
+allows to visualize the empirical distribution (i.e. the histogram)
+corresponding to the replications of the permutation test on the GQI.
 
 {phang}
 {cmdab:name(}{it:varname}{cmd:)},
 an option used with {cmd:estat unobshet}, allows to set the name of the variable
-that will contain the final classification obtained with the REBUS algorithm.
+that will contain the final classification obtained with the REBUS-PLS algorithm.
 
 
 {marker syntax_predict}{...}
@@ -309,8 +327,11 @@ are not saved in the data set.
 {phang2}{cmd:. predict, xb residuals}{p_end}
 {phang2}{cmd:. describe *_hat *_res}{p_end}
 
-{pstd}Assessment of unobserved heterogeneity using REBUS{p_end}
+{pstd}Assessment of unobserved heterogeneity using REBUS-PLS{p_end}
 {phang2}{cmd:. estat unobshet, test reps(200) plot}{p_end}
+
+{pstd}Assessment of unobserved heterogeneity using FIMIX-PLS{p_end}
+{phang2}{cmd:. estat unobshet, method(fimix) groups(1/5) stop(1e-5) restart(3)}{p_end}
 
     {hline}
 
@@ -338,6 +359,11 @@ Norwegian University of Science and Technology{break}
 Baron, R. M., and Kenny, D. A. 1986. The Moderator-Mediator Variable Distinction in Social Psychological
 Research: Conceptual, Strategic, and Statistical Considerations. Journal of
 Personality and Social Psychology, 51, 1173-1182.
+
+{marker Hahnetal2002}{...}
+{phang}
+Hahn, C., Johnson, M. D., Herrmann, A., and Huber, F. 2002. Capturing Customer Heterogeneity Using a
+Finite Mixture PLS Approach. Schmalenbach Business Review, 54, 243-269.
 
 {marker Hairetal2017}{...}
 {phang}

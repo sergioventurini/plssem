@@ -1,5 +1,5 @@
 *!mktable version 0.2.0
-*!Written 28Aug2017
+*!Written 31Mar2018
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -8,7 +8,7 @@ program mktable
 	syntax , matrix(string) [ FIRSTCOLName(string) FIRSTCOLWidth(integer 25) ///
 		COLWidth(integer 15) Title(string) HLines(numlist >0 integer sort) ///
 		NOVLines DIGits(integer 3) Path STats TOTal CORr CUToff(real 0) ///
-		BINary(namelist min=1) REBus ]
+		BINary(namelist min=1) REBus FIMix ]
 
 	/* Options:
 	   --------
@@ -27,7 +27,9 @@ program mktable
 		 corr												--> correlation table
 		 cutoff(real 0)							--> do not show correlation smaller than cutoff
 		 binary(namelist min=1)			--> binary indicators/latent variables
-		 rebus											--> indicator that the table refers to REBUS
+		 rebus											--> indicator that the table refers to REBUS-PLS
+																		or FIMIX-PLS results
+		 fimix											--> indicator that the table refers to FIMIX-PLS
 																		results
 	 */
 	
@@ -165,6 +167,9 @@ program mktable
 	forvalues i = 1/`nrows' {
 		local rownametodisp : word `i' of `matrownames'
 		if ("`rownametodisp'" != ".") {
+			if ("`fimix'" != "") {
+				local rownametodisp = subinstr("`rownametodisp'", "%%", " ", 1)
+			}
 			if ("`total'" != "") {
 				local rownametodisp = subinstr("`rownametodisp'", "->", " -> ", 1)
 			}
