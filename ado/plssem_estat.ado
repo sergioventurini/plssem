@@ -1234,7 +1234,7 @@ program FIMIX, rclass
 	if ("`restart'" == "") {
 		local restart = 10
 	}
-	if ("`numclass'" == "") {
+	if (("`numclass'" == "") & ("`groups'" == "")) {
 		display as error "the 'numclass' option must include one value for FIMIX-PLS"
 		exit
 	}
@@ -1255,12 +1255,6 @@ program FIMIX, rclass
 			st_matrix("e(imputed_data)"))
 	}
 
-	if (`N' < 5*`numclass') {
-		display as text "warning: the number of classes chosen seems to be too large"
-		display as text "calculations may abort; " _continue
-		display as text "in this case, consider reducing the number of classes"
-	}
-	
   /* Parse global model e(cmdline) */
   local cmdline = e(cmdline)
   local trash
