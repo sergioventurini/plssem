@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 0.0.1  31Mar2018}{...}
+{* *! version 0.0.1  02Apr2018}{...}
 {vieweralsosee "plssem" "help plssem"}{...}
 {vieweralsosee "plssemplot" "help plssemplot"}{...}
 {viewerjumpto "Postestimation commands" "plssem postestimation##description"}{...}
@@ -184,7 +184,8 @@ classes for which the automatic stopping rule is to be computed when
 an option used with {cmd:estat unobshet}, allows to visualize the dendrogram
 for a Ward hierarchical clustering algorithm on the base of the residuals of
 the global model. The dendrogram allows to assess the quality of choice for the
-number of classes.
+number of classes. This option is available only when {cmd: method(rebus)} is
+chosen.
 
 {phang}
 {opt maxiter(#)},
@@ -194,21 +195,24 @@ of iterations the REBUS-PLS algorithm runs; default is {cmd:50}.
 {phang}
 {opt stop(#)},
 an option used with {cmd:estat unobshet}, allows to set the stopping rule for
-the REBUS-PLS algorithm; this refers to the stability on class composition from one
-iteration to the other. More specifically, the rule involves the percentage of
-units changing class from one iteration to the other; default is {cmd:0.005}
-(i.e. 0.5%).
+the chosen algorithm; for REBUS-PLS this refers to the stability in class
+composition from one iteration to the other (i.e. percentage of units changing
+class at each iteration); for FIMIX-PLS it refers to the (absolute) change in the
+complete loglikelihood value in the EM alogrithm. Default is {cmd:0.005}
+(i.e. 0.5%) when REBUS-PLS is chosen and {cmd:1e-5} when FIMIX-PLS is used.
 
 {phang}
 {opt test},
 an option used with {cmd:estat unobshet}, allows to specify whether a
 permutation test for the Global Quality Index (GQI) of a REBUS-PLS solution must
-be performed.
+be performed. This option is available only when {cmd: method(rebus)} is
+chosen.
 
 {phang}
 {opt reps(#)},
 an option used with {cmd:estat unobshet}, allows to set the number of replications
-of the permutation test on the GQI; default is {cmd:50}.
+of the permutation test on the GQI; default is {cmd:50}. This option is available
+only when {cmd: method(rebus)} is chosen.
 
 {phang}
 {opt restart(#)},
@@ -229,8 +233,7 @@ normalized entropy criterion (NEC).
 
 {phang}
 {opt seed(#)},
-an option used with {cmd:estat unobshet} when the REBUS-PLS method is chosen,
-allows to set the seed for the permutation test on the GQI.
+allows to set the seed for reproducing results.
 
 {phang}
 {opt plot},
@@ -241,7 +244,7 @@ corresponding to the replications of the permutation test on the GQI.
 {phang}
 {cmdab:name(}{it:varname}{cmd:)},
 an option used with {cmd:estat unobshet}, allows to set the name of the variable
-that will contain the final classification obtained with the REBUS-PLS algorithm.
+that will contain the final classification obtained.
 
 
 {marker syntax_predict}{...}

@@ -1,5 +1,5 @@
 *!plssem_estat version 0.3.0
-*!Written 31Mar2018
+*!Written 03Apr2018
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -387,7 +387,7 @@ end
 program unobshet
 	version 14.2
 	syntax [ , Method(string) Numclass(numlist integer >=1 max=1) ///
-		MAXCLass(integer 20) Dendrogram MAXITer(integer 50) Stop(real 0.005) ///
+		MAXCLass(integer 20) Dendrogram MAXITer(integer 50) Stop(numlist >0 max=1) ///
 		Test Reps(numlist integer >1 max=1) REStart(numlist integer >=1 max=1) ///
 		SEed(numlist max=1) Plot name(string) DIGits(integer 3) ///
 		GRoups(numlist integer >=1 <=20 min=1 sort) ]
@@ -396,7 +396,8 @@ program unobshet
 	   --------
 		 method(string)									--> method to use for assessing unobserved
 																				heterogeneity; available methods are
-																				'rebus' and 'fimix'. default is 'rebus'.
+																				'rebus', 'fimix' and 'gas'. default is
+																				'rebus'.
 		 numclass(integer)							--> number of classes to use; if empty, it
 																				is chosen automatically using a Ward
 																				hierarchical algorithm
@@ -407,7 +408,7 @@ program unobshet
 																				cluster analysis
 		 maxiter(integer 50)						--> maximum number of iterations (default
 																				50)
-		 stop(real 0.05)								--> stopping criterion (default 0.005)
+		 stop(real >0)									--> stopping criterion
 		 test														--> permutation test
 		 reps(numlist integer >1 max=1)	--> number of permutation test replications
 																				(default is 50)
@@ -444,6 +445,9 @@ program unobshet
 	else if ("`method'" == "fimix") {
 		FIMIX `0'
 	}
+	else if ("`method'" == "gas") {
+		GAS `0'
+	}
 	else {
 		display as error "currently 'estat unobshet' implements only the " _continue
 		display as error "REBUS-PLS and FIMIX-PLS methods"
@@ -458,15 +462,15 @@ program REBUS, rclass
 	version 14.2
 	syntax [ , Method(string) Numclass(numlist integer >=1 max=1) ///
 		MAXCLass(integer 20) Dendrogram MAXITer(integer 50) Stop(real 0.005) ///
-		Test Reps(numlist integer >1 max=1) REStart(numlist integer >=1 max=1) ///
-		SEed(numlist max=1) Plot name(string) DIGits(integer 3) ///
-		GRoups(numlist integer >=1 <=20 min=1 sort) ]
+		Test Reps(numlist integer >1 max=1) SEed(numlist max=1) Plot ///
+		name(string) DIGits(integer 3) ]
 
 	/* Options:
 	   --------
 		 method(string)									--> method to use for assessing unobserved
 																				heterogeneity; available methods are
-																				'rebus' and 'fimix'. default is 'rebus'.
+																				'rebus', 'fimix' and 'gas'. default is
+																				'rebus'.
 		 numclass(integer)							--> number of classes to use; if empty, it
 																				is chosen automatically using a Ward
 																				hierarchical algorithm
@@ -477,22 +481,16 @@ program REBUS, rclass
 																				cluster analysis
 		 maxiter(integer 50)						--> maximum number of iterations (default
 																				50)
-		 stop(real 0.05)								--> stopping criterion (default 0.005)
+		 stop(real 0.005)								--> stopping criterion (default 0.005)
 		 test														--> permutation test
 		 reps(numlist integer >1 max=1)	--> number of permutation test replications
 																				(default is 50)
-		 restart(numlist integer >=1
-						 max=1)									--> number of repetitions of the EM
 		 seed(numlist max=1)						--> permutation test seed number
 		 plot														--> plot of the empirical distribution
 																				for the permutation test statistic
 		 name(string)										--> variable name where to store the final
 																				REBUS-PLS classification
 		 digits(integer 3)							--> number of digits to display (default 3)
-		 groups(numlist integer >=1
-						<=20 min=1 sort)				--> list of group numbers for which to
-																				compare the corresponding fit indices
-																				using FIMIX-PLS
 	 */
 	 
 	 /* Description:
@@ -775,19 +773,19 @@ program REBUS, rclass
 			display as error "aborting"
 		}
 		if (real("`rN0'")) {
-			display as error "one class is empty"
+			display as error "at least one class is empty"
 		}
 		else if (real("`rN_lte_5'")) {
 			display as error "too few observations (5 or less) assigned to a single class"
 		}
 		else if (_rc == 409) {
-			display as error "at least one indicator has zero variance in one of the iterations"
+			display as error "at least one indicator has zero variance in one iteration"
 		}
 		else {
 			display as error "something went wrong in the REBUS-PLS calculations"
 		}
 		display as error "try reducing the number of classes " _continue
-		display as error "or relaxing any of the stopping criteria"
+		display as error "or relaxing the stopping criteria"
 		restore
 		_estimates unhold `globalmodel'
 		exit
@@ -902,7 +900,7 @@ program REBUS, rclass
 		if (_rc != 0) {
 			if (_rc == 409) {
 				display as error "at least one indicator has zero variance " _continue
-				display as error "in one of the iterations of the permutation test"
+				display as error "in one iteration of the permutation test"
 			}
 			else {
 				display as error "something went wrong in the REBUS-PLS permutation test"
@@ -1050,7 +1048,7 @@ program REBUS, rclass
 	tempname maxlen
 	mata: st_numscalar("`maxlen'", max(st_matrix("`alllen'")))
   local firstcollbl ""	
-	local `maxlen' = max(strlen("`firstcollbl'"), `maxlen') + 2
+	local `maxlen' = max(max(strlen("`firstcollbl'"), `maxlen') + 2, 14)
 	local colw = max(9, `digits' + 5)
 
 	local title "REBUS-PLS classes"
@@ -1117,7 +1115,7 @@ program REBUS, rclass
 	if (`iter' > `maxiter') {
 		display as error "warning: REBUS-PLS algorithm did not converge"
 		display as error "the solution provided may not be acceptable; " _continue
-		display as error "try to relax any of the stopping criteria"
+		display as error "try relaxing the stopping criteria"
 	}
 end
 
@@ -1132,7 +1130,8 @@ program FIMIX, rclass
 	   --------
 		 method(string)									--> method to use for assessing unobserved
 																				heterogeneity; available methods are
-																				'rebus' and 'fimix'. default is 'rebus'.
+																				'rebus', 'fimix' and 'gas'. default is
+																				'rebus'.
 		 numclass(integer)							--> number of classes to use; if empty, it
 																				is chosen automatically using a Ward
 																				hierarchical algorithm
@@ -1367,20 +1366,14 @@ program FIMIX, rclass
 			else {
 				display as error "aborting"
 			}
-			if (real("`rN0'")) {
-				display as error "one class is empty"
-			}
-			else if (real("`rN_lte_5'")) {
-				display as error "too few observations (5 or less) assigned to a single class"
-			}
-			else if (_rc == 409) {
-				display as error "at least one indicator has zero variance in one of the iterations"
+			if (_rc == 409) {
+				display as error "at least one indicator has zero variance in one iteration"
 			}
 			else {
 				display as error "something went wrong in the FIMIX-PLS calculations"
 			}
 			display as error "try reducing the number of classes " _continue
-			display as error "or relaxing any of the stopping criteria"
+			display as error "or relaxing the stopping criteria"
 			exit
 		}
 	}
@@ -1434,19 +1427,13 @@ program FIMIX, rclass
 				else {
 					display as error "aborting"
 				}
-				if (real("`rN0'")) {
-					display as error "one class is empty"
-				}
-				else if (real("`rN_lte_5'")) {
-					display as error "too few observations (5 or less) assigned to a single class"
-				}
-				else if (_rc == 409) {
-					display as error "at least one indicator has zero variance in one of the iterations"
+				if (_rc == 409) {
+					display as error "at least one indicator has zero variance in one iteration"
 				}
 				else {
 					display as error "something went wrong in the FIMIX-PLS calculations"
 				}
-				display as error "try relaxing any of the stopping criteria"
+				display as error "try relaxing the stopping criteria"
 				exit
 			}
 			
@@ -1524,7 +1511,7 @@ program FIMIX, rclass
 		}
 		
 		tempname fimixclassfreq fimixrho
-		mata: st_matrix("`fimixclassfreq'", uniqrows(`res_fimix'.fimix_class, 1)[., 2])
+		mata: st_matrix("`fimixclassfreq'", `res_fimix'.classfreq)
 		mata: st_matrix("`fimixrho'", `res_fimix'.rho)
 		forvalues k = 1/`numclass' {
 			mata: st_matrix("`tmp'", `res_fimix'.path[`k', 1].mat)
@@ -1553,7 +1540,7 @@ program FIMIX, rclass
 		tempname maxlen
 		mata: st_numscalar("`maxlen'", max(st_matrix("`alllen'")))
 		local firstcollbl ""
-		local `maxlen' = max(strlen("`firstcollbl'"), `maxlen') + 2
+		local `maxlen' = max(max(strlen("`firstcollbl'"), `maxlen') + 2, 16)
 		local colw = max(10, `digits' + 5)
 
 		local title "FIMIX-PLS classes"
@@ -1620,9 +1607,71 @@ program FIMIX, rclass
 	}
 	
 	/* Maximum number of iterations reached */
+	if ("`groups'" == "") {
+		if (real("`rN0'")) {
+			display as error "warning: at least one class is empty"
+		}
+		if (real("`rN_lte_5'")) {
+			display as error "warning: too few observations (5 or less) assigned to a single class"
+		}
+	}
 	if (`iter' > `maxiter') {
 		display as error "warning: FIMIX-PLS algorithm did not converge"
 		display as error "the solution provided may not be acceptable; " _continue
-		display as error "try to relax any of the stopping criteria"
+		display as error "try relaxing the stopping criteria"
 	}
+end
+
+program GAS, rclass
+	version 14.2
+	syntax [ , Method(string) Numclass(numlist integer >=1 max=1) ///
+		MAXCLass(integer 20) Dendrogram MAXITer(integer 50) Stop(real 0.005) ///
+		Test Reps(numlist integer >1 max=1) REStart(numlist integer >=1 max=1) ///
+		SEed(numlist max=1) Plot name(string) DIGits(integer 3) ///
+		GRoups(numlist integer >=1 <=20 min=1 sort) ]
+
+	/* Options:
+	   --------
+		 method(string)									--> method to use for assessing unobserved
+																				heterogeneity; available methods are
+																				'rebus', 'fimix' and 'gas'. default is
+																				'rebus'.
+		 numclass(integer)							--> number of classes to use; if empty, it
+																				is chosen automatically using a Ward
+																				hierarchical algorithm
+		 maxclass(integer 20)						--> maximum number of classes to test in
+																				choosing automatically the number of
+																				classes (default 20)
+		 dendrogram											--> display the dendrogram for the Ward
+																				cluster analysis
+		 maxiter(integer 50)						--> maximum number of iterations (default
+																				50)
+		 stop(real 0.005)								--> stopping criterion (default 0.005)
+		 test														--> permutation test
+		 reps(numlist integer >1 max=1)	--> number of permutation test replications
+																				(default is 50)
+		 restart(numlist integer >=1
+						 max=1)									--> number of repetitions of the EM
+																				algorithm in FIMIX-PLS (default is 10)
+		 seed(numlist max=1)						--> permutation test seed number
+		 plot														--> plot of the empirical distribution
+																				for the permutation test statistic
+		 name(string)										--> variable name where to store the final
+																				rebus classification
+		 digits(integer 3)							--> number of digits to display (default 3)
+		 groups(numlist integer >=1
+						<=20 min=1 sort)				--> list of group numbers for which to
+																				compare the corresponding fit indices
+																				using FIMIX-PLS
+	 */
+	 
+	 /* Description:
+			------------
+			This postestimation command implements the PLS-GAS approach to assess
+			the presence of unobserved heterogeneity.
+	 */
+	
+	display
+	display as text "The PLS-GAS method will be available soon! :)"
+	exit	
 end

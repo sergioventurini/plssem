@@ -141,8 +141,9 @@ kdensity ITEM3
 */
 plssem (lv1 > ITEM1) (lv2 > ITEM2-ITEM3), structural(lv1 lv2) digits(8)
 
-// [ERROR] ==> try running the example twice; the second time it usually gives an error
 estat unobshet, method(rebus) numclass(2) digits(5) dendro test plot reps(1000)
+estat unobshet, numclass(5) stop(.1) method(fimix)
+estat unobshet, stop(1e-3) method(fimix) restart(3) groups(1/8)
 
 /* Example 12 */
 /* ---------- */
@@ -639,11 +640,6 @@ plssem (Attack > GSH GSA SSH SSA) (Defense > NGCH NGCA CSH CSA) ///
 	wscheme(centroid) tol(1e-06) ///
 	group(rebus_class, reps(50) method(normal) plot)
 
-plssem (Attack > GSH GSA SSH SSA) (Defense > NGCH NGCA CSH CSA) ///
-	(Success > WMH WMA), structural(Success Attack Defense) ///
-	wscheme(centroid) tol(1e-06) ///
-	group(rebus_class, reps(50) method(normal) plot)
-
 /* Example 38 */
 /* ---------- */
 use ./data/workout2, clear
@@ -961,8 +957,21 @@ plssem (Attractive > face sexy) ///
 			 structural(Appearance Attractive, ///
 	                Muscle Appearance, ///
 	                Weight Appearance) ///
-	     missing(mean) loadpval digits(5) boot(200) //noscale
+	     missing(mean) loadpval digits(5) //boot(200) //noscale
 
 predict, xb residuals
 
 estat unobshet, method(rebus)
+
+/* Example 50 */
+/* ---------- */
+use ./data/ecsimobi, clear
+quietly plssem (Expectation > CUEX1-CUEX3) (Satisfaction > CUSA1-CUSA3) ///
+	(Complaints > CUSCO) (Loyalty > CUSL1-CUSL3) (Image > IMAG1-IMAG5) ///
+	(Quality > PERQ1-PERQ7) (Value > PERV1-PERV2), ///
+	structural(Expectation Image, Quality Expectation, Value Expectation Quality, ///
+	Satisfaction Value Quality Image Expectation, Complaints Satisfaction, ///
+	Loyalty Complaints Satisfaction Image) ///
+	wscheme("path") digits(4) correlate(mv lv cross, cutoff(.3)) //boot(50)
+
+estat unobshet, method("gas")

@@ -1,5 +1,5 @@
 *!plssem_mata version 0.3.0
-*!Written 31Mar2018
+*!Written 03Apr2018
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -121,6 +121,7 @@ struct plssem_struct_fimix {
 	real rowvector rho					// row vector of mixture proportions
 	struct plssem_struct_matrix ///
 		colvector path						// column vector structure with path coefficients
+	real colvector classfreq		// column vector of class frequencies
 	real colvector ll						// column vector of incomplete loglikelihood values
 	real colvector ll_c					// column vector of complete loglikelihood values
 	real colvector ll_restart		// column vector of incomplete loglikelihood
@@ -527,8 +528,7 @@ struct plssem_struct scalar plssem_base(real matrix X, real matrix Yinit,
 				
 				// Step 4: outer approximation
 				Ytilde = X * W
-				Yhat = Ytilde
-				Yhat = scale(Yhat)
+				Yhat = scale(Ytilde)
 				W = W * diag(1 :/ sd(Ytilde))
 				w_new = rowsum(W)'
 				Whist = (Whist \ w_new)
@@ -1816,7 +1816,7 @@ real matrix scale(real matrix X, |real scalar biased, real rowvector scale, ///
 		sc = sc :* factor
 	}
 	Xc = X - cen
-	sc_inv = luinv(sc)
+	sc_inv = invsym(sc)
 	Xcs = Xc * sc_inv
 
 	return(Xcs)
@@ -2501,7 +2501,7 @@ struct plssem_struct_rebus scalar plssem_rebus(real matrix X, real matrix M,
 		else {
 			rN0 = 0
 		}
-		if (any(class_freq :<= 5)) {
+		if (any(class_freq :<= 5) & all(class_freq :> 0)) {
 			rN_lte_5 = 1
 			break
 		}
@@ -2594,7 +2594,7 @@ real colvector plssem_rebus_ptest(real matrix X, real matrix M, real matrix S,
 	string scalar touse_loc_name, todisp, spaces
 	real colvector gqi_perm, modes, touse_vec, rebus_class, touse_loc, ///
 		rebclass_p, class_st, class_reb
-	real rowvector r2, endo
+	real rowvector endo
 	
 	P = cols(M)
 	Q = rows(M)
@@ -2686,7 +2686,7 @@ real colvector plssem_rebus_ptest(real matrix X, real matrix M, real matrix S,
 			// Run the PLS algorithm
 			localmodels[k, 1] = plssem_base(Xsc, Yinit, M, S, modes, latents, ///
 				binary, tol, maxit, touse_loc_name, scheme, crit, structural, rawsum)
-			
+
 			Xreb = X[selectindex(touse_loc), .]
 			Xrebsc = scale(Xreb)
 			Yendo = st_data(., latents, touse_loc_name)
@@ -2696,8 +2696,6 @@ real colvector plssem_rebus_ptest(real matrix X, real matrix M, real matrix S,
 			path = localmodels[k, 1].path
 			path = editmissing(path, 0)
 			loads = localmodels[k, 1].loadings
-			r2 = localmodels[k, 1].r2
-			r2 = r2[., selectindex(r2 :!= .)]
 			
 			y_local = Xrebsc * ow
 			out_res = J(rows(Xreb), 0, .)
@@ -2897,17 +2895,17 @@ real matrix plssem_fimix_ic(real scalar lnL, real scalar lnL_1, real scalar N,
 	/* Returned value:
 		 ---------------
 		 - ic					--> real matrix containing the information criteria, that is
-											- AIC		Akaike's Information Criterion
-											- AIC3	Modified AIC with Factor 3
-											- AIC4	Modified AIC with Factor 4
-											- BIC		Bayesian Information Criteria
+											- AIC		Akaike's information criterion
+											- AIC3	Modified AIC with factor 3
+											- AIC4	Modified AIC with factor 4
+											- BIC		Bayesian information criterion
 											- CAIC	Consistent AIC
-											- HQ		Hannan Quinn Criterion
-											- MDL5	Minimum Description Length with Factor 5
+											- HQ		Hannan-Quinn criterion
+											- MDL5	Minimum description length with factor 5
 											- LnL		Log-likelihood
-											- EN		Entropy Statistic (Normed)
-											- NFI		Non-Fuzzy Index
-											- NEC		Normalized Entropy Criterion
+											- EN		Entropy criterion (normed)
+											- NFI		Non-fuzzy index
+											- NEC		Normalized entropy criterion
 	*/
 	
 	real scalar NK, ES
@@ -3235,14 +3233,17 @@ struct plssem_struct_fimix scalar plssem_fimix(real matrix Y, real matrix M,
 	
 	// Final classification
 	fimix_class = which(P_ik_best, "max")
-	class_freq = uniqrows(fimix_class, 1)[., 2]
+	class_freq = J(K, 1, 0)
+	for (k = 1; k <= K; k++) {
+		class_freq[k, 1] = sum(fimix_class :== k)
+	}
 	if (anyof(class_freq, 0)) {
 		rN0 = 1
 	}
 	else {
 		rN0 = 0
 	}
-	if (any(class_freq :<= 5)) {
+	if (any(class_freq :<= 5) & all(class_freq :> 0)) {
 		rN_lte_5 = 1
 	}
 	else {
@@ -3296,6 +3297,7 @@ struct plssem_struct_fimix scalar plssem_fimix(real matrix Y, real matrix M,
 	res_fimix.restart = restart
 	res_fimix.rho = rho_best
 	res_fimix.path = path_coef_best
+	res_fimix.classfreq = class_freq
 	res_fimix.ll = lnL_iter_best
 	res_fimix.ll_c = lnL_c_iter_best
 	res_fimix.ll_restart = lnL_all
@@ -3446,8 +3448,3 @@ mata: mata mlib add lplssem ///
 	cleanup()
 mata: mata mlib index
 mata: mata describe using lplssem
-
-copy "/Users/Sergio/Library/Application Support/Stata/ado/personal/lplssem.mlib" ///
-	"/Users/Sergio/dev/plssem/mlib/lplssem.mlib", replace
-copy "/Users/Sergio/Library/Application Support/Stata/ado/personal/lplssem.mlib" ///
-	"/Users/Sergio/Dropbox (Personal)/plssem/mlib/lplssem.mlib", replace
