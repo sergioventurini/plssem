@@ -1,5 +1,5 @@
 *!plssem_mata version 0.3.0
-*!Written 03Apr2018
+*!Written 06Apr2018
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -46,6 +46,10 @@ capture mata: mata drop ///
 	plssem_fimix_estep() ///
 	plssem_fimix_ic() ///
 	plssem_fimix() ///
+	plssem_struct_gas() ///
+	plssem_gas_fitness() ///
+	plssem_gas_validity_check() ///
+	plssem_gas() ///
 	print_struct_matrix() ///
 	prod() ///
 	cleanup()
@@ -75,6 +79,8 @@ struct plssem_struct {
 															// R2's
 	real matrix M								// measurement model's adjacency matrix
 	real matrix S								// structural model's adjacency matrix (if any)
+	real matrix e								// measurement model's residuals
+	real matrix f								// structural model's residuals (if any)
 }
 
 struct plssem_struct_boot {
@@ -99,8 +105,8 @@ struct plssem_struct_rebus {
 	real scalar rN_lte_5				// indicator that any of the classes has 5
 															// observations or less
 	real scalar nclass					// number of classes
-	real scalar maxiter					// maximum number of REBUS iterations
-	real scalar stop						// REBUS stopping criterion
+	real scalar maxiter					// maximum number of REBUS-PLS iterations
+	real scalar stop						// REBUS-PLS stopping criterion
 }
 
 struct plssem_struct_matrix {
@@ -127,6 +133,15 @@ struct plssem_struct_fimix {
 	real colvector ll_restart		// column vector of incomplete loglikelihood
 															//   values across the different restarts
 	real matrix ic							// real matrix of information criteria
+}
+
+struct plssem_struct_gas {
+	real scalar niter						// number of iterations to reach convergence
+	real colvector gas_class	// column vector of the final class memberships
+	real colvector touse_vec		// column vector of the observations used
+	real scalar nclass					// number of classes
+	real scalar popsize					// number of individuals per generation
+	real scalar ngen						// number of generations to run
 }
 
 void plssem_scale(real matrix X, string scalar stdind, string scalar touse,
@@ -421,7 +436,7 @@ struct plssem_struct scalar plssem_base(real matrix X, real matrix Yinit,
 	
 	real matrix W, w_old, w_new, C, E, Yhat, Ycor, Ytilde, Ydep, Yindep, mf, ///
 		fscores, T, beta, beta_v, Yexo, Yendo, Ypred, Whist, xlambda, lambda, ///
-		Snew, s2_mat
+		Snew, s2_mat, Xsc, beta0, y_tmp, outer_res, inner_res, x_hat, y_hat, block
 	real scalar iter, delta, P, Q, p, n, minval, maxval, converged
 	real rowvector endo, diff, isnotbinary, r2, r2_a
 	real colvector Mind, Sind, predec
@@ -465,7 +480,7 @@ struct plssem_struct scalar plssem_base(real matrix X, real matrix Yinit,
 			w_old = rowsum(W)'
 			Whist = w_old
 			
-			while (delta >= tol & iter <= maxit) {
+			while ((delta >= tol) & (iter <= maxit)) {
 				// Step 1: inner weights estimation
 				E = J(P, P, 0)
 				Ycor = correlation(Yhat)
@@ -676,6 +691,26 @@ struct plssem_struct scalar plssem_base(real matrix X, real matrix Yinit,
 		lambda[Mind, p] = xlambda[Mind, p]
 	}
 	
+	// Residuals calculation
+	Xsc = scale(X)
+	beta0 = editmissing(beta, 0)
+	y_tmp = Xsc * W
+	outer_res = J(n, 0, .)
+	for (p = 1; p <= P; p++) {
+		if (!mode[p, 1]) {	// mode A
+			block = selectindex(lambda[., p] :!= .)
+			x_hat = y_tmp[., p] * lambda[block, p]'
+			outer_res = (outer_res, (Xsc[., block] - x_hat))
+		}
+	}
+	if (structural) {
+		y_hat = y_tmp * beta0[., selectindex(endo)]
+		inner_res = (y_tmp[., selectindex(endo)] - y_hat)
+	}
+	else {
+		inner_res = J(n, 0, .)
+	}
+	
 	// Assigning results to structure's members
 	res.n = n
 	res.niter = (iter - 1)
@@ -695,6 +730,8 @@ struct plssem_struct scalar plssem_base(real matrix X, real matrix Yinit,
 	res.r2_a = r2_a
 	res.M = M
 	res.S = Snew
+	res.e = outer_res
+	res.f = inner_res
 	
 	return(res)
 }
@@ -1935,7 +1972,7 @@ real colvector which(real matrix X, |string scalar minmax)
 		else {
 			_error(3000, "the 'minmax' argument value is unrecognized")
 		}
-		index = (index \ i)
+		index = (index \ i[1])
 	}
 	
 	return(index)
@@ -2024,7 +2061,7 @@ void meanimp(real matrix X, string scalar vars, |string scalar categ,
 				ur = uniqrows(Ximp[., q], 1)
 				xvals = ur[., 1]
 				xfreqs = ur[., 2]
-				mostfreq = xvals[which(xfreqs, "max")[1]]
+				mostfreq = xvals[which(xfreqs, "max")]
 				Ximp[., q] = editmissing(Ximp[., q], mostfreq)
 			}
 			else {
@@ -2067,8 +2104,8 @@ void knnimp(real matrix X, string scalar vars, real scalar k,
 	*/
 
 	real matrix Ximp, Xsub, ur, xvals, xfreqs
-	real scalar n, Q, N, R, V, v, i, skip, skip_b, j, q, mostfreq, D_idx, knew
-	real colvector complete_idx, incomplete_idx, disti, tmp_idx, D
+	real scalar n, Q, N, R, i, skip, skip_b, j, q, mostfreq, D_idx, knew
+	real colvector complete_idx, incomplete_idx, disti, tmp_idx
 	real rowvector vars_nonmiss
 	string rowvector vars_vec, vars_touse
 	string scalar meas, todisp, spaces
@@ -2147,7 +2184,7 @@ void knnimp(real matrix X, string scalar vars, real scalar k,
 						ur = uniqrows(Xsub[., q], 1)
 						xvals = ur[., 1]
 						xfreqs = ur[., 2]
-						mostfreq = xvals[which(xfreqs, "max")[1]]
+						mostfreq = xvals[which(xfreqs, "max")]
 						Ximp[incomplete_idx[i], q] = ///
 							editmissing(Ximp[incomplete_idx[i], q], mostfreq)
 					}
@@ -2257,12 +2294,12 @@ real colvector plssem_rebus_cm(real matrix e, real matrix f, real matrix loads, 
 	
 	e2 = e :^ 2
 	com = diag(rowsum(loads :^ 2))
-	left = rowsum(e2 * luinv(com), .)
+	left = rowsum(e2 * invsym(com), .)
 	left = left / colsum(left)
 	
 	f2 = f :^ 2
 	r2_mat = diag(r2)
-	right = rowsum(f2 * luinv(r2_mat), .)
+	right = rowsum(f2 * invsym(r2_mat), .)
 	right = right / colsum(right)
 	
 	cm = (N - 2)*sqrt(left :* right)
@@ -2275,18 +2312,19 @@ real scalar plssem_rebus_gqi(real matrix ind, real matrix lat, real matrix e, //
 {
 	/* Description:
 		 ------------
-		 Function that computes the Group Quality Index (GQI) for a REBUS solution
+		 Function that computes the Group Quality Index (GQI) for a REBUS-PLS
+		 solution
 	*/
 	
 	/* Arguments:
 		 ----------
-		 - ind		--> real matrix containing the indicator values stacked by REBUS
-									group
+		 - ind		--> real matrix containing the indicator values stacked by
+									REBUS-PLS group
 		 - lat		--> real matrix containing the latent variable values stacked by
-									REBUS group
+									REBUS-PLS group
 		 - e 			--> real matrix containing the PLS-SEM measurement model residuals
 		 - f			--> real matrix containing the PLS-SEM structural model residuals
-		 - cl			--> real colvector containing the REBUS classification
+		 - cl			--> real colvector containing the REBUS-PLS classification
 	*/
 	
 	/* Returned value:
@@ -2369,12 +2407,12 @@ struct plssem_struct_rebus scalar plssem_rebus(real matrix X, real matrix M,
 											and 0 otherwise
 		 - rawsum			--> real scalar equal to 1 if the 'rawsum' option has been
 											chosen
-		 - rebus_cl		--> string scalar providing the variable with the REBUS
+		 - rebus_cl		--> string scalar providing the variable with the REBUS-PLS
 											classes
-		 - numclass		--> real scalar providing the number of REBUS classes
-		 - maxit_reb	--> real scalar providing the maximum number of REBUS
+		 - numclass		--> real scalar providing the number of REBUS-PLS classes
+		 - maxit_reb	--> real scalar providing the maximum number of REBUS-PLS
 											iterations
-		 - stop				--> real scalar providing the REBUS stopping criterion
+		 - stop				--> real scalar providing the REBUS-PLS stopping criterion
 		 - noisily		--> (optional) real scalar; if not 0, it prints the bootstrap
 											iterations
 	*/
@@ -2389,7 +2427,7 @@ struct plssem_struct_rebus scalar plssem_rebus(real matrix X, real matrix M,
 	struct plssem_struct colvector localmodels
 
 	real matrix cm, Xsc, Yinit, Xreb, Xrebsc, Xreb_all, Xrebsc_all, ow, path, ///
-		loads, y, y_local, block, x_hat, y_hat, out_res, inn_res
+		loads, y, y_loc, block, x_hat, y_hat, out_res, inn_res
 	real scalar iter, N, nchanged, k, P, p, rN0, rN_lte_5
 	string scalar touse_loc_name, todisp
 	real colvector modes, touse_vec, rebus_class, touse_loc, old_class, ///
@@ -2419,7 +2457,7 @@ struct plssem_struct_rebus scalar plssem_rebus(real matrix X, real matrix M,
 		/*
 		if (noisily) {
 			if (iter == 1) {
-				printf("{txt}REBUS iteration 1")
+				printf("{txt}REBUS-PLS iteration 1")
 			}
 			else if (mod(iter, 5) == 0) {
 				todisp = strtrim(strofreal(iter, "%9.0f"))
@@ -2438,7 +2476,7 @@ struct plssem_struct_rebus scalar plssem_rebus(real matrix X, real matrix M,
 			
 			// Check that there are no zero-variance indicators
 			if (anyof(sd(X[selectindex(touse_loc), .]), 0)) {
-				printf("{err}some variables during the REBUS calculations turned out to have zero variance\n")
+				printf("{err}some indicators during the REBUS-PLS calculations turned out to have zero variance\n")
 				printf("{err}try reducing the number of classes\n")
 				_error(1)
 			}
@@ -2453,13 +2491,13 @@ struct plssem_struct_rebus scalar plssem_rebus(real matrix X, real matrix M,
 			
 			// Check that there are no zero-variance indicators
 			if (anyof(sd(Xsc), 0)) {
-				printf("{err}some variables during the REBUS calculations turned out to have zero variance\n")
+				printf("{err}some indicators during the REBUS-PLS calculations turned out to have zero variance\n")
 				printf("{err}try reducing the number of classes\n")
 				_error(1)
 			}
 			
 			// Initialize the LVs
-			Yinit = plssem_init_mat(Xsc,  M, ind, stdind, latents, touse_loc_name, ///
+			Yinit = plssem_init_mat(Xsc, M, ind, stdind, latents, touse_loc_name, ///
 				rawsum, init)
 			
 			// Run the PLS algorithm
@@ -2477,15 +2515,15 @@ struct plssem_struct_rebus scalar plssem_rebus(real matrix X, real matrix M,
 			
 			Xreb_all = X[selectindex(touse_vec), .]
 			Xrebsc_all = scale(Xreb_all, 0, sd(Xreb), mean(Xreb))
-			y_local = Xrebsc_all * ow
+			y_loc = Xrebsc_all * ow
 			out_res = J(N, 0, .)
 			for (p = 1; p <= P; p++) {
 				block = selectindex(loads[., p] :!= .)
-				x_hat = y_local[., p] * loads[block, p]'
+				x_hat = y_loc[., p] * loads[block, p]'
 				out_res = (out_res, (Xrebsc_all[., block] - x_hat))
 			}
-			y_hat = y_local * path[., selectindex(endo)]
-			inn_res = (y_local[., selectindex(endo)] - y_hat)
+			y_hat = y_loc * path[., selectindex(endo)]
+			inn_res = (y_loc[., selectindex(endo)] - y_hat)
 			cm = (cm, plssem_rebus_cm(out_res, inn_res, loads, r2))
 		}
 		new_class = J(length(old_class), 1, .)
@@ -2569,9 +2607,9 @@ real colvector plssem_rebus_ptest(real matrix X, real matrix M, real matrix S,
 											and 0 otherwise
 		 - rawsum			--> real scalar equal to 1 if the 'rawsum' option has been
 											chosen
-		 - rebus_cl		--> string scalar providing the variable with the REBUS
+		 - rebus_cl		--> string scalar providing the variable with the REBUS-PLS
 											classes
-		 - numclass		--> real scalar providing the number of REBUS classes
+		 - numclass		--> real scalar providing the number of REBUS-PLS classes
 		 - B					--> (optional) real scalar number of permutation replications
 											(default 100)
 		 - seed				--> (optional) real scalar providing the permutation seed
@@ -2588,7 +2626,7 @@ real colvector plssem_rebus_ptest(real matrix X, real matrix M, real matrix S,
 	struct plssem_struct colvector localmodels
 	
 	real matrix Xsc, Yinit, Xreb, Xrebsc, Yendo, ow, path, ///
-		loads, y_local, block, x_hat, y_hat, out_res, inn_res, indstd_st, ///
+		loads, y_loc, block, x_hat, y_hat, out_res, inn_res, indstd_st, ///
 		lat_st, out_res_st, inn_res_st
 	real scalar P, Q, b, p, k, i, skip
 	string scalar touse_loc_name, todisp, spaces
@@ -2664,7 +2702,7 @@ real colvector plssem_rebus_ptest(real matrix X, real matrix M, real matrix S,
 			
 			// Check that there are no zero-variance indicators
 			if (anyof(sd(X[selectindex(touse_loc), .]), 0)) {
-				printf("{err}some variables during the REBUS calculations turned out to have zero variance\n")
+				printf("{err}some indicators during the REBUS-PLS calculations turned out to have zero variance\n")
 				printf("{err}try reducing the number of classes\n")
 				_error(1)
 			}
@@ -2674,13 +2712,13 @@ real colvector plssem_rebus_ptest(real matrix X, real matrix M, real matrix S,
 			
 			// Check that there are no zero-variance indicators
 			if (anyof(sd(Xsc), 0)) {
-				printf("{err}some variables during the REBUS calculations turned out to have zero variance\n")
+				printf("{err}some indicators during the REBUS-PLS calculations turned out to have zero variance\n")
 				printf("{err}try reducing the number of classes\n")
 				_error(1)
 			}
 			
 			// Initialize the LVs
-			Yinit = plssem_init_mat(Xsc,  M, ind, stdind, latents, touse_loc_name, ///
+			Yinit = plssem_init_mat(Xsc, M, ind, stdind, latents, touse_loc_name, ///
 				rawsum, init)
 			
 			// Run the PLS algorithm
@@ -2697,15 +2735,15 @@ real colvector plssem_rebus_ptest(real matrix X, real matrix M, real matrix S,
 			path = editmissing(path, 0)
 			loads = localmodels[k, 1].loadings
 			
-			y_local = Xrebsc * ow
+			y_loc = Xrebsc * ow
 			out_res = J(rows(Xreb), 0, .)
 			for (p = 1; p <= P; p++) {
 				block = selectindex(loads[., p] :!= .)
-				x_hat = y_local[., p] * loads[block, p]'
+				x_hat = y_loc[., p] * loads[block, p]'
 				out_res = (out_res, (Xrebsc[., block] - x_hat))
 			}
-			y_hat = y_local * path[., selectindex(endo)]
-			inn_res = y_local[., selectindex(endo)] - y_hat
+			y_hat = y_loc * path[., selectindex(endo)]
+			inn_res = y_loc[., selectindex(endo)] - y_hat
 			class_reb = J(rows(Xreb), 1, k)
 			
 			indstd_st = (indstd_st \ Xrebsc)
@@ -2931,13 +2969,10 @@ real matrix plssem_fimix_ic(real scalar lnL, real scalar lnL_1, real scalar N,
 	return(ic)
 }
 
-struct plssem_struct_fimix scalar plssem_fimix(real matrix Y, real matrix M,
-	real matrix S, string scalar ind, string scalar stdind, string scalar latents,
-	string scalar binary, real scalar tol, real scalar maxit, string scalar touse,
-	string scalar scheme, string scalar crit, string scalar init,
-	string scalar scale, real scalar structural, real scalar rawsum,
-	real scalar K, real scalar maxit_fim, real scalar stop, |real scalar restart,
-	real scalar seed, real scalar noisily, real scalar groups)
+struct plssem_struct_fimix scalar plssem_fimix(real matrix Y, real matrix S,
+	string scalar touse, real scalar K, real scalar maxit_fim, real scalar stop,
+	|real scalar restart, real scalar seed, real scalar noisily,
+	real scalar groups)
 {
 	/* Description:
 		 ------------
@@ -2947,34 +2982,10 @@ struct plssem_struct_fimix scalar plssem_fimix(real matrix Y, real matrix M,
 	/* Arguments:
 		 ----------
 		 - Y					--> real matrix containing the latent variables
-		 - M					--> real matrix containing the measurement model adjacency
-											matrix
 		 - S			 		--> real matrix containing the structural model adjacency
 											matrix
-		 - ind				--> string scalar providing the list of all the unstandardized
-											indicators
-		 - stdind			--> string scalar providing the list of all the standardized
-											indicators
-		 - latents 		--> string scalar providing the list of all the latent
-											variables
-		 - binary	 		--> string scalar providing the list of the latent binary
-											variables
-		 - tol		 		--> real scalar providing the tolerance to use in the
-											algorithm
-		 - maxit	 		--> real scalar providing the maximum number of PLS iterations
 		 - touse	 		--> string scalar containing the name of the variable tracking
 											the subset of the data to use
-		 - scheme	 		--> string scalar containing the weighting scheme to use (one
-											of "centroid", "factorial" or "path")
-		 - crit		 		--> string scalar containing the convergence criterion (either
-											"relative" or "square")
-		 - init	 			--> string scalar containing the initialization type (either
-											"indsum" or "eigen")
-		 - scale	 		--> string scalar indicating if the indicators must be scaled
-		 - structural	--> real scalar equal to 1 if the model has a structural part,
-											and 0 otherwise
-		 - rawsum			--> real scalar equal to 1 if the 'rawsum' option has been
-											chosen
 		 - K					--> real scalar providing the number of FIMIX classes
 		 - maxit_fim	--> real scalar providing the maximum number of FIMIX
 											iterations
@@ -3001,8 +3012,8 @@ struct plssem_struct_fimix scalar plssem_fimix(real matrix Y, real matrix M,
 	real matrix P_ik, P_ik_best, eta, xi, y, x, xx, xy, yhat, beta, beta_tmp, ///
 		B_k, Gamma_k, Psi_k, ic
 	real scalar iter, n, N, i, k, r, nendo, nexo, P, p, jj, sse, omega, ///
-		rN0, rN_lte_5, delta_Q, old_Q, new_Q, new_ll, old_ll, iter_best, ///
-		lnL_best, lnL_c_best, ll_restart, R, Q, lnL_1, skip
+		rN0, rN_lte_5, delta_Q, old_Q, new_Q, new_ll, iter_best, ///
+		lnL_best, lnL_c_best, R, Q, lnL_1, skip
 	real colvector touse_vec, Sind, tau, iter_all, lnL_all, ///
 		lnL_c_all, fimix_class, class_freq, lnL_iter, lnL_c_iter, lnL_iter_best, ///
 		lnL_c_iter_best
@@ -3141,7 +3152,6 @@ struct plssem_struct_fimix scalar plssem_fimix(real matrix Y, real matrix M,
 			_editmissing(P_ik, 0)
 
 			old_Q = new_Q
-			old_ll = new_ll
 			
 			// M-step (compute B, Gamma and Psi)
 			rho = mean(P_ik)
@@ -3306,6 +3316,547 @@ struct plssem_struct_fimix scalar plssem_fimix(real matrix Y, real matrix M,
 	return(res_fimix)
 }
 
+real scalar plssem_gas_fitness(struct plssem_struct_matrix colvector e,
+	struct plssem_struct_matrix colvector f)
+{
+	/* Description:
+		 ------------
+		 Function that computes the fitness function for the PLS-GAS method
+	*/
+	
+	/* Arguments:
+		 ----------
+		 - e 			--> struct plssem_struct_matrix colvector containing the
+									measurement model residuals
+		 - f			--> struct plssem_struct_matrix colvector containing the
+									structural model residuals
+	*/
+	
+	/* Returned value:
+		 ---------------
+		 - F			--> real scalar providing the value of the fitness function
+	*/
+	
+	real scalar K, k, F
+	K = length(e)
+	F = 0
+	
+	for (k = 1; k <= K; k++) {
+		F = F + sum(e[k, 1].mat :^ 2) + sum(f[k, 1].mat :^ 2)
+	}
+	
+	return(F)
+}
+
+real scalar plssem_gas_validity_check(real colvector child, 
+	real matrix chromo, real scalar ind_count, real scalar K, real matrix X)
+{
+	/* Description:
+		 ------------
+		 Function that checks whether an individual generated during a PLS-GAS
+		 analysis is valid or not
+	*/
+	
+	/* Arguments:
+		 ----------
+		 - child			--> real colvector containing the individual to test for
+											validity
+		 - chromo			--> real matrix containing the generated individuals so far
+		 - ind_count	--> real scalar providing the number of individuals generated
+											so far
+		 - K					--> real scalar providing the number of clusters
+		 - X					--> real matrix containing the observed manifest variables
+	*/
+	
+	/* Returned value:
+		 ---------------
+		 - isvalid	--> real scalar equal to 1 or 0 depending on whether the
+										individual is valid or not
+	*/
+
+	real scalar isvalid, k, h, l
+	real matrix tab
+	real colvector ref_ind
+
+	isvalid = 1
+	
+	// Check that child includes exactly K clusters
+	if (length(uniqrows(child)) < K) {
+		isvalid = 0
+		return(isvalid)
+	}
+
+	// Check that all clusters include at least 10 observations
+	if (any(uniqrows(child, 1)[., 2] :< 10)) {
+		isvalid = 0
+		return(isvalid)
+	}
+	
+	// Check that child is not a duplicate of any of the existing individuals
+	for (l = 1; l <= ind_count; l++) {
+		tab = J(K, K, .)
+		ref_ind = chromo[., l]
+		for (k = 1; k <= K; k++) {
+			for (h = 1; h <= K; h++) {
+				tab[h, k] = sum(child[selectindex(ref_ind :== h), 1] :== k)
+			}
+		}
+		if (nonmissing(tab) == K) {
+			isvalid = 0
+			return(isvalid)
+		}
+	}
+
+	// Check that in each cluster there are no zero-variance indicators
+	for (k = 1; k <= K; k++) {
+		if (anyof(sd(X[selectindex(child :== k), .]), 0)) {
+			isvalid = 0
+			return(isvalid)
+		}
+	}
+	
+	return(isvalid)
+}
+
+struct plssem_struct_gas scalar plssem_gas(real matrix X, real matrix M, 
+	real matrix S, string scalar ind, string scalar stdind,
+	string scalar latents, string scalar binary, real scalar tol,
+	real scalar maxit, string scalar touse, string scalar scheme,
+	string scalar crit, string scalar init, string scalar scale,
+	real scalar structural, real scalar rawsum, real scalar K, real scalar I,
+	real scalar G, real scalar p_m, real scalar p_t, real scalar maxit_gas,
+	|real scalar seed, real scalar noisily)
+{
+	/* Description:
+		 ------------
+		 Function that implements the PLS-GAS method based on a genetic algortihm
+		 approach
+	*/
+	
+	/* Arguments:
+		 ----------
+		 - X					--> real matrix containing the observed manifest variables
+		 - M					--> real matrix containing the measurement model adjacency
+											matrix
+		 - S			 		--> real matrix containing the structural model adjacency
+											matrix
+		 - ind				--> string scalar providing the list of all the unstandardized
+											indicators
+		 - stdind			--> string scalar providing the list of all the standardized
+											indicators
+		 - latents 		--> string scalar providing the list of all the latent
+											variables
+		 - binary	 		--> string scalar providing the list of the latent binary
+											variables
+		 - tol		 		--> real scalar providing the tolerance to use in the
+											algorithm
+		 - maxit	 		--> real scalar providing the maximum number of PLS iterations
+		 - touse	 		--> string scalar containing the name of the variable tracking
+											the subset of the data to use
+		 - scheme	 		--> string scalar containing the weighting scheme to use (one
+											of "centroid", "factorial" or "path")
+		 - crit		 		--> string scalar containing the convergence criterion (either
+											"relative" or "square")
+		 - init	 			--> string scalar containing the initialization type (either
+											"indsum" or "eigen")
+		 - scale	 		--> string scalar indicating if the indicators must be scaled
+		 - structural	--> real scalar equal to 1 if the model has a structural part,
+											and 0 otherwise
+		 - rawsum			--> real scalar equal to 1 if the 'rawsum' option has been
+											chosen
+		 - K					--> real scalar providing the number of classes
+		 - I					--> real scalar providing the number of individuals in the
+											current population
+		 - G					--> real scalar providing the number of generations
+		 - p_m				--> real scalar providing the probability of mutation
+		 - p_t				--> real scalar providing the probability of transformation
+		 - maxit_gas	--> real scalar providing the maximum number of iterations in
+											the PLS-GAS second stage
+		 - seed				--> (optional) real scalar providing the seed
+		 - noisily		--> (optional) real scalar; if not 0, it prints the EM
+											iterations
+	*/
+	
+	/* Returned value:
+		 ---------------
+		 - res_gas	--> scalar plssem_struct_gas structure containing the results
+	*/
+
+	struct plssem_struct_gas scalar res_gas
+	struct plssem_struct_matrix scalar mat
+	struct plssem_struct_matrix colvector e, f
+  struct plssem_struct scalar res
+  struct plssem_struct colvector localmodels
+
+	real matrix Xsc, Yinit, chromo, chromo_new, Xgas, ow, path, loads, ///
+		Xgas_all, Xgassc_all, y_loc, out_res, block, x_hat, y_hat, inn_res
+	real scalar N, i, k, j, P, p, skip, a, b, gen_count, ind_count, ///
+		mut_count, isvalid, t, best_k, nchanged, F_tmp, F_best
+	real colvector touse_vec, modes, touse_loc, best, parent, child, best_tmp, ///
+		alloc_best
+	real rowvector F, endo, rank, rankF, p_i, F_k
+	string scalar todisp, spaces, touse_loc_name
+	
+	if (seed != .) {
+		rseed(seed)
+	}
+	if (noisily == .) {
+		noisily = 1
+	}
+	
+	touse_vec = st_data(., touse)
+	P = cols(S)
+	N = sum(touse_vec)
+	endo = (colsum(S)	:> 0)			 // indicators for the endogenous latent variables
+
+  localmodels = J(K, 1, res)
+  e = J(K, 1, mat)
+  f = J(K, 1, mat)
+	F = J(1, I, .)
+  modes = J(P, 1, 0)
+	
+	(void) st_addvar("byte", touse_loc_name = st_tempname())
+	
+	if (noisily) {
+		printf("{txt}\n")
+		printf("{txt}Computing PLS-GAS solution...\n")
+	}
+
+	// 1st STAGE
+	// ---------
+	if (noisily) {
+		printf("{txt}\n")
+		printf("{txt}First stage --> Creating generations (")
+		printf("{res}%f", G)
+		printf("{txt})\n")
+		printf("{hline 4}{c +}{hline 3} 1 ")
+		printf("{hline 3}{c +}{hline 3} 2 ")
+		printf("{hline 3}{c +}{hline 3} 3 ")
+		printf("{hline 3}{c +}{hline 3} 4 ")
+		printf("{hline 3}{c +}{hline 3} 5\n")
+	}
+	skip = 0
+
+	// Step 1: Randomly select a starting population of size I individuals
+	chromo = runiformint(N, I, 1, K)
+
+	gen_count = 0
+	while (gen_count < G) {
+		if (noisily) {
+			if (mod(gen_count + 1, 50) == 0) {
+				todisp = strtrim(strofreal(gen_count + 1, "%9.0f"))
+				if (strlen(todisp) < strlen(strofreal(G))) {
+					skip = strlen(strofreal(G)) - strlen(todisp)
+				}
+				spaces = ""
+				for (i = 1; i <= (skip + 3); i++) {
+					spaces = spaces + char(32)
+				}
+				printf("{txt}." + spaces + todisp + "\n")
+				skip = 0
+			}
+			else {
+				printf("{txt}.")
+			}
+			displayflush()
+		}
+		
+		// Step 2: Determine the rank fitness of each individual
+		for (i = 1; i <= I; i++) {
+			for (k = 1; k <= K; k++) {
+				touse_loc = touse_vec :* (chromo[., i] :== k)
+				st_store(., touse_loc_name, touse_loc)
+				
+				// Check that there are no zero-variance indicators
+				if (anyof(sd(X[selectindex(touse_loc), .]), 0)) {
+					printf("{err}some indicators during the PLS-GAS calculations turned out to have zero variance\n")
+					printf("{err}try reducing the number of classes\n")
+					_error(1)
+				}
+				
+				// Standardize the MVs (if required)
+				if (scale == "") {
+					Xsc = scale(X[selectindex(touse_loc), .])
+				}
+				else {
+					Xsc = X[selectindex(touse_loc), .]
+				}
+				
+				// Check that there are no zero-variance indicators
+				if (anyof(sd(Xsc), 0)) {
+					printf("{err}some indicators during the PLS-GAS calculations turned out to have zero variance\n")
+					printf("{err}try reducing the number of classes\n")
+					_error(1)
+				}
+				
+				// Initialize the LVs
+				Yinit = plssem_init_mat(Xsc, M, ind, stdind, latents, touse_loc_name, ///
+					rawsum, init)
+				
+				// Run the PLS algorithm
+				localmodels[k, 1] = plssem_base(Xsc, Yinit, M, S, modes, latents, ///
+					binary, tol, maxit, touse_loc_name, scheme, crit, structural, rawsum)
+				e[k, 1].mat = localmodels[k, 1].e
+				f[k, 1].mat = localmodels[k, 1].f
+			}
+			
+			// Fitness calculation for individual i
+			F[1, i] = plssem_gas_fitness(e, f)
+		}
+		rank = invorder(order(F', 1))'
+		rankF = J(1, I, I + 1) - rank
+		p_i = rankF/(I*(I + 1)/2)
+		
+		// Step 3: Create a new generation
+		chromo_new = J(N, I, .)
+		ind_count = 1
+		//  - Step 3.1: Select the fittest individual as a member of the next
+		//						  generation (elitist selection)
+		best = chromo[, which(rankF, "max")]
+		chromo_new[., ind_count] = best
+		while (ind_count < I) {
+			//  - Step 3.2: Randomly select (using rank fitness) a parent from the old
+			//						  population
+			parent = chromo[., rdiscrete(1, 1, p_i)]
+			//  - Step 3.3: Draw a random number
+			a = runiform(1, 1)
+			child = parent
+			//  - Step 3.4: Generate individuals for the new population
+			if (a <= p_m) {
+				// mutation
+				mut_count = 0
+				for (j = 1; j <= N; j++) {
+					b = runiform(1, 1)
+					if (b <= p_t) {
+						child[j, 1] = runiformint(1, 1, 1, K)
+						mut_count++
+					}
+				}
+				if (mut_count == 0) {
+					child[runiformint(1, 1, 1, N), 1] = runiformint(1, 1, 1, K)
+				}
+			}
+			else {
+				// reproduction (do nothing)
+			}
+			
+			//  - Steps 3.5-3.6: Test the individual for validity
+			if (ind_count > 1) {
+				isvalid = plssem_gas_validity_check(child, chromo_new, ind_count, K, ///
+					X[selectindex(touse_vec), .])
+			}
+			else {
+				isvalid = 1
+			}
+			
+			// if the individual is valid, it is included in the new generation
+			if (isvalid) {
+				ind_count++
+				chromo_new[., ind_count] = child
+			}
+		}
+	 	
+		chromo = chromo_new
+		gen_count++
+	}
+	if (noisily) printf("{txt}\n")
+
+	// 2nd STAGE
+	// ---------
+	// Select the fittest individual from 1st stage
+	for (i = 1; i <= I; i++) {
+		for (k = 1; k <= K; k++) {
+			touse_loc = touse_vec :* (chromo[., i] :== k)
+			st_store(., touse_loc_name, touse_loc)
+			
+			// Standardize the MVs (if required)
+			if (scale == "") {
+				Xsc = scale(X[selectindex(touse_loc), .])
+			}
+			else {
+				Xsc = X[selectindex(touse_loc), .]
+			}
+			
+			// Initialize the LVs
+			Yinit = plssem_init_mat(Xsc, M, ind, stdind, latents, touse_loc_name, ///
+				rawsum, init)
+			
+			// Run the PLS algorithm
+			localmodels[k, 1] = plssem_base(Xsc, Yinit, M, S, modes, latents, ///
+				binary, tol, maxit, touse_loc_name, scheme, crit, structural, rawsum)
+			e[k, 1].mat = localmodels[k, 1].e
+			f[k, 1].mat = localmodels[k, 1].f
+		}
+		
+		// Fitness calculation for individual i
+		F[1, i] = plssem_gas_fitness(e, f)
+	}
+	rank = invorder(order(F', 1))'
+	rankF = J(1, I, I + 1) - rank
+	best = chromo[, which(rankF, "max")]
+	
+	// Check if reassigning each observation to a different group does improve
+	// the fitness
+	if (noisily) {
+		printf("{txt}\n")
+		printf("{txt}Second stage --> Local improvement (hill-climbing) (")
+		printf("{res}%f", maxit_gas)
+		printf("{txt})\n")
+		printf("{hline 4}{c +}{hline 3} 1 ")
+		printf("{hline 3}{c +}{hline 3} 2 ")
+		printf("{hline 3}{c +}{hline 3} 3 ")
+		printf("{hline 3}{c +}{hline 3} 4 ")
+		printf("{hline 3}{c +}{hline 3} 5\n")
+	}
+	skip = 0
+
+	best_tmp = best
+	t = 1
+	F_best = plssem_gas_fitness(e, f)
+	alloc_best = best
+	while ((t <= maxit_gas) & (nchanged > 0)) {
+		if (noisily) {
+			if (mod(t, 50) == 0) {
+				todisp = strtrim(strofreal(t, "%9.0f"))
+				if (strlen(todisp) < strlen(strofreal(maxit_gas))) {
+					skip = strlen(strofreal(maxit_gas)) - strlen(todisp)
+				}
+				spaces = ""
+				for (i = 1; i <= (skip + 3); i++) {
+					spaces = spaces + char(32)
+				}
+				printf("{txt}." + spaces + todisp + "\n")
+				skip = 0
+			}
+			else {
+				printf("{txt}.")
+			}
+			displayflush()
+		}
+		
+		nchanged = 0
+		for (j = 1; j <= N; j++) {
+			F_k = J(1, K, .)
+			
+			// computation for each observation uses the PLS-SEM results of the
+			// segment to which the observation has been assigned
+			ow = localmodels[best[j, 1], 1].outer_weights
+			path = localmodels[best[j, 1], 1].path
+			path = editmissing(path, 0)
+			loads = localmodels[best[j, 1], 1].loadings
+
+			for (k = 1; k <= K; k++) {
+				best_tmp[j, 1] = k
+				touse_loc = touse_vec :* (best_tmp :== k)
+				Xgas = X[selectindex(touse_loc), .]
+				
+				Xgas_all = X[selectindex(touse_vec), .]
+				Xgassc_all = scale(Xgas_all, 0, sd(Xgas), mean(Xgas))
+				y_loc = Xgassc_all * ow
+				out_res = J(N, 0, .)
+				for (p = 1; p <= P; p++) {
+					block = selectindex(loads[., p] :!= .)
+					x_hat = y_loc[., p] * loads[block, p]'
+					out_res = (out_res, (Xgassc_all[., block] - x_hat))
+				}
+				y_hat = y_loc * path[., selectindex(endo)]
+				inn_res = (y_loc[., selectindex(endo)] - y_hat)
+				F_k[1, k] = sum(out_res :^ 2) + sum(inn_res :^ 2)
+			}
+			best_k = which(F_k, "min")
+			if (best_k != best[j, 1]) {
+				nchanged++
+				best[j, 1] = best_k
+				best_tmp = best
+				
+				for (k = 1; k <= K; k++) {
+					touse_loc = touse_vec :* (best[., 1] :== k)
+					st_store(., touse_loc_name, touse_loc)
+					
+					// Check that there are no zero-variance indicators
+					if (anyof(sd(X[selectindex(touse_loc), .]), 0)) {
+						if (noisily) {
+							printf("{txt}\n\n")
+						}
+						printf("{err}some indicators during the PLS-GAS calculations turned out to have zero variance\n")
+						printf("{err}try reducing the number of classes\n")
+						//_error(1)
+
+						printf("{err}best results found so far returned\n")
+						
+						// Assigning results to structure's members
+						res_gas.niter = (t - 1)
+						res_gas.gas_class = alloc_best
+						res_gas.touse_vec = touse_vec
+						res_gas.nclass = K
+						res_gas.popsize = I
+						res_gas.ngen = G
+						
+						return(res_gas)
+					}
+					
+					// Standardize the MVs (if required)
+					if (scale == "") {
+						Xsc = scale(X[selectindex(touse_loc), .])
+					}
+					else {
+						Xsc = X[selectindex(touse_loc), .]
+					}
+					
+					// Check that there are no zero-variance indicators
+					if (anyof(sd(Xsc), 0)) {
+						if (noisily) {
+							printf("{txt}\n\n")
+						}
+						printf("{err}some indicators during the PLS-GAS calculations turned out to have zero variance\n")
+						printf("{err}try reducing the number of classes\n")
+						//_error(1)
+
+						printf("{err}best results found so far returned\n")
+						
+						// Assigning results to structure's members
+						res_gas.niter = (t - 1)
+						res_gas.gas_class = alloc_best
+						res_gas.touse_vec = touse_vec
+						res_gas.nclass = K
+						res_gas.popsize = I
+						res_gas.ngen = G
+						
+						return(res_gas)
+					}
+					
+					// Initialize the LVs
+					Yinit = plssem_init_mat(Xsc, M, ind, stdind, latents, touse_loc_name, ///
+						rawsum, init)
+					
+					// Run the PLS algorithm
+					localmodels[k, 1] = plssem_base(Xsc, Yinit, M, S, modes, latents, ///
+						binary, tol, maxit, touse_loc_name, scheme, crit, structural, rawsum)
+					e[k, 1].mat = localmodels[k, 1].e
+					f[k, 1].mat = localmodels[k, 1].f
+				}
+				
+				F_tmp = plssem_gas_fitness(e, f)
+				if (F_tmp < F_best) {
+					F_best = F_tmp
+					alloc_best = best
+				}
+			}
+		}
+		t++
+	}
+	
+	// Assigning results to structure's members
+	res_gas.niter = (t - 1)
+	res_gas.gas_class = alloc_best
+	res_gas.touse_vec = touse_vec
+	res_gas.nclass = K
+	res_gas.popsize = I
+	res_gas.ngen = G
+	
+	return(res_gas)
+}
+
 void print_struct_matrix(struct plssem_struct_matrix colvector A)
 {
 	/* Description:
@@ -3443,6 +3994,10 @@ mata: mata mlib add lplssem ///
 	plssem_fimix_estep() ///
 	plssem_fimix_ic() ///
 	plssem_fimix() ///
+	plssem_struct_gas() ///
+	plssem_gas_fitness() ///
+	plssem_gas_validity_check() ///
+	plssem_gas() ///
 	print_struct_matrix() ///
 	prod() ///
 	cleanup()

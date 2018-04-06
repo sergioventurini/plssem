@@ -1,5 +1,5 @@
 *!mkheader version 0.3.0
-*!Written 31Mar2018
+*!Written 06Apr2018
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -7,7 +7,7 @@ program mkheader
 	version 14.2
 	syntax [, matrix1(string) matrix2(string) DIGits(integer 5) noGRoup ///
 		noSTRuctural RAWsum rebus_it(integer -999) rebus_gqi(real 0) ///
-		 fimix_it(integer -999) fimix_ll(real 0) ]
+		 fimix_it(integer -999) fimix_ll(real 0) GAS ]
 
 	/* Options:
 	   --------
@@ -24,6 +24,7 @@ program mkheader
 		 rebus_gqi									--> REBUS-PLS group quality index (GQI)
 		 fimix_it										--> number of FIMIX-PLS iterations
 		 fimix_ll										--> FIMIX-PLS log-likelihood value attained
+		 gas												--> PLS-GAS indicator
 	 */
 
 	local props = e(properties)
@@ -38,7 +39,7 @@ program mkheader
 
 	display
 
-	if ((`rebus_it' == -999) & (`fimix_it' == -999)) {
+	if ((`rebus_it' == -999) & (`fimix_it' == -999) & ("`gas'" == "")) {
 		if ("`group'" == "nogroup") {
 			if ("`structural'" == "nostructural") {
 				local nobs: display _skip(0) "Partial least squares path modeling" _col(49) ///
@@ -146,7 +147,7 @@ program mkheader
 			}
 		}
 	}
-	else if ((`rebus_it' > 0) & (`fimix_it' == -999)) {
+	else if ((`rebus_it' > 0) & (`fimix_it' == -999) & ("`gas'" == "")) {
 		local title: display _skip(0) "Response-based unit segmentation partial least squares (REBUS-PLS)"
 		display as text "`title'"
 		
@@ -168,7 +169,7 @@ program mkheader
 			string(`rebus_gqi', "%9.`digits'f")
 		display as text "`rebgqi'"
 	}
-	else if ((`rebus_it' == -999) & (`fimix_it' > 0)) {
+	else if ((`rebus_it' == -999) & (`fimix_it' > 0) & ("`gas'" == "")) {
 		local title: display _skip(0) "Finite mixture partial least squares (FIMIX-PLS)"
 		display as text "`title'"
 		
@@ -189,5 +190,20 @@ program mkheader
 		local fimll: display _skip(0) "Log-likelihood value: " ///
 			string(`fimix_ll', "%99.`digits'f")
 		display as text "`fimll'"
+	}
+	if ("`gas'" != "") {
+		local title: display _skip(0) "Partial least squares genetic algorithm segmentation (PLS-GAS)"
+		display as text "`title'"
+		
+		display
+
+		local wgt: display _skip(0) "Weighting scheme: `wscheme'"
+		display as text "`wgt'"
+		
+		local toler: display _skip(0) "Tolerance: " string(`tol', "%9.`digits'e")
+		display as text "`toler'"
+
+		local initialize: display _skip(0) "Initialization: `init'"
+		display as text "`initialize'"
 	}
 end

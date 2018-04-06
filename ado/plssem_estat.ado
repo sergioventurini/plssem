@@ -1,5 +1,5 @@
 *!plssem_estat version 0.3.0
-*!Written 03Apr2018
+*!Written 06Apr2018
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -387,10 +387,12 @@ end
 program unobshet
 	version 14.2
 	syntax [ , Method(string) Numclass(numlist integer >=1 max=1) ///
-		MAXCLass(integer 20) Dendrogram MAXITer(integer 50) Stop(numlist >0 max=1) ///
-		Test Reps(numlist integer >1 max=1) REStart(numlist integer >=1 max=1) ///
+		POPsize(numlist integer >=1 max=1) MAXCLass(integer 20) Dendrogram ///
+		MAXITer(integer 50) NUMGen(integer 1000) PMut(real 0.3) ///
+		PTransf(real 0.1) Stop(numlist >0 max=1) Test ///
+		Reps(numlist integer >1 max=1) REStart(numlist integer >=1 max=1) ///
 		SEed(numlist max=1) Plot name(string) DIGits(integer 3) ///
-		GRoups(numlist integer >=1 <=20 min=1 sort) ]
+		GRoups(numlist integer >=1 <=20 min=1 sort) MAXITGas(integer 30) ]
 
 	/* Options:
 	   --------
@@ -398,9 +400,14 @@ program unobshet
 																				heterogeneity; available methods are
 																				'rebus', 'fimix' and 'gas'. default is
 																				'rebus'.
-		 numclass(integer)							--> number of classes to use; if empty, it
+		 numclass(integer integer >=1
+							max=1))								--> number of classes to use; if empty, it
 																				is chosen automatically using a Ward
 																				hierarchical algorithm
+		 popsize(integer integer >=1
+						 max=1))								--> number of individual in each population;
+																				this is an option to use with
+																				method(gas)
 		 maxclass(integer 20)						--> maximum number of classes to test in
 																				choosing automatically the number of
 																				classes (default 20)
@@ -408,6 +415,10 @@ program unobshet
 																				cluster analysis
 		 maxiter(integer 50)						--> maximum number of iterations (default
 																				50)
+		 numgen(integer 1000)						--> number of generations (default 1000)
+		 pmut(real 0.3)									--> probability of mutation (default 0.3)
+		 ptransf(real 0.1)							--> probability of transformation (default
+																				0.1)
 		 stop(real >0)									--> stopping criterion
 		 test														--> permutation test
 		 reps(numlist integer >1 max=1)	--> number of permutation test replications
@@ -425,6 +436,8 @@ program unobshet
 						<=20 min=1 sort)				--> list of group numbers for which to
 																				compare the corresponding fit indices
 																				using FIMIX-PLS
+		 maxitgas(integer 30)						--> maximum number of PLS-GAS second stage
+																				iterations (default 30)
 	 */
 	 
 	 /* Description:
@@ -471,7 +484,8 @@ program REBUS, rclass
 																				heterogeneity; available methods are
 																				'rebus', 'fimix' and 'gas'. default is
 																				'rebus'.
-		 numclass(integer)							--> number of classes to use; if empty, it
+		 numclass(integer integer >=1
+							max=1))								--> number of classes to use; if empty, it
 																				is chosen automatically using a Ward
 																				hierarchical algorithm
 		 maxclass(integer 20)						--> maximum number of classes to test in
@@ -1122,7 +1136,7 @@ end
 program FIMIX, rclass
 	version 14.2
 	syntax [ , Method(string) Numclass(numlist integer >=1 max=1) ///
-		MAXCLass(integer 20) MAXITer(integer 30000) Stop(real 1.e-5) ///
+		MAXITer(integer 30000) Stop(real 1.e-5) ///
 		REStart(numlist integer >=1 max=1) SEed(numlist max=1) ///
 		name(string) DIGits(integer 3) GRoups(numlist integer >=1 <=20 min=1 sort) ]
 
@@ -1132,12 +1146,10 @@ program FIMIX, rclass
 																				heterogeneity; available methods are
 																				'rebus', 'fimix' and 'gas'. default is
 																				'rebus'.
-		 numclass(integer)							--> number of classes to use; if empty, it
+		 numclass(integer integer >=1
+							max=1))								--> number of classes to use; if empty, it
 																				is chosen automatically using a Ward
 																				hierarchical algorithm
-		 maxclass(integer 20)						--> maximum number of classes to test in
-																				choosing automatically the number of
-																				classes (default 20)
 		 maxiter(integer 30000)					--> maximum number of iterations (default
 																				30000)
 		 stop(real 1e-5)								--> stopping criterion (default 1e-5)
@@ -1331,22 +1343,9 @@ program FIMIX, rclass
 		capture noisily {
 			mata: `res_fimix' = ///
 				plssem_fimix( ///
-					st_data(., "`alllatents'"), ///			 note: `__touse__' not used here
-					st_matrix("e(adj_meas)"), ///
+					st_data(., "`alllatents'"), ///			 	 note: `__touse__' not used here
 					st_matrix("e(adj_struct)"), ///
-					"`allindicators'", ///
-					"`allstdindicators'", ///
-					"`alllatents'", ///
-					"`e(binarylvs)'", ///
-					st_numscalar("e(tolerance)"), ///
-					st_numscalar("e(maxiter)"), ///
 					"`__touse__'", ///
-					"`scheme'", ///
-					"`convcrit'", ///
-					"`init'", ///
-					"`scale'", ///
-					strtoreal("`isstruct'"), ///
-					strtoreal("`israwsum'"), ///
 					strtoreal("`numclass'"), ///
 					strtoreal("`maxiter'"), ///
 					strtoreal("`stop'"), ///
@@ -1393,21 +1392,8 @@ program FIMIX, rclass
 				mata: `res_fimix' = ///
 					plssem_fimix( ///
 						st_data(., "`alllatents'"), ///			 note: `__touse__' not used here
-						st_matrix("e(adj_meas)"), ///
 						st_matrix("e(adj_struct)"), ///
-						"`allindicators'", ///
-						"`allstdindicators'", ///
-						"`alllatents'", ///
-						"`e(binarylvs)'", ///
-						st_numscalar("e(tolerance)"), ///
-						st_numscalar("e(maxiter)"), ///
 						"`__touse__'", ///
-						"`scheme'", ///
-						"`convcrit'", ///
-						"`init'", ///
-						"`scale'", ///
-						strtoreal("`isstruct'"), ///
-						strtoreal("`israwsum'"), ///
 						`g', ///
 						strtoreal("`maxiter'"), ///
 						strtoreal("`stop'"), ///
@@ -1625,10 +1611,9 @@ end
 program GAS, rclass
 	version 14.2
 	syntax [ , Method(string) Numclass(numlist integer >=1 max=1) ///
-		MAXCLass(integer 20) Dendrogram MAXITer(integer 50) Stop(real 0.005) ///
-		Test Reps(numlist integer >1 max=1) REStart(numlist integer >=1 max=1) ///
-		SEed(numlist max=1) Plot name(string) DIGits(integer 3) ///
-		GRoups(numlist integer >=1 <=20 min=1 sort) ]
+		POPsize(numlist integer >=1 max=1) NUMGen(integer 1000) ///
+		PMut(real 0.3) PTransf(real 0.1) SEed(numlist max=1) name(string) ///
+		DIGits(integer 3) MAXITGas(integer 30) ]
 
 	/* Options:
 	   --------
@@ -1636,33 +1621,25 @@ program GAS, rclass
 																				heterogeneity; available methods are
 																				'rebus', 'fimix' and 'gas'. default is
 																				'rebus'.
-		 numclass(integer)							--> number of classes to use; if empty, it
+		 numclass(integer integer >=1
+							max=1))								--> number of classes to use; if empty, it
 																				is chosen automatically using a Ward
 																				hierarchical algorithm
-		 maxclass(integer 20)						--> maximum number of classes to test in
-																				choosing automatically the number of
-																				classes (default 20)
-		 dendrogram											--> display the dendrogram for the Ward
-																				cluster analysis
-		 maxiter(integer 50)						--> maximum number of iterations (default
-																				50)
+		 popsize(integer integer >=1
+						 max=1))								--> number of individual in each population;
+																				this is an option to use with
+																				method(gas)
+		 numgen(integer 1000)						--> number of generations (default 1000)
+		 pmut(real 0.3)									--> probability of mutation (default 0.3)
+		 ptransf(real 0.1)							--> probability of transformation (default
+																				0.1)
 		 stop(real 0.005)								--> stopping criterion (default 0.005)
-		 test														--> permutation test
-		 reps(numlist integer >1 max=1)	--> number of permutation test replications
-																				(default is 50)
-		 restart(numlist integer >=1
-						 max=1)									--> number of repetitions of the EM
-																				algorithm in FIMIX-PLS (default is 10)
 		 seed(numlist max=1)						--> permutation test seed number
-		 plot														--> plot of the empirical distribution
-																				for the permutation test statistic
 		 name(string)										--> variable name where to store the final
 																				rebus classification
 		 digits(integer 3)							--> number of digits to display (default 3)
-		 groups(numlist integer >=1
-						<=20 min=1 sort)				--> list of group numbers for which to
-																				compare the corresponding fit indices
-																				using FIMIX-PLS
+		 maxitgas(integer 30)						--> maximum number of PLS-GAS second stage
+																				iterations (default 30)
 	 */
 	 
 	 /* Description:
@@ -1671,7 +1648,400 @@ program GAS, rclass
 			the presence of unobserved heterogeneity.
 	 */
 	
+	local props = e(properties)
+	local struct "structural"
+	local isstruct : list struct in props
+	if (!`isstruct') {
+		display as error "the fitted plssem model includes only the measurement part"
+		error 198
+	}
+	local rawsum "rawsum"
+	local israwsum : list rawsum in props
+	local cc "relative"
+	local isrelative : list cc in props
+	if (`isrelative') {
+		local convcrit "relative"
+	}
+	else {
+		local convcrit "square"
+	}
+	local initmet "indsum"
+	local isindsum : list initmet in props
+	if (`isindsum') {
+		local init "indsum"
+	}
+	else {
+		local init "eigen"
+	}
+	local indscale "scaled"
+	local isscaled : list indscale in props
+	if (`isscaled') {
+		local scale ""
+	}
+	else {
+		local scale "noscale"
+	}
+	local boot "bootstrap"
+	local isboot : list boot in props
+	if (`isboot') {
+		display as error "the global model used the 'boot()' option, which slows down excessively the PLS-GAS calculations"
+		display as error "try refitting the global model without bootstrap"
+		exit
+	}
+	if ("`seed'" != "") {
+		if (`seed' < 0 | `seed' >  2^31-1) {
+			display as error "'seed()' option requires a value between 0 and 2^31-1"
+			exit
+		}
+	}
+	if ("`name'" != "") & (`: word count `name'' != 1) {
+		display as error "the 'name' option must include a single word"
+		exit
+	}
+	if ("`name'" == "") {
+		local name "gas_class"
+	}
+	if ("`e(binarylvs)'" != "") {
+		display as error "currently the PLS-GAS implementation doesn't allow for binary latent variables"
+		exit
+	}
+	local knnimp "knn"
+	local isknnimp : list knnimp in props
+	local meanimp "mean"
+	local ismeanimp : list meanimp in props
+	if (`isknnimp') {
+		local missing "knn"
+	}
+	else if (`ismeanimp') {
+		local missing "mean"
+	}
+	else {
+		local missing ""
+	}
+	if ("`numclass'" == "") {
+		display as error "the 'numclass' option must include one value for PLS-GAS"
+		exit
+	}
+	if ("`popsize'" == "") {
+		display as error "the 'popsize' option must include one value for PLS-GAS"
+		exit
+	}
+	if (`numgen' < 1) {
+		display as error "the 'numgen' option for PLS-GAS must be an integer at least equal to 1"
+		exit
+	}
+	if ((`pmut' > 1) | (`pmut' < 0)) {
+		display as error "the 'pmut' option for PLS-GAS must be in between 0 and 1"
+		exit
+	}
+	if ((`ptransf' > 1) | (`ptransf' < 0)) {
+		display as error "the 'ptransf' option for PLS-GAS must be in between 0 and 1"
+		exit
+	}
+	
+	tempvar __touse__
+	quietly generate byte `__touse__' = e(sample)
+	quietly count if `__touse__'
+	local N = r(N)
+
+	/* Global model */
+	tempname globalmodel gof_global
+	_estimates hold `globalmodel', copy
+	
+	/* Collecting results to display later */
+	matrix `gof_global' = e(assessment)
+	matrix `gof_global' = `gof_global'[1, 3]
+
+	if ("`missing'" != "") {
+		/* Save original data set */
+		local allindicators = e(mvs)
+		tempname original_data
+		mata: `original_data' = st_data(., "`: list uniq allindicators'", "`__touse__'")
+		
+		/* Recovery of missing values */
+		mata: st_store(., tokens("`: list uniq allindicators'"), "`__touse__'", ///
+			st_matrix("e(imputed_data)"))
+	}
+
+  /* Parse global model e(cmdline) */
+  local cmdline = e(cmdline)
+  local trash
+  gettoken cmdline options : cmdline, parse(",")
+  gettoken trash options : options, parse(",")
+
+  local mm_start = strpos(`"`cmdline'"', "(")
+  if (strpos(`"`cmdline'"', "if")) {
+    local mm_end = strpos(`"`cmdline'"', "if") - `mm_start' - 1
+  }
+  else {
+    local mm_end = strlen(`"`cmdline'"')
+  }
+  local mm = substr(`"`cmdline'"', `mm_start', `mm_end')
+  local mm : list clean mm
+
+  tokenize `"`options'"', parse(")")
+  local tok_i = 1
+  while (substr(`"``tok_i''"', 1, 3) != "str") & (`"``tok_i''"' != "") {
+    local ++tok_i
+  }
+  local sm_full = `"``tok_i''"' + ")"
+  tokenize `"``tok_i''"', parse("(")
+  local sm = `"`3'"'
+  local sm : list clean sm
+  local options : list options - sm_full
+  local options : list clean options
+
+  // the following code doesn't work
+  /*
+  tokenize `"`options'"', parse(")")
+  local tok_i = 1
+  while (substr(`"``tok_i''"', 1, 3) != "dig") & (`"``tok_i''"' != "") {
+    local ++tok_i
+  }
+  local options_digits = `"``tok_i''"' + ")"
+  local options : list options - options_digits
+  local options : list clean options
+  */
+  local options "tol(`e(tolerance)') maxiter(`e(maxiter)') wscheme("
+  local ws_centroid "centroid"
+  local ws_factor "factor"
+  local ws_path "path"
+  if (`: list ws_centroid in props') {
+    local scheme "centroid"
+  }
+  else if (`: list ws_factor in props') {
+    local scheme "factor"
+  }
+  else if (`: list ws_path in props') {
+    local scheme "path"
+  }
+  local options "`options'`scheme')"
+  if ("`e(binarylvs)'" != "") {
+    local options "`options' binary(`e(binarylvs)')"
+  }
+  
+	/* Set temporary variables */
+	local allindicators = e(mvs)
+	local alllatents = e(lvs)
+	local allreflective = e(reflective)
+	local num_ind : word count `allindicators'
+	local num_lv : word count `alllatents'
+	tempname endo
+	mata: `endo' = colsum(st_matrix("e(adj_struct)"))
+	mata: `endo' = (`endo' :> 0)
+	foreach var in `allindicators' {
+		local allstdindicators "`allstdindicators' std`var'"
+	}
+	local allstdindicators : list clean allstdindicators
+
+	/* Run the PLS-GAS algorithm */
+	tempname res_gas
+	capture noisily {
+		mata: `res_gas' = ///
+			plssem_gas( ///
+				st_data(., "`allindicators'"), ///			 note: `__touse__' not used here
+				st_matrix("e(adj_meas)"), ///
+				st_matrix("e(adj_struct)"), ///
+				"`allindicators'", ///
+				"`allstdindicators'", ///
+				"`alllatents'", ///
+				"`e(binarylvs)'", ///
+				st_numscalar("e(tolerance)"), ///
+				st_numscalar("e(maxiter)"), ///
+				"`__touse__'", ///
+				"`scheme'", ///
+				"`convcrit'", ///
+				"`init'", ///
+				"`scale'", ///
+				strtoreal("`isstruct'"), ///
+				strtoreal("`israwsum'"), ///
+				strtoreal("`numclass'"), ///
+				strtoreal("`popsize'"), ///
+				strtoreal("`numgen'"), ///
+				strtoreal("`pmut'"), ///
+				strtoreal("`ptransf'"), ///
+				strtoreal("`maxitgas'"), ///
+				strtoreal("`seed'"), ///
+				1)
+		
+		mata: st_local("iter", strofreal(`res_gas'.niter))
+	}
+	if (_rc != 0) {
+		if (mod(`iter', 5) == 0) {
+			display as error " aborting"
+		}
+		else {
+			display as error "aborting"
+		}
+		if (_rc == 409) {
+			display as error "at least one indicator has zero variance in one iteration"
+		}
+		else {
+			display as error "something went wrong in the PLS-GAS calculations"
+		}
+		display as error "try reducing the number of classes " _continue
+		display as error "or relaxing the stopping criteria"
+		exit
+	}
+	/* End of PLS-GAS algorithm */
+
+	/* Save final classification */
+	capture drop `name'
+	quietly generate int `name' = .
+	mata: st_store(., "`name'", "`__touse__'", `res_gas'.gas_class)
+	local now "`c(current_date)', `c(current_time)'"
+	local now : list clean now
+	label variable `name' "PLS-GAS classification [`now']"
+	
+	/* Once stability is attained, final local models are estimated */
+	forvalues k = 1/`numclass' {
+		tempname localmodel_`k'
+		quietly plssem `mm' if (`name' == `k' & `__touse__'), structural(`sm') ///
+			`options'
+		_estimates hold `localmodel_`k''
+	}
+	
+	/* Restore global model results */
+	_estimates unhold `globalmodel'
+
+  /* Display results */
 	display
-	display as text "The PLS-GAS method will be available soon! :)"
-	exit	
+	
+	local skip1 = 1
+	local skip3 = 3
+
+	tempname tmp strb nonmiss alllen numeff
+	matrix `tmp' = e(struct_b)
+	matrix `strb' = vec(`tmp')
+	local nrows = rowsof(`tmp')
+	local ncols = colsof(`tmp')
+	local totrows = `nrows'*`ncols'
+	matrix `nonmiss' = J(`totrows', 1, 0)
+	local strb_rn : rowfullnames `strb'
+	forvalues i = 1/`totrows' {
+		if (!missing(`strb'[`i', 1])) {
+			matrix `nonmiss'[`i', 1] = 1
+			local nm_tmp `: word `i' of `strb_rn''
+			local tok_i = 1
+			tokenize `"`nm_tmp'"', parse(":")
+			while ("``tok_i''" != "") {
+				if (`tok_i' == 1) {
+					local nm_Y "``tok_i''"
+				}
+				else if (`tok_i' == 3) {
+					local nm_X "``tok_i''"
+				}
+				local ++tok_i
+			}
+			local strbok_rn "`strbok_rn' `nm_X':`nm_Y'"
+		}
+	}	
+	mata: st_numscalar("`numeff'", colsum(st_matrix("`nonmiss'")))
+	local neff = `numeff'
+	matrix `alllen' = J(`neff', 1, .)
+	local resnm : subinstr local strbok_rn ":" "->", all
+	forvalues j = 1/`neff' {
+		local nm : word `j' of `resnm'
+		local nm_len : strlen local nm
+		matrix `alllen'[`j', 1] = `nm_len' + 2
+	}
+
+	tempname results_n results_p results_l tmp_mat
+	local nind : word count `allindicators'
+	forvalues k = 1/`numclass' {
+		local grp_cn `grp_cn' "Class_`k'"
+	}
+	matrix `results_n' = J(3, 1 + `numclass', .)
+	matrix rownames `results_n' = "Observations" "Percentage" "GoF"
+	matrix colnames `results_n' = "Global" `grp_cn'
+	matrix `results_p' = J(`neff', 1 + `numclass', .)
+	matrix rownames `results_p' = `resnm'
+	matrix colnames `results_p' = "Global" `grp_cn'
+	matrix `results_l' = J(`nind', 1 + `numclass', .)
+	matrix rownames `results_l' = `allindicators'
+	matrix colnames `results_l' = "Global" `grp_cn'
+
+	_estimates hold `globalmodel', copy  // needed to keep it in memory
+	matrix `tmp' = e(struct_b)
+	matrix `strb' = vec(`tmp')
+
+	tempname global_N
+	scalar `global_N' = e(N)
+	matrix `results_n'[1, 1] = e(N)
+	matrix `results_n'[2, 1] = 100
+	matrix `results_n'[3, 1] = `gof_global'[1, 1]
+
+	local b_i = 1
+	forvalues i = 1/`totrows' {
+		if (`nonmiss'[`i', 1]) {
+			matrix `results_p'[`b_i', 1] = `strb'[`i', 1]
+			local ++b_i
+		}
+	}
+	mata: st_matrix("`tmp_mat'", rowsum(st_matrix("e(loadings)")))
+	matrix `results_l'[1, 1] = `tmp_mat'
+	
+	tempname gof_tmp
+	forvalues k = 1/`numclass' {
+		_estimates unhold `localmodel_`k''
+		matrix `tmp' = e(struct_b)
+		matrix `strb' = vec(`tmp')
+
+		matrix `gof_tmp' = e(assessment)
+		matrix `gof_tmp' = `gof_tmp'[1, 3]
+		matrix `results_n'[1, 1 + `k'] = e(N)
+		matrix `results_n'[2, 1 + `k'] = e(N)/`global_N'*100
+		matrix `results_n'[3, 1 + `k'] = `gof_tmp'[1, 1]
+		
+		local b_i = 1
+		forvalues i = 1/`totrows' {
+			if (`nonmiss'[`i', 1]) {
+				matrix `results_p'[`b_i', 1 + `k'] = `strb'[`i', 1]
+				local ++b_i
+			}
+		}
+
+		mata: st_matrix("`tmp_mat'", rowsum(st_matrix("e(loadings)")))
+		matrix `results_l'[1, 1 + `k'] = `tmp_mat'
+	}
+	
+	mkheader, digits(5) gas
+
+	tempname maxlen
+	mata: st_numscalar("`maxlen'", max(st_matrix("`alllen'")))
+  local firstcollbl ""	
+	local `maxlen' = max(max(strlen("`firstcollbl'"), `maxlen') + 2, 14)
+	local colw = max(9, `digits' + 5)
+
+	local title "PLS-GAS classes"
+	local firstcollbl ""
+	mktable, matrix(`results_n') digits(`digits') firstcolname(`firstcollbl') ///
+		title(`title') firstcolwidth(``maxlen'') colwidth(`colw') hlines(3) ///
+		novlines total rebus
+
+	local title "Loadings"
+	local firstcollbl ""
+	mktable, matrix(`results_l') digits(`digits') firstcolname(`firstcollbl') ///
+		title(`title') firstcolwidth(``maxlen'') colwidth(`colw') hlines(`nind') ///
+		novlines total
+
+	local title "Path coefficients"
+	local firstcollbl ""
+	mktable, matrix(`results_p') digits(`digits') firstcolname(`firstcollbl') ///
+		title(`title') firstcolwidth(``maxlen'') colwidth(`colw') hlines(`neff') ///
+		novlines total
+	/* End of display */
+
+	/* Restore global model results */
+	_estimates unhold `globalmodel'
+	
+	/* Clean up */
+	if ("`missing'" != "") {
+		mata: st_store(., tokens("`: list uniq allindicators'"), "`__touse__'", ///
+			`original_data')
+	}
+	
+	/* Return values */
+	return scalar nclasses = `numclass'
+	return scalar niter = `iter'
 end

@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 0.0.1  02Apr2018}{...}
+{* *! version 0.0.1  06Apr2018}{...}
 {vieweralsosee "plssem" "help plssem"}{...}
 {vieweralsosee "plssemplot" "help plssemplot"}{...}
 {viewerjumpto "Postestimation commands" "plssem postestimation##description"}{...}
@@ -90,8 +90,9 @@ Display the assessment for the presence of unobserved heterogeneity
 {cmd:estat} {cmdab:un:obshet},
 {cmdab:m:ethod(}{it:methodname}{cmd:)} [{opt n:umclass(#)} {opt maxcl:ass(#)}
 {opt d:endrogram} {opt maxit:er(#)} {opt s:top(#)}  {opt t:est} {opt r:eps(#)}
-{opt res:tart(#)} {opth gr:oups(numlist)} {opt se:ed(#)} {opt p:lot} {cmdab:name(}{it:varname}{cmd:)}
-{opt dig:its(#)}]
+{opt res:tart(#)} {opth gr:oups(numlist)} {opt pop:size(#)} {opt numg:en(#)}
+{opt pm:ut(#)} {opt pt:ransf(#)} {opt maxitg:as(#)} {opt se:ed(#)}
+{opt p:lot} {cmdab:name(}{it:varname}{cmd:)} {opt dig:its(#)}]
 
 
 {marker desc_estat}{...}
@@ -128,8 +129,9 @@ of the equations in the structural part of a PLS-SEM model. With the
 {pstd} {cmd:estat unobshet}
 assesses the presence of unobserved heterogeneity in the fitted PLS-SEM model
 using the {it:methodname} approach. Currently, the REBUS-PLS
-({help plssem_postestimation##Trinchera2007:Trinchera 2007}) and FIMIX-PLS approaches
-({help plssem_postestimation##Hahnetal2002:Hahn et al. 2007}) are implemented.
+({help plssem_postestimation##Trinchera2007:Trinchera 2007}), FIMIX-PLS
+({help plssem_postestimation##Hahnetal2002:Hahn et al. 2007}) and PLS-GAS
+({help plssem_postestimation##Ringleetal2014:Ringle et al. 2014}) approaches are implemented.
  
  
 {marker options_estat}{...}
@@ -162,8 +164,8 @@ the total effects decomposition.
 {phang}
 {opt method(methodname)},
 an option used with {cmd:estat unobshet}, allows choosing the method to use for
-assessing the presence of unobserved heterogeneity; available methods are {cmd:rebus}
-and {cmd:fimix}; default is {cmd:rebus}.
+assessing the presence of unobserved heterogeneity; available methods are {cmd:rebus},
+{cmd:fimix} and {cmd:gas}; default is {cmd:rebus}.
 
 {phang}
 {opt numclass(#)},
@@ -230,6 +232,35 @@ Bayesian information criterion (BIC), consistent AIC (CAIC),
 Hannan-Quinn criterion (HQ), minimum description length with factor 5 (MDL5),
 log-likelihood (LnL), entropy statistic (EN), non-fuzzy index (NFI),
 normalized entropy criterion (NEC).
+
+{phang}
+{opt popsize(#)},
+an option used with {cmd:estat unobshet} when the PLS-GAS method is chosen,
+allows to set the size of each generation in the genetic algorithm; deafult
+is 100.
+
+{phang}
+{opt numgen(#)},
+an option used with {cmd:estat unobshet} when the PLS-GAS method is chosen,
+allows to set the number of generations to create during the genetic algorithm;
+deafult is 1000.
+
+{phang}
+{opt pmut(#)},
+an option used with {cmd:estat unobshet} when the PLS-GAS method is chosen,
+allows to set the probability to mutate for a chromosome (i.e. an individual in a
+a generation) in the genetic algorithm; deafult is 0.3.
+
+{phang}
+{opt ptransf(#)},
+an option used with {cmd:estat unobshet} when the PLS-GAS method is chosen,
+allows to set the probability to mutate for a single gene in a chromosome during
+the genetic algorithm calculation; deafult is 0.1.
+
+{phang}
+{opt maxitgas(#)},
+an option used with {cmd:estat unobshet}, allows to set the maximum number
+of iterations the PLS-GAS algorithm; default is {cmd:30}.
 
 {phang}
 {opt seed(#)},
@@ -375,6 +406,11 @@ Hair, J. F., Hult, G. T. M., Ringle, C. M., and Sarstedt, M. 2017. {it:A Primer 
 {marker Hairetal2018}{...}
 {phang}
 Hair, J. F., Sarstedt, M., Ringle, C. M., and Gudergan, S. P. 2018. {it:Advanced Issues in Partial Least Squares Structural Equation Modeling}. Sage.
+
+{marker Ringleetal2014}{...}
+{phang}
+Ringle, C. M., Sarstedt, M., and Schlittgen, R. 2014. Genetic algorithm segmentation
+in partial least squares structural equation modeling. OR Spectrum, 36, 251–276.
 
 {marker Sobel1982}{...}
 {phang}
