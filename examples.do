@@ -975,3 +975,14 @@ quietly plssem (Expectation > CUEX1-CUEX3) (Satisfaction > CUSA1-CUSA3) ///
 	wscheme("path") digits(4) correlate(mv lv cross, cutoff(.3)) //boot(50)
 
 estat unobshet, method("gas") numclass(4) popsize(100) numgen(3) maxitgas(1)
+
+/* Example 51 */
+/* ---------- */
+use ./data/workout2, clear
+
+quietly plssem (Attractive > face sexy) (Appearance > body appear attract) ///
+			 (Muscle > muscle strength endur) (Weight > lweight calories cweight), ///
+			 structural(Appearance Attractive, Muscle Appearance, Weight Appearance) ///
+			 rawsum
+
+estat unobshet, method(gas) numclass(4) popsize(100) numgen(3) maxitgas(2)

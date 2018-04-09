@@ -1,5 +1,5 @@
 *!plssem version 0.3.0
-*!Written 31Mar2018
+*!Written 07Apr2018
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -987,6 +987,9 @@ program Estimate, eclass byable(recall)
 		if ("`rawsum'" == "") {
 			ereturn scalar maxiter = `maxiter'
 			ereturn scalar iterations = `iter'
+		}
+		else {
+			ereturn scalar maxiter = .
 		}
 		ereturn scalar tolerance = `tol'
 	}

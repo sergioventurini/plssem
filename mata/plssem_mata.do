@@ -1,5 +1,5 @@
 *!plssem_mata version 0.3.0
-*!Written 06Apr2018
+*!Written 09Apr2018
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -376,8 +376,9 @@ real matrix plssem_init_mat(real matrix X,  real matrix M, string scalar ind,
 	}
 	else {
 		Xunscaled = st_data(., ind, touse)
+		Y = J(rows(Xunscaled), 0, .)
 		for (v = 1; v <= V; v++) {
-			Y = rowsum(Xunscaled[., selectindex(M[., v])])
+			Y = (Y, rowsum(Xunscaled[., selectindex(M[., v])]))
 		}
 	}
 	Y = scale(Y)
@@ -3490,8 +3491,8 @@ struct plssem_struct_gas scalar plssem_gas(real matrix X, real matrix M,
 
 	real matrix Xsc, Yinit, chromo, chromo_new, Xgas, ow, path, loads, ///
 		Xgas_all, Xgassc_all, y_loc, out_res, block, x_hat, y_hat, inn_res
-	real scalar N, i, k, j, P, p, skip, a, b, gen_count, ind_count, ///
-		mut_count, isvalid, t, best_k, nchanged, F_tmp, F_best
+	real scalar n, N, i, k, j, P, p, skip, a, b, gen_count, ind_count, ///
+		mut_count, isvalid, t, best_k, nchanged, F_tmp, F_best, j_nomiss
 	real colvector touse_vec, modes, touse_loc, best, parent, child, best_tmp, ///
 		alloc_best
 	real rowvector F, endo, rank, rankF, p_i, F_k
@@ -3506,6 +3507,7 @@ struct plssem_struct_gas scalar plssem_gas(real matrix X, real matrix M,
 	
 	touse_vec = st_data(., touse)
 	P = cols(S)
+	n = rows(X)
 	N = sum(touse_vec)
 	endo = (colsum(S)	:> 0)			 // indicators for the endogenous latent variables
 
@@ -3514,9 +3516,9 @@ struct plssem_struct_gas scalar plssem_gas(real matrix X, real matrix M,
   f = J(K, 1, mat)
 	F = J(1, I, .)
   modes = J(P, 1, 0)
-	
+
 	(void) st_addvar("byte", touse_loc_name = st_tempname())
-	
+
 	if (noisily) {
 		printf("{txt}\n")
 		printf("{txt}Computing PLS-GAS solution...\n")
@@ -3538,7 +3540,8 @@ struct plssem_struct_gas scalar plssem_gas(real matrix X, real matrix M,
 	skip = 0
 
 	// Step 1: Randomly select a starting population of size I individuals
-	chromo = runiformint(N, I, 1, K)
+	chromo = J(n, I, .)
+	chromo[selectindex(touse_vec), .] = runiformint(N, I, 1, K)
 
 	gen_count = 0
 	while (gen_count < G) {
@@ -3608,11 +3611,11 @@ struct plssem_struct_gas scalar plssem_gas(real matrix X, real matrix M,
 		p_i = rankF/(I*(I + 1)/2)
 		
 		// Step 3: Create a new generation
-		chromo_new = J(N, I, .)
+		chromo_new = J(n, I, .)
 		ind_count = 1
 		//  - Step 3.1: Select the fittest individual as a member of the next
 		//						  generation (elitist selection)
-		best = chromo[, which(rankF, "max")]
+		best = chromo[., which(rankF, "max")]
 		chromo_new[., ind_count] = best
 		while (ind_count < I) {
 			//  - Step 3.2: Randomly select (using rank fitness) a parent from the old
@@ -3625,37 +3628,42 @@ struct plssem_struct_gas scalar plssem_gas(real matrix X, real matrix M,
 			if (a <= p_m) {
 				// mutation
 				mut_count = 0
-				for (j = 1; j <= N; j++) {
-					b = runiform(1, 1)
-					if (b <= p_t) {
-						child[j, 1] = runiformint(1, 1, 1, K)
-						mut_count++
+				for (j = 1; j <= n; j++) {
+					if (touse_vec[j]) {   // skip missing values
+						b = runiform(1, 1)
+						if (b <= p_t) {
+							child[j, 1] = runiformint(1, 1, 1, K)
+							mut_count++
+						}
 					}
 				}
 				if (mut_count == 0) {
-					child[runiformint(1, 1, 1, N), 1] = runiformint(1, 1, 1, K)
+					j_nomiss = runiformint(1, 1, 1, n)
+					while (!touse_vec[j_nomiss]) {   // skip missing values
+						j_nomiss = runiformint(1, 1, 1, n)
+					}
+					child[j_nomiss, 1] = runiformint(1, 1, 1, K)
 				}
 			}
 			else {
 				// reproduction (do nothing)
 			}
-			
+
 			//  - Steps 3.5-3.6: Test the individual for validity
 			if (ind_count > 1) {
-				isvalid = plssem_gas_validity_check(child, chromo_new, ind_count, K, ///
-					X[selectindex(touse_vec), .])
+				isvalid = plssem_gas_validity_check(child, chromo_new, ind_count, K, X)
 			}
 			else {
 				isvalid = 1
 			}
-			
+
 			// if the individual is valid, it is included in the new generation
 			if (isvalid) {
 				ind_count++
 				chromo_new[., ind_count] = child
 			}
 		}
-	 	
+
 		chromo = chromo_new
 		gen_count++
 	}
@@ -3693,7 +3701,7 @@ struct plssem_struct_gas scalar plssem_gas(real matrix X, real matrix M,
 	}
 	rank = invorder(order(F', 1))'
 	rankF = J(1, I, I + 1) - rank
-	best = chromo[, which(rankF, "max")]
+	best = chromo[., which(rankF, "max")]
 	
 	// Check if reassigning each observation to a different group does improve
 	// the fitness
@@ -3714,6 +3722,7 @@ struct plssem_struct_gas scalar plssem_gas(real matrix X, real matrix M,
 	t = 1
 	F_best = plssem_gas_fitness(e, f)
 	alloc_best = best
+	
 	while ((t <= maxit_gas) & (nchanged > 0)) {
 		if (noisily) {
 			if (mod(t, 50) == 0) {
@@ -3735,114 +3744,117 @@ struct plssem_struct_gas scalar plssem_gas(real matrix X, real matrix M,
 		}
 		
 		nchanged = 0
-		for (j = 1; j <= N; j++) {
-			F_k = J(1, K, .)
-			
-			// computation for each observation uses the PLS-SEM results of the
-			// segment to which the observation has been assigned
-			ow = localmodels[best[j, 1], 1].outer_weights
-			path = localmodels[best[j, 1], 1].path
-			path = editmissing(path, 0)
-			loads = localmodels[best[j, 1], 1].loadings
+		for (j = 1; j <= n; j++) {
+			if (touse_vec[j]) {   // skip missing values
+				F_k = J(1, K, .)
+				
+				// the computation for each observation uses the PLS-SEM results of the
+				// segment to which the observation has been assigned
+				ow = localmodels[best[j, 1], 1].outer_weights
+				path = localmodels[best[j, 1], 1].path
+				path = editmissing(path, 0)
+				loads = localmodels[best[j, 1], 1].loadings
 
-			for (k = 1; k <= K; k++) {
-				best_tmp[j, 1] = k
-				touse_loc = touse_vec :* (best_tmp :== k)
-				Xgas = X[selectindex(touse_loc), .]
-				
-				Xgas_all = X[selectindex(touse_vec), .]
-				Xgassc_all = scale(Xgas_all, 0, sd(Xgas), mean(Xgas))
-				y_loc = Xgassc_all * ow
-				out_res = J(N, 0, .)
-				for (p = 1; p <= P; p++) {
-					block = selectindex(loads[., p] :!= .)
-					x_hat = y_loc[., p] * loads[block, p]'
-					out_res = (out_res, (Xgassc_all[., block] - x_hat))
-				}
-				y_hat = y_loc * path[., selectindex(endo)]
-				inn_res = (y_loc[., selectindex(endo)] - y_hat)
-				F_k[1, k] = sum(out_res :^ 2) + sum(inn_res :^ 2)
-			}
-			best_k = which(F_k, "min")
-			if (best_k != best[j, 1]) {
-				nchanged++
-				best[j, 1] = best_k
-				best_tmp = best
-				
 				for (k = 1; k <= K; k++) {
-					touse_loc = touse_vec :* (best[., 1] :== k)
-					st_store(., touse_loc_name, touse_loc)
+					best_tmp[j, 1] = k
+					touse_loc = touse_vec :* (best_tmp :== k)
+					Xgas = X[selectindex(touse_loc), .]
 					
-					// Check that there are no zero-variance indicators
-					if (anyof(sd(X[selectindex(touse_loc), .]), 0)) {
-						if (noisily) {
-							printf("{txt}\n\n")
-						}
-						printf("{err}some indicators during the PLS-GAS calculations turned out to have zero variance\n")
-						printf("{err}try reducing the number of classes\n")
-						//_error(1)
-
-						printf("{err}best results found so far returned\n")
-						
-						// Assigning results to structure's members
-						res_gas.niter = (t - 1)
-						res_gas.gas_class = alloc_best
-						res_gas.touse_vec = touse_vec
-						res_gas.nclass = K
-						res_gas.popsize = I
-						res_gas.ngen = G
-						
-						return(res_gas)
+					Xgas_all = X[selectindex(touse_vec), .]
+					Xgassc_all = scale(Xgas_all, 0, sd(Xgas), mean(Xgas))
+					y_loc = Xgassc_all * ow
+					out_res = J(N, 0, .)
+					for (p = 1; p <= P; p++) {
+						block = selectindex(loads[., p] :!= .)
+						x_hat = y_loc[., p] * loads[block, p]'
+						out_res = (out_res, (Xgassc_all[., block] - x_hat))
 					}
-					
-					// Standardize the MVs (if required)
-					if (scale == "") {
-						Xsc = scale(X[selectindex(touse_loc), .])
-					}
-					else {
-						Xsc = X[selectindex(touse_loc), .]
-					}
-					
-					// Check that there are no zero-variance indicators
-					if (anyof(sd(Xsc), 0)) {
-						if (noisily) {
-							printf("{txt}\n\n")
-						}
-						printf("{err}some indicators during the PLS-GAS calculations turned out to have zero variance\n")
-						printf("{err}try reducing the number of classes\n")
-						//_error(1)
-
-						printf("{err}best results found so far returned\n")
-						
-						// Assigning results to structure's members
-						res_gas.niter = (t - 1)
-						res_gas.gas_class = alloc_best
-						res_gas.touse_vec = touse_vec
-						res_gas.nclass = K
-						res_gas.popsize = I
-						res_gas.ngen = G
-						
-						return(res_gas)
-					}
-					
-					// Initialize the LVs
-					Yinit = plssem_init_mat(Xsc, M, ind, stdind, latents, touse_loc_name, ///
-						rawsum, init)
-					
-					// Run the PLS algorithm
-					localmodels[k, 1] = plssem_base(Xsc, Yinit, M, S, modes, latents, ///
-						binary, tol, maxit, touse_loc_name, scheme, crit, structural, rawsum)
-					e[k, 1].mat = localmodels[k, 1].e
-					f[k, 1].mat = localmodels[k, 1].f
+					y_hat = y_loc * path[., selectindex(endo)]
+					inn_res = (y_loc[., selectindex(endo)] - y_hat)
+					F_k[1, k] = sum(out_res :^ 2) + sum(inn_res :^ 2)
 				}
-				
-				F_tmp = plssem_gas_fitness(e, f)
-				if (F_tmp < F_best) {
-					F_best = F_tmp
-					alloc_best = best
+				best_k = which(F_k, "min")
+				if (best_k != best[j, 1]) {
+					nchanged++
+					best[j, 1] = best_k
+					best_tmp = best
+					
+					for (k = 1; k <= K; k++) {
+						touse_loc = touse_vec :* (best[., 1] :== k)
+						st_store(., touse_loc_name, touse_loc)
+						
+						// Check that there are no zero-variance indicators
+						if (anyof(sd(X[selectindex(touse_loc), .]), 0)) {
+							if (noisily) {
+								printf("{txt}\n\n")
+							}
+							printf("{err}some indicators during the PLS-GAS calculations turned out to have zero variance\n")
+							printf("{err}try reducing the number of classes\n")
+							//_error(1)
+
+							printf("{err}best results found so far returned\n")
+							
+							// Assigning results to structure's members
+							res_gas.niter = (t - 1)
+							res_gas.gas_class = alloc_best
+							res_gas.touse_vec = touse_vec
+							res_gas.nclass = K
+							res_gas.popsize = I
+							res_gas.ngen = G
+							
+							return(res_gas)
+						}
+						
+						// Standardize the MVs (if required)
+						if (scale == "") {
+							Xsc = scale(X[selectindex(touse_loc), .])
+						}
+						else {
+							Xsc = X[selectindex(touse_loc), .]
+						}
+						
+						// Check that there are no zero-variance indicators
+						if (anyof(sd(Xsc), 0)) {
+							if (noisily) {
+								printf("{txt}\n\n")
+							}
+							printf("{err}some indicators during the PLS-GAS calculations turned out to have zero variance\n")
+							printf("{err}try reducing the number of classes\n")
+							//_error(1)
+
+							printf("{err}best results found so far returned\n")
+							
+							// Assigning results to structure's members
+							res_gas.niter = (t - 1)
+							res_gas.gas_class = alloc_best
+							res_gas.touse_vec = touse_vec
+							res_gas.nclass = K
+							res_gas.popsize = I
+							res_gas.ngen = G
+							
+							return(res_gas)
+						}
+						
+						// Initialize the LVs
+						Yinit = plssem_init_mat(Xsc, M, ind, stdind, latents, touse_loc_name, ///
+							rawsum, init)
+						
+						// Run the PLS algorithm
+						localmodels[k, 1] = plssem_base(Xsc, Yinit, M, S, modes, latents, ///
+							binary, tol, maxit, touse_loc_name, scheme, crit, structural, rawsum)
+						e[k, 1].mat = localmodels[k, 1].e
+						f[k, 1].mat = localmodels[k, 1].f
+					}
+					
+					F_tmp = plssem_gas_fitness(e, f)
+					if (F_tmp < F_best) {
+						F_best = F_tmp
+						alloc_best = best
+					}
 				}
 			}
 		}
+		
 		t++
 	}
 	

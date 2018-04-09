@@ -1,5 +1,5 @@
 *!plssem_estat version 0.3.0
-*!Written 06Apr2018
+*!Written 09Apr2018
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -712,7 +712,12 @@ program REBUS, rclass
 	local options : list options - options_digits
 	local options : list clean options
 	*/
-	local options "tol(`e(tolerance)') maxiter(`e(maxiter)') wscheme("
+	if (`israwsum') {
+		local options "tol(`e(tolerance)') wscheme("
+	}
+	else {
+		local options "tol(`e(tolerance)') maxiter(`e(maxiter)') wscheme("
+	}
 	local ws_centroid "centroid"
 	local ws_factor "factor"
 	local ws_path "path"
@@ -1305,7 +1310,12 @@ program FIMIX, rclass
   local options : list options - options_digits
   local options : list clean options
   */
-  local options "tol(`e(tolerance)') maxiter(`e(maxiter)') wscheme("
+	if (`israwsum') {
+		local options "tol(`e(tolerance)') wscheme("
+	}
+	else {
+		local options "tol(`e(tolerance)') maxiter(`e(maxiter)') wscheme("
+	}
   local ws_centroid "centroid"
   local ws_factor "factor"
   local ws_path "path"
@@ -1802,7 +1812,12 @@ program GAS, rclass
   local options : list options - options_digits
   local options : list clean options
   */
-  local options "tol(`e(tolerance)') maxiter(`e(maxiter)') wscheme("
+	if (`israwsum') {
+		local options "tol(`e(tolerance)') wscheme("
+	}
+	else {
+		local options "tol(`e(tolerance)') maxiter(`e(maxiter)') wscheme("
+	}
   local ws_centroid "centroid"
   local ws_factor "factor"
   local ws_path "path"
@@ -1886,18 +1901,16 @@ program GAS, rclass
 	/* End of PLS-GAS algorithm */
 
 	/* Save final classification */
-	capture drop `name'
-	quietly generate int `name' = .
-	mata: st_store(., "`name'", "`__touse__'", `res_gas'.gas_class)
-	local now "`c(current_date)', `c(current_time)'"
-	local now : list clean now
-	label variable `name' "PLS-GAS classification [`now']"
-	
+	tempvar tmp_class
+	quietly generate int `tmp_class' = .
+	mata: st_store(., "`tmp_class'", `res_gas'.gas_class)
+
 	/* Once stability is attained, final local models are estimated */
+	local donotcleanup "nocleanup"
 	forvalues k = 1/`numclass' {
 		tempname localmodel_`k'
-		quietly plssem `mm' if (`name' == `k' & `__touse__'), structural(`sm') ///
-			`options'
+		quietly plssem `mm' if (`tmp_class' == `k' & `__touse__'), ///
+			structural(`sm') `options' `donotcleanup'
 		_estimates hold `localmodel_`k''
 	}
 	
@@ -2034,7 +2047,15 @@ program GAS, rclass
 
 	/* Restore global model results */
 	_estimates unhold `globalmodel'
-	
+
+	/* Save final classification */
+	capture drop `name'
+	quietly generate int `name' = .
+	mata: st_store(., "`name'", `res_gas'.gas_class)
+	local now "`c(current_date)', `c(current_time)'"
+	local now : list clean now
+	label variable `name' "PLS-GAS classification [`now']"
+
 	/* Clean up */
 	if ("`missing'" != "") {
 		mata: st_store(., tokens("`: list uniq allindicators'"), "`__touse__'", ///
