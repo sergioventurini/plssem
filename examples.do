@@ -986,3 +986,47 @@ quietly plssem (Attractive > face sexy) (Appearance > body appear attract) ///
 			 rawsum
 
 estat unobshet, method(gas) numclass(4) popsize(100) numgen(3) maxitgas(2)
+
+/* Example 52 */
+/* ---------- */
+use ./data/ecsimobi, clear
+
+/*
+plssem (Expectation > CUEX1-CUEX3) (Satisfaction > CUSA1-CUSA3) ///
+	(Complaints > CUSCO) (Loyalty > CUSL1-CUSL3) (Image > IMAG1-IMAG5) ///
+	(Quality > PERQ1-PERQ7) (Value > PERV1-PERV2), ///
+	structural(Expectation Image, Quality Expectation, Value Expectation Quality, ///
+	Satisfaction Value Quality Image Expectation, Complaints Satisfaction, ///
+	Loyalty Complaints Satisfaction Image) ///
+	wscheme("path") digits(4) loadpval boot(50)
+*/
+
+plssemc (Expectation > CUEX1-CUEX3) (Satisfaction > CUSA1-CUSA3) ///
+	(Complaints > CUSCO) (Loyalty > CUSL1-CUSL3) (Image > IMAG1-IMAG5) ///
+	(Quality > PERQ1-PERQ7) (Value > PERV1-PERV2), ///
+	structural(Expectation Image, Quality Expectation, Value Expectation Quality, ///
+	Satisfaction Value Quality Image Expectation, Complaints Satisfaction, ///
+	Loyalty Complaints Satisfaction Image) ///
+	wscheme("path") digits(4) loadpval correlate(lv cross) //boot(50)
+
+estat vif
+estat total
+estat indirect, effects(Satisfaction Image Expectation, ///
+	Satisfaction Quality Expectation, Satisfaction Image Quality) level(0.9) ///
+	digits(5) seed(123) //boot(50)
+
+plssemplot, stats(Loyalty)
+//plssemplot, outerweights
+
+/* Example 53 */
+/* ---------- */
+/* [From https://www.smartpls.com/documentation/sample-corporate-reputation] */
+import excel "./data/Corporate Reputation Data.xlsx", ///
+	sheet("Sheet1") firstrow clear
+mvdecode _all, mv(-99)
+
+plssemc (LIKE > like_?) (COMP > comp_?) (CUSA > cusa) (CUSL > cusl_?) ///
+			 (CSOR < csor_?) (ATTR < attr_?) (PERF < perf_?) (QUAL < qual_?), ///
+			 structural(CUSA COMP, CUSA LIKE, CUSL COMP, CUSL LIKE, CUSL CUSA, ///
+									LIKE QUAL, LIKE CSOR, LIKE PERF, LIKE ATTR, COMP QUAL, ///
+									COMP CSOR, COMP PERF, COMP ATTR)

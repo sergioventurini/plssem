@@ -1,20 +1,20 @@
 {smcl}
 {* *! version 0.0.1  27Apr2018}{...}
-{vieweralsosee "plssem" "help plssem"}{...}
+{vieweralsosee "plssemc" "help plssemc"}{...}
 {vieweralsosee "plssemplot" "help plssemplot"}{...}
-{viewerjumpto "Postestimation commands" "plssem postestimation##description"}{...}
-{viewerjumpto "estat" "plssem postestimation##syntax_estat"}{...}
-{viewerjumpto "estat options" "plssem postestimation##options_estat"}{...}
-{viewerjumpto "predict" "plssem postestimation##syntax_predict"}{...}
-{viewerjumpto "predict options" "plssem postestimation##options_predict"}{...}
-{viewerjumpto "predict stored results" "plssem postestimation##results_predict"}{...}
-{viewerjumpto "Examples" "plssem postestimation##examples"}{...}
-{viewerjumpto "Authors" "plssem postestimation##authors"}{...}
-{viewerjumpto "References" "plssem postestimation##references"}{...}
+{viewerjumpto "Postestimation commands" "plssemc postestimation##description"}{...}
+{viewerjumpto "estat" "plssemc postestimation##syntax_estat"}{...}
+{viewerjumpto "estat options" "plssemc postestimation##options_estat"}{...}
+{viewerjumpto "predict" "plssemc postestimation##syntax_predict"}{...}
+{viewerjumpto "predict options" "plssemc postestimation##options_predict"}{...}
+{viewerjumpto "predict stored results" "plssemc postestimation##results_predict"}{...}
+{viewerjumpto "Examples" "plssemc postestimation##examples"}{...}
+{viewerjumpto "Authors" "plssemc postestimation##authors"}{...}
+{viewerjumpto "References" "plssemc postestimation##references"}{...}
 {title:Title}
 
 {p 4 18 2}
-{hi:plssem postestimation} {hline 2} Postestimation tools for {helpb plssem}
+{hi:plssemc postestimation} {hline 2} Postestimation tools for {helpb plssemc}
 
 
 {marker description}{...}
@@ -22,19 +22,17 @@
 
 {pstd}
 The following postestimation commands are of special interest after
-{cmd:plssem}:
+{cmd:plssemc}:
 
 {synoptset 22 tabbed}{...}
 {p2coldent:Command}Description{p_end}
 {synoptline}
-{synopt:{helpb plssem postestimation##indirect:estat indirect}}estimation and
+{synopt:{helpb plssemc postestimation##indirect:estat indirect}}estimation and
 	inference for indirect effects{p_end}
-{synopt:{helpb plssem postestimation##total:estat total}}decomposition of
+{synopt:{helpb plssemc postestimation##total:estat total}}decomposition of
 	total effects{p_end}
-{p2coldent:* {helpb plssem postestimation##vif:estat vif}}variance inflation
+{p2coldent:* {helpb plssemc postestimation##vif:estat vif}}variance inflation
 	factors for the structural model equations sample{p_end}
-{p2coldent:* {helpb plssem postestimation##unobshet:estat unobshet}}unobserved
-	heterogeneity assessment{p_end}
 {synoptline}
 {p2colreset}{...}
 {p 4 6 2}
@@ -47,7 +45,7 @@ The following standard postestimation commands are also available:
 {synoptset 20 tabbed}{...}
 {p2coldent :Command}Description{p_end}
 {synoptline}
-{synopt :{helpb plssem postestimation##predict:predict}}fitted values and residuals{p_end}
+{synopt :{helpb plssemc postestimation##predict:predict}}fitted values and residuals{p_end}
 {synoptline}
 {p2colreset}{...}
 
@@ -82,19 +80,6 @@ Display the variance inflation factors for the structural model equations
 [{cmd:,} {opt dig:its(#)}]
 
 
-{marker unobshet}{...}
-{pstd}
-Display the assessment for the presence of unobserved heterogeneity
-
-{p 8 14 2}
-{cmd:estat} {cmdab:un:obshet},
-{cmdab:m:ethod(}{it:methodname}{cmd:)} [{opt n:umclass(#)} {opt maxcl:ass(#)}
-{opt d:endrogram} {opt maxit:er(#)} {opt s:top(#)}  {opt t:est} {opt r:eps(#)}
-{opt res:tart(#)} {opth gr:oups(numlist)} {opt pop:size(#)} {opt numg:en(#)}
-{opt pm:ut(#)} {opt pt:ransf(#)} {opt maxitg:as(#)} {opt se:ed(#)}
-{opt p:lot} {cmdab:name(}{it:varname}{cmd:)} {opt dig:its(#)}]
-
-
 {marker desc_estat}{...}
 {title:Description for estat}
 
@@ -126,13 +111,6 @@ computes the variance inflation factors (VIFs) for the independent variables
 of the equations in the structural part of a PLS-SEM model. With the
 {cmd:digit(#)} sub-option you change the number decimals digits displayed.
 
-{pstd} {cmd:estat unobshet}
-assesses the presence of unobserved heterogeneity in the fitted PLS-SEM model
-using the {it:methodname} approach. Currently, the REBUS-PLS
-({help plssem_postestimation##Trinchera2007:Trinchera 2007}), FIMIX-PLS
-({help plssem_postestimation##Hahnetal2002:Hahn et al. 2007}) and PLS-GAS
-({help plssem_postestimation##Ringleetal2014:Ringle et al. 2014}) approaches are implemented.
- 
  
 {marker options_estat}{...}
 {title:Options for estat}
@@ -162,120 +140,8 @@ an option used with {cmd:estat total}, provides a graphical representation of
 the total effects decomposition.
 
 {phang}
-{opt method(methodname)},
-an option used with {cmd:estat unobshet}, allows choosing the method to use for
-assessing the presence of unobserved heterogeneity; available methods are {cmd:rebus},
-{cmd:fimix} and {cmd:gas}; default is {cmd:rebus}.
-
-{phang}
-{opt numclass(#)},
-an option used with {cmd:estat unobshet}, allows to manually set the number of
-classes to use in the REBUS-PLS analysis; minimum is 2. If not specified, the
-number of classes is automatically chosen based on the Calinski-Harabasz
-pseudo-F index stopping rule as implemented in {helpb cluster stop:cluster stop}. In
-this case, a Ward hierarchical clustering algorithm is used.
-
-{phang}
-{opt maxclass(#)},
-an option used with {cmd:estat unobshet}, allows to set the maximum number of
-classes for which the automatic stopping rule is to be computed when
-{cmd: numclass(#)} is not specified; default is {cmd:20}.
-
-{phang}
-{opt dendrogram},
-an option used with {cmd:estat unobshet}, allows to visualize the dendrogram
-for a Ward hierarchical clustering algorithm on the base of the residuals of
-the global model. The dendrogram allows to assess the quality of choice for the
-number of classes. This option is available only when {cmd: method(rebus)} is
-chosen.
-
-{phang}
-{opt maxiter(#)},
-an option used with {cmd:estat unobshet}, allows to set the maximum number
-of iterations the REBUS-PLS algorithm runs; default is {cmd:50}.
-
-{phang}
-{opt stop(#)},
-an option used with {cmd:estat unobshet}, allows to set the stopping rule for
-the chosen algorithm; for REBUS-PLS this refers to the stability in class
-composition from one iteration to the other (i.e. percentage of units changing
-class at each iteration); for FIMIX-PLS it refers to the (absolute) change in the
-complete loglikelihood value in the EM alogrithm. Default is {cmd:0.005}
-(i.e. 0.5%) when REBUS-PLS is chosen and {cmd:1e-5} when FIMIX-PLS is used.
-
-{phang}
-{opt test},
-an option used with {cmd:estat unobshet}, allows to specify whether a
-permutation test for the Global Quality Index (GQI) of a REBUS-PLS solution must
-be performed. This option is available only when {cmd: method(rebus)} is
-chosen.
-
-{phang}
-{opt reps(#)},
-an option used with {cmd:estat unobshet}, allows to set the number of replications
-of the permutation test on the GQI; default is {cmd:50}. This option is available
-only when {cmd: method(rebus)} is chosen.
-
-{phang}
-{opt restart(#)},
-an option used with {cmd:estat unobshet} when the FIMIX-PLS method is chosen,
-allows to set the number of EM algortihm runs in the estimation of the
-mixture model's parameters; default is {cmd:10}.
-
-{phang}
-{opth groups(numlist)},
-an option used with {cmd:estat unobshet} when the FIMIX-PLS method is chosen,
-allows to compute the solution for a range of selected group number values and
-compare them using a set of fit indices, namely Akaike's information criterion
-(AIC), modified AIC with factor 3 (AIC3), modified AIC with factor 4 (AIC4),
-Bayesian information criterion (BIC), consistent AIC (CAIC),
-Hannan-Quinn criterion (HQ), minimum description length with factor 5 (MDL5),
-log-likelihood (LnL), entropy statistic (EN), non-fuzzy index (NFI),
-normalized entropy criterion (NEC).
-
-{phang}
-{opt popsize(#)},
-an option used with {cmd:estat unobshet} when the PLS-GAS method is chosen,
-allows to set the size of each generation in the genetic algorithm; deafult
-is 100.
-
-{phang}
-{opt numgen(#)},
-an option used with {cmd:estat unobshet} when the PLS-GAS method is chosen,
-allows to set the number of generations to create during the genetic algorithm;
-deafult is 1000.
-
-{phang}
-{opt pmut(#)},
-an option used with {cmd:estat unobshet} when the PLS-GAS method is chosen,
-allows to set the probability to mutate for a chromosome (i.e. an individual in a
-a generation) in the genetic algorithm; deafult is 0.3.
-
-{phang}
-{opt ptransf(#)},
-an option used with {cmd:estat unobshet} when the PLS-GAS method is chosen,
-allows to set the probability to mutate for a single gene in a chromosome during
-the genetic algorithm calculation; deafult is 0.1.
-
-{phang}
-{opt maxitgas(#)},
-an option used with {cmd:estat unobshet}, allows to set the maximum number
-of iterations the PLS-GAS algorithm; default is {cmd:30}.
-
-{phang}
 {opt seed(#)},
 allows to set the seed for reproducing results.
-
-{phang}
-{opt plot},
-an option used with {cmd:estat unobshet} when the REBUS-PLS method is chosen,
-allows to visualize the empirical distribution (i.e. the histogram)
-corresponding to the replications of the permutation test on the GQI.
-
-{phang}
-{cmdab:name(}{it:varname}{cmd:)},
-an option used with {cmd:estat unobshet}, allows to set the name of the variable
-that will contain the final classification obtained.
 
 
 {marker syntax_predict}{...}
@@ -349,7 +215,7 @@ are not saved in the data set.
 {phang2}{cmd:. sysuse workout2, clear}{p_end}
 
 {pstd}Model estimation{p_end}
-{phang2}{cmd:. plssem (Attractive > face sexy) (Appearance > body appear attract) (Muscle > muscle strength endur) (Weight > lweight calories cweight), structural(Appearance Attractive, Muscle Appearance, Weight Appearance)}{p_end}
+{phang2}{cmd:. plssemc (Attractive > face sexy) (Appearance > body appear attract) (Muscle > muscle strength endur) (Weight > lweight calories cweight), structural(Appearance Attractive, Muscle Appearance, Weight Appearance)}{p_end}
 
 {pstd}Multicollinearity assessment{p_end}
 {phang2}{cmd:. estat vif}{p_end}
@@ -360,12 +226,6 @@ are not saved in the data set.
 {pstd}Predictions{p_end}
 {phang2}{cmd:. predict, xb residuals}{p_end}
 {phang2}{cmd:. describe *_hat *_res}{p_end}
-
-{pstd}Assessment of unobserved heterogeneity using REBUS-PLS{p_end}
-{phang2}{cmd:. estat unobshet, test reps(200) plot}{p_end}
-
-{pstd}Assessment of unobserved heterogeneity using FIMIX-PLS{p_end}
-{phang2}{cmd:. estat unobshet, method(fimix) groups(1/5) stop(1e-5) restart(3)}{p_end}
 
     {hline}
 

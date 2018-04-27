@@ -8,7 +8,7 @@ program mktable
 	syntax , matrix(string) [ FIRSTCOLName(string) FIRSTCOLWidth(integer 25) ///
 		COLWidth(integer 15) Title(string) HLines(numlist >0 integer sort) ///
 		NOVLines DIGits(integer 3) Path STats TOTal CORr CUToff(real 0) ///
-		BINary(namelist min=1) REBus FIMix ]
+		BINary(namelist min=1) REBus FIMix CONsistent ]
 
 	/* Options:
 	   --------
@@ -31,6 +31,7 @@ program mktable
 																		or FIMIX-PLS results
 		 fimix											--> indicator that the table refers to FIMIX-PLS
 																		results
+		 consistent									--> indicator for consistent PLS (PLSc)
 	 */
 	
 	local skip0 = 0
@@ -46,6 +47,10 @@ program mktable
 		display as error "'colwidth' option must be larger than 8 to properly show the table"
 		exit
 	}
+
+	local props = e(properties)
+	local boot_lbl "bootstrap"
+	local isboot : list boot_lbl in props
 
 	local firstcolwidth_p1 = `firstcolwidth' + 1
 	local ncols = colsof(`matrix')
@@ -281,7 +286,12 @@ program mktable
 	}
 	
 	if ("`path'" != "") {
-		display as text _skip(`skip1') "p-values in parentheses"
+		if (("`consistent'" != "") & (!`isboot')) {
+			display as text _skip(`skip1') "p-values not shown (use the 'boot' option)"
+		}
+		else {
+			display as text _skip(`skip1') "p-values in parentheses"
+		}
 	}
 
 	if ("`binary'" != "") {

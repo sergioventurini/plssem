@@ -1,5 +1,7 @@
+clear mata
+
 *!plssem_mata version 0.3.0
-*!Written 09Apr2018
+*!Written 27Apr2018
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -30,6 +32,8 @@ capture mata: mata drop ///
 	sd() ///
 	which() ///
 	cronbach() ///
+	dillongoldstein() ///
+	consistentrho() ///
 	meanimp() ///
 	knnimp() ///
 	euclidean_dist() ///
@@ -80,7 +84,20 @@ struct plssem_struct {
 	real matrix M								// measurement model's adjacency matrix
 	real matrix S								// structural model's adjacency matrix (if any)
 	real matrix e								// measurement model's residuals
-	real matrix f								// structural model's residuals (if any)
+	real matrix f								// structural model's residuals, if any
+	real matrix R_c							// matrix of consistent latent variable
+															// correlations (PLSc)
+	real matrix loadings_c			// matrix of consistent outer loadings (PLSc)
+	real matrix xloadings_c			// matrix of consistent cross loadings (PLSc)
+	real matrix path_c					// matrix of consistent path coefficients (PLSc)
+	real matrix scores_c				// matrix of estimated latent scores (PLSc)
+	real matrix total_effects_c	// matrix of estimated total effects (PLSc)
+	real rowvector r2_c					// row vector of the structural model's R2's
+															// (PLSc)
+	real rowvector r2_a_c				// row vector of the structural model's adjusted
+															// R2's (PLSc)
+	real matrix e_c							// measurement model's residuals (PLSc)
+	real matrix f_c							// structural model's residuals, if any (PLSc)
 }
 
 struct plssem_struct_boot {
@@ -246,7 +263,7 @@ void plssem_init(real matrix X,  real matrix M, string scalar ind,
 		 - touse	 		--> string scalar containing the name of the variable tracking
 											the subset of the data to use
 		 - rawsum			--> real scalar equal to 1 if the 'rawsum' option has been
-											chosen
+											chosen, and 0 otherwise
 		 - init	 			--> string scalar containing the initialization type (either
 											"indsum" or "eigen")
 	*/
@@ -333,7 +350,7 @@ real matrix plssem_init_mat(real matrix X,  real matrix M, string scalar ind,
 		 - touse	 		--> string scalar containing the name of the variable tracking
 											the subset of the data to use
 		 - rawsum			--> real scalar equal to 1 if the 'rawsum' option has been
-											chosen
+											chosen, and 0 otherwise
 		 - init	 			--> string scalar containing the initialization type (either
 											"indsum" or "eigen")
 	*/
@@ -390,7 +407,7 @@ struct plssem_struct scalar plssem_base(real matrix X, real matrix Yinit,
 	real matrix M, real matrix S, real colvector mode, string scalar latents,
 	string scalar binary, real scalar tol, real scalar maxit, string scalar touse,
 	string scalar scheme, string scalar crit, real scalar structural,
-	real scalar rawsum)
+	real scalar rawsum, real scalar consistent)
 {
 	/* Description:
 		 ------------
@@ -424,7 +441,9 @@ struct plssem_struct scalar plssem_base(real matrix X, real matrix Yinit,
 		 - structural	--> real scalar equal to 1 if the model has a structural part,
 											and 0 otherwise
 		 - rawsum			--> real scalar equal to 1 if the 'rawsum' option has been
-											chosen
+											chosen, and 0 otherwise
+		 - consistent	--> real scalar equal to 1 if the consistent version (PLSc) is
+											required, and 0 otherwise
 	*/
 	
 	/* Returned value:
@@ -437,7 +456,8 @@ struct plssem_struct scalar plssem_base(real matrix X, real matrix Yinit,
 	
 	real matrix W, w_old, w_new, C, E, Yhat, Ycor, Ytilde, Ydep, Yindep, mf, ///
 		fscores, T, beta, beta_v, Yexo, Yendo, Ypred, Whist, xlambda, lambda, ///
-		Snew, s2_mat, Xsc, beta0, y_tmp, outer_res, inner_res, x_hat, y_hat, block
+		Snew, s2_mat, Xsc, beta0, y_tmp, outer_res, inner_res, x_hat, y_hat, ///
+		block, lambda_c, xlambda_c, beta_c
 	real scalar iter, delta, P, Q, p, n, minval, maxval, converged
 	real rowvector endo, diff, isnotbinary, r2, r2_a
 	real colvector Mind, Sind, predec
@@ -462,6 +482,9 @@ struct plssem_struct scalar plssem_base(real matrix X, real matrix Yinit,
 	lambda = J(Q, P, .)
 	r2 = J(1, P, .)
 	r2_a = J(1, P, .)
+	lambda_c = J(Q, P, .)
+	xlambda_c = J(Q, P, .)
+	beta_c = J(P, P, .)
 	
 	// Indicators for the binary latent variables
 	lvs_vec = tokens(latents)
@@ -614,9 +637,9 @@ struct plssem_struct scalar plssem_base(real matrix X, real matrix Yinit,
 	// Store latent scores in the data set
 	st_store(., tokens(latents), touse, Yhat)
 	
+	// Path coefficients estimation
 	if (structural) {
-		// Path coefficients estimation
-		real matrix xx, xxm1, xy, H, V
+		real matrix xx, xxinv, xy, H, V
 		real scalar nendo, sse, sst, s2, jj
 		
 		nendo = sum(endo :> 0)
@@ -630,16 +653,16 @@ struct plssem_struct scalar plssem_base(real matrix X, real matrix Yinit,
 				Yendo = Yhat[., p]
 				if (isnotbinary[p]) {
 					xx = quadcross(Yexo, Yexo)
-					xxm1 = invsym(xx)
+					xxinv = invsym(xx)
 					xy = quadcross(Yexo, Yendo)
 					beta[Sind, p] = qrsolve(xx, xy)[|2 \ .|]
-					H = Yexo * xxm1 * Yexo'
+					H = Yexo * xxinv * Yexo'
 					sse = Yendo' * (I(n) - H) * Yendo
 					sst = quadcrossdev(Yendo, mean(Yendo), Yendo, mean(Yendo))
 					r2[p] = 1 - sse/sst
 					r2_a[p] = 1 - (sse/sst)*(n - 1)/(n - cols(Yexo))
 					s2 = sse/(n - cols(Yexo))
-					V = s2 * xxm1
+					V = s2 * xxinv
 					beta_v[Sind, p] = diagonal(V)[|2 \ .|]
 					s2_mat[jj, jj] = s2
 					jj++
@@ -694,7 +717,6 @@ struct plssem_struct scalar plssem_base(real matrix X, real matrix Yinit,
 	
 	// Residuals calculation
 	Xsc = scale(X)
-	beta0 = editmissing(beta, 0)
 	y_tmp = Xsc * W
 	outer_res = J(n, 0, .)
 	for (p = 1; p <= P; p++) {
@@ -705,11 +727,115 @@ struct plssem_struct scalar plssem_base(real matrix X, real matrix Yinit,
 		}
 	}
 	if (structural) {
+		beta0 = editmissing(beta, 0)
 		y_hat = y_tmp * beta0[., selectindex(endo)]
 		inner_res = (y_tmp[., selectindex(endo)] - y_hat)
 	}
 	else {
 		inner_res = J(n, 0, .)
+	}
+	
+	// Partial least-squares consistent estimation (PLSc)
+	real matrix R, rhoA_mat, Ratt, beta0_c, Yhat_c, inner_res_c
+	real colvector rhoA
+	real rowvector r2_c, r2_a_c
+	real scalar nmiss
+	
+	if (consistent) {
+		y_tmp = scale(X) * W
+		if (structural) {
+			R = correlation(Yhat)
+			rhoA = consistentrho(X, M, W, mode)
+			
+			r2_c = J(1, P, .)
+			r2_a_c = J(1, P, .)
+	
+			rhoA_mat = rhoA' * rhoA
+			for (p = 1; p <= P; p++) {
+				rhoA_mat[p, p] = 1
+			}
+			Ratt = R :/ sqrt(rhoA_mat)
+			for (p = 1; p <= P; p++) {
+				if (endo[1, p]) {
+					if (isnotbinary[p]) {
+						Sind = selectindex(S[., p])
+						beta_c[Sind, p] = invsym(Ratt[Sind, Sind]) * Ratt[Sind, p]
+						r2_c[p] = Ratt[Sind, p]' * invsym(Ratt[Sind, Sind]) * Ratt[Sind, p]
+						r2_a_c[p] = 1 - (1 - r2_c[p])*(n - 1)/(n - rows(Sind) - 1)
+					}
+					else {
+						printf("[TODO]\n")
+					}
+				}
+			}
+
+			// Inner model's residuals calculation
+			beta0_c = editmissing(beta_c, 0)
+			Yhat_c = y_tmp * beta0_c
+			inner_res_c = (y_tmp - Yhat_c)
+
+			// Total effects estimation
+			real matrix beta_tmp_c, ret_c
+			
+			beta_tmp_c = editmissing(beta_c, 0)
+			ret_c = beta_tmp_c
+			step = beta_tmp_c
+			for (p = 2; p <= P; p++) {
+				step = step * beta_tmp_c
+				ret_c = step + ret_c
+			}
+		}
+		else {
+			Ratt = .
+			beta_c = .
+			ret_c = .
+			r2_c = .
+			r2_a_c = .
+			inner_res_c = .
+		}
+		
+		lambda_c = W * diag(sqrt(rhoA) :/ (diagonal(W' * W))')
+		xlambda_c = xlambda * diag(1 :/ sqrt(rhoA))
+		xlambda_c = xlambda_c :* (lambda :== .) + lambda_c
+		for (p = 1; p <= P; p++) {
+			Mind = selectindex(M[., p])
+			if (length(Mind) == 1) {
+				lambda_c[Mind, p] = 1
+				xlambda_c[Mind, p] = 1
+			}
+			if (mode[p, 1]) {	// mode B (no correction)
+				lambda_c[Mind, p] = lambda[Mind, p]
+				xlambda_c[Mind, p] = xlambda[Mind, p]
+			}
+			nmiss = missing(lambda[., p])
+			lambda_c[selectindex(lambda[., p] :== .), p] = J(nmiss, 1, .)
+		}
+
+		// Outer model's residuals calculation
+		real matrix x_hat_c, outer_res_c
+
+		outer_res_c = J(n, 0, .)
+		for (p = 1; p <= P; p++) {
+			if (!mode[p, 1]) {	// mode A
+				block = selectindex(lambda_c[., p] :!= .)
+				x_hat_c = y_tmp[., p] * lambda_c[block, p]'
+				outer_res_c = (outer_res_c, (Xsc[., block] - x_hat_c))
+			}
+		}
+
+		// Store latent scores in the data set
+		//st_store(., tokens(latents), touse, Yhat_c)		// not clear what to save!
+	}
+	else {
+		Ratt = .
+		beta_c = .
+		lambda_c = .
+		xlambda_c = .
+		ret_c = .
+		r2_c = .
+		r2_a_c = .
+		outer_res_c = .
+		inner_res_c = .
 	}
 	
 	// Assigning results to structure's members
@@ -733,6 +859,16 @@ struct plssem_struct scalar plssem_base(real matrix X, real matrix Yinit,
 	res.S = Snew
 	res.e = outer_res
 	res.f = inner_res
+	res.R_c = Ratt
+	res.loadings_c = lambda_c
+	res.xloadings_c = xlambda_c
+	res.path_c = beta_c
+	res.scores_c = Yhat_c
+	res.total_effects_c = ret_c
+	res.r2_c = r2_c
+	res.r2_a_c = r2_a_c
+	res.e_c = outer_res_c
+	res.f_c = inner_res_c
 	
 	return(res)
 }
@@ -760,7 +896,7 @@ real matrix plssem_lv(real matrix X, real matrix Y, string scalar latents,
 		 - xload_v --> real matrix containing the (cross) loading variances
 	*/
 
-	real matrix xload_v, y, x, xx, xxm1, H, V
+	real matrix xload_v, y, x, xx, xxinv, H, V
 	real scalar P, Q, p, q, n, sse, s2
 	real rowvector isnotbinary
 	string rowvector lvs_vec
@@ -786,11 +922,11 @@ real matrix plssem_lv(real matrix X, real matrix Y, string scalar latents,
 			for (q = 1; q <= Q; q++) {
 				x = (J(n, 1, 1), scale(X[., q]))
 				xx = quadcross(x, x)
-				xxm1 = invsym(xx)
-				H = x * xxm1 * x'
+				xxinv = invsym(xx)
+				H = x * xxinv * x'
 				sse = y' * (I(n) - H) * y
 				s2 = sse/(n - 2)
-				V = s2 * xxm1
+				V = s2 * xxinv
 				xload_v[q, p] = V[2, 2]
 			}
 		}
@@ -849,7 +985,7 @@ real matrix plssem_pval(real matrix path, real matrix path_se,
 			if (!missing(path[q, p])) {
 				stat = abs(path[q, p]) / path_se[q, p]
 				pval[q, p] = 2*(1 - normal(stat))
-				if (isnotbinary[p] & !boot) {
+				if ((isnotbinary[p]) & (!boot)) {
 					df = n - colnonmissing(path[., p]) - 1
 					pval[q, p] = 2*ttail(df, stat)
 				}
@@ -865,7 +1001,7 @@ real matrix plssem_pathtab(real matrix path, real matrix path_pval,
 {
 	/* Description:
 		 ------------
-		 Function that sets up the path coefficients' table for a PLS-SEM model
+		 Function for setting up the path coefficients' table for a PLS-SEM model
 	*/
 	
 	/* Arguments:
@@ -883,18 +1019,24 @@ real matrix plssem_pathtab(real matrix path, real matrix path_pval,
 	*/
 
 	real matrix pathtab
+	real colvector tokeep
 	real scalar P, p
 
 	P = rows(path)   						// number of latent variables
 	pathtab = J(2*P + 1, P, .)
+	tokeep = J(0, 1, .)
 
 	for (p = 1; p <= P; p++) {
 		pathtab[2*p - 1, .] = path[p, .]
 		pathtab[2*p, .] = path_pval[p, .]
+		if (missing(path[p, .]) != P) {
+			tokeep = (tokeep \ (2*p - 1))
+			tokeep = (tokeep \ 2*p)
+		}
 	}
 	pathtab[2*P + 1, .] = r2_a
-	pathtab = pathtab[selectindex(rownonmissing(pathtab)), ///
-		selectindex(colnonmissing(pathtab))]
+	tokeep = (tokeep \ (2*P + 1))
+	pathtab = pathtab[tokeep, selectindex(colnonmissing(pathtab))]
 
 	return(pathtab)
 }
@@ -903,7 +1045,8 @@ struct plssem_struct_boot scalar plssem_boot(real matrix X, real matrix Yinit,
 	real matrix M, real matrix S, real colvector mode, string scalar latents,
 	string scalar binary, real scalar tol, real scalar maxit, string scalar touse,
 	string scalar scheme, string scalar crit, real scalar structural,
-	real scalar rawsum, |real scalar B, real scalar seed, real scalar noisily)
+	real scalar rawsum, real scalar consistent, |real scalar B, real scalar seed,
+	real scalar noisily)
 {
 	/* Description:
 		 ------------
@@ -937,7 +1080,9 @@ struct plssem_struct_boot scalar plssem_boot(real matrix X, real matrix Yinit,
 		 - structural	--> real scalar equal to 1 if the model has a structural part,
 											and 0 otherwise
 		 - rawsum			--> real scalar equal to 1 if the 'rawsum' option has been
-											chosen
+											chosen, and 0 otherwise
+		 - consistent	--> real scalar equal to 1 if the consistent version (PLSc) is
+											required, and 0 otherwise
 		 - B					--> (optional) real scalar number of bootstrap replications
 											(default 100)
 		 - seed				--> (optional) real scalar providing the bootstrap seed
@@ -1032,17 +1177,27 @@ struct plssem_struct_boot scalar plssem_boot(real matrix X, real matrix Yinit,
 			continue
 		}
 		res = plssem_base(X_bs, Yinit_bs, M, S, mode, latents, binary, tol, ///
-			maxit, touse, scheme, crit, structural, rawsum)
+			maxit, touse, scheme, crit, structural, rawsum, consistent)
 		if (structural) {
-			beta[b, .] = vec(res.path)'
+			if (consistent) {
+				beta[b, .] = vec(res.path_c)'
+			}
+			else {
+				beta[b, .] = vec(res.path)'
+			}
 		}
-		lambda[b, .] = rowsum(res.loadings)'
-		xlambda[b, .] = vec(res.xloadings)'
+		if (consistent) {
+			lambda[b, .] = rowsum(res.loadings_c)'
+			xlambda[b, .] = vec(res.xloadings_c)'
+		} else {
+			lambda[b, .] = rowsum(res.loadings)'
+			xlambda[b, .] = vec(res.xloadings)'
+		}
 	}
 	
 	// Storing the latent scores using the original full sample
 	res = plssem_base(X, Yinit, M, S, mode, latents, binary, tol, ///
-			maxit, touse, scheme, crit, structural, rawsum)
+			maxit, touse, scheme, crit, structural, rawsum, consistent)
 	
 	// Assigning results to structure's members
 	res_bs.reps = B
@@ -1251,7 +1406,7 @@ real matrix plssem_boot_pv(real matrix path)
 }
 
 real matrix plssem_reliability(real matrix X, real matrix load,
-	real colvector mode)
+	real colvector mode, real matrix outerw)
 {
 	/* Description:
 		 ------------
@@ -1265,48 +1420,30 @@ real matrix plssem_reliability(real matrix X, real matrix load,
 		 - mode				--> real colvector containing the modes of the latent
 											variables (each element must be either 0 ["reflective"]
 											or 1 ["formative"])
+		 - outerw			--> real matrix containing the outer weigths
 	*/
 	
 	/* Returned value:
 		 ---------------
-		 - relcoef --> real matrix containing the (cross) loading variances
+		 - relcoef --> real matrix containing the latent variable reliability
+									 coefficients
 	*/
 
-	real matrix relcoef, M, Mind, V, scores
-	real scalar P, p, k, num, den
-	real rowvector S, lambdas
+	real matrix M, relcoef
+	real scalar P
 
 	P = cols(load)   			// number of latent variables
-	relcoef = J(2, P, 0)
-	V = .
-	S = .
-
 	M = (load :!= .)
-	relcoef[1, .] = cronbach(X, M)
-	
-	for (p = 1; p <= P; p++) {
-		Mind = selectindex(M[., p])
-		k = rows(Mind)
-		if (k == 1) {
-			relcoef[2, p] = 1
-			continue
-		}
-		symeigensystem(correlation(X[., Mind]), V, S)
-		scores = scale(X[., Mind], 1) * V
-		lambdas = correlation((X[., Mind], scores[, 1]))[|(k + 1), 1 \ (k + 1), k|]
-		num = sum(lambdas)^2
-		den = num + (k - sum(lambdas :^ 2))
-		relcoef[2, p] = num/den
-		if (mode[p]) {
-			relcoef[1, p] = .
-			relcoef[2, p] = .
-		}
-	}
+	relcoef = J(3, P, 0)
+
+	relcoef[1, .] = cronbach(X, M, mode)
+	relcoef[2, .] = dillongoldstein(X, load, mode)
+	relcoef[3, .] = consistentrho(X, M, outerw, mode)
 	
 	return(relcoef)
 }
 
-real matrix plssem_vif(real matrix Y, real matrix S)
+real matrix plssem_vif(real matrix R, real matrix S)
 {
 	/* Description:
 		 ------------
@@ -1315,7 +1452,7 @@ real matrix plssem_vif(real matrix Y, real matrix S)
 	
 	/* Arguments:
 		 ----------
-		 - Y			--> real matrix containing the initialized latent variables
+		 - R			--> real matrix containing the latent variable correlations
 		 - S			--> real matrix containing the structural model adjacency
 									matrix
 	*/
@@ -1325,34 +1462,18 @@ real matrix plssem_vif(real matrix Y, real matrix S)
 		 - vif		--> real matrix containing the VIF values
 	*/
 
-	real matrix vif, Sind, X, y, x, xx, xxm1, H
-	real scalar P, p, q, n, lv_i, sse, sst
+	real matrix vif, Sind
+	real scalar P, p
 	real rowvector endo
 
 	P = cols(S)   			// number of manifest variables
-	n = rows(Y)					// sample size
 	endo = colsum(S)		// indicators for the endogenous latent variables
 	vif = J(P, P, .)
 	
 	for (p = 1; p <= P; p++) {
 		if (endo[1, p]) {
 			Sind = selectindex(S[., p])
-			lv_i = 1
-			for (q = 1; q <= P; q++) {
-				if (S[q, p]) {
-					X = Y[., Sind]
-					y = X[., lv_i]
-					X[., lv_i] = J(n, 1, 1)
-					x = X
-					xx = quadcross(x, x)
-					xxm1 = invsym(xx)
-					H = x * xxm1 * x'
-					sse = y' * (I(n) - H) * y
-					sst = quadcrossdev(y, mean(y), y, mean(y))
-					vif[q, p] = sst/sse
-					lv_i++
-				}
-			}
+			vif[Sind, p] = diagonal(invsym(R[Sind, Sind]))
 		}
 	}
 	
@@ -1363,8 +1484,8 @@ class AssociativeArray scalar plssem_mga_perm(real matrix X, real matrix Yinit,
 	real matrix M, real matrix S, real colvector mode, string scalar latents,
 	string scalar binary, real scalar tol, real scalar maxit, string scalar touse,
 	string scalar scheme, string scalar crit, real scalar structural,
-	real scalar rawsum, real colvector group, |real scalar B, ///
-	real scalar seed, real scalar noisily)
+	real scalar rawsum, real scalar consistent, real colvector group,
+	|real scalar B, real scalar seed, real scalar noisily)
 {
 	/* Description:
 		 ------------
@@ -1399,7 +1520,9 @@ class AssociativeArray scalar plssem_mga_perm(real matrix X, real matrix Yinit,
 		 - structural	--> real scalar equal to 1 if the model has a structural part,
 											and 0 otherwise
 		 - rawsum			--> real scalar equal to 1 if the 'rawsum' option has been
-											chosen
+											chosen, and 0 otherwise
+		 - consistent	--> real scalar equal to 1 if the consistent version (PLSc) is
+											required, and 0 otherwise
 		 - group			--> real colvector containing the group variable
 		 - B					--> (optional) real scalar number of permutation replications
 											(default 100)
@@ -1513,7 +1636,7 @@ class AssociativeArray scalar plssem_mga_perm(real matrix X, real matrix Yinit,
 			res = plssem_base(X_bs[selectindex(touse_new), .], ///
 				Yinit_bs[selectindex(touse_new), .], M, S, mode, ///
 				latents, binary, tol, maxit, touse_new_name, scheme, crit, ///
-				structural, rawsum)
+				structural, rawsum, consistent)
 			if (structural) {
 				res_tmp = res.path
 				res_tmp = res_tmp[selectindex(rownonmissing(res_tmp)), ///
@@ -1582,13 +1705,12 @@ class AssociativeArray scalar plssem_mga_boot(real matrix X, real matrix Yinit,
 	real matrix M, real matrix S, real colvector mode, string scalar latents,
 	string scalar binary, real scalar tol, real scalar maxit, string scalar touse,
 	string scalar scheme, string scalar crit, real scalar structural,
-	real scalar rawsum, real colvector group, |real scalar B, ///
-	real scalar seed, real scalar noisily)
+	real scalar rawsum, real scalar consistent, real colvector group,
+	|real scalar B, real scalar seed, real scalar noisily)
 {
 	/* Description:
 		 ------------
-		 Function that performs the calculations for the bootstrap version of the
-		 PLS-MGA algorithm
+		 Function that performs the bootstrap version of the PLS-MGA algorithm
 	*/
 	
 	/* Arguments:
@@ -1618,7 +1740,9 @@ class AssociativeArray scalar plssem_mga_boot(real matrix X, real matrix Yinit,
 		 - structural	--> real scalar equal to 1 if the model has a structural part,
 											and 0 otherwise
 		 - rawsum			--> real scalar equal to 1 if the 'rawsum' option has been
-											chosen
+											chosen, and 0 otherwise
+		 - consistent	--> real scalar equal to 1 if the consistent version (PLSc) is
+											required, and 0 otherwise
 		 - group			--> real colvector containing the group variable
 		 - B					--> (optional) real scalar number of bootstrap replications
 											(default 100)
@@ -1734,7 +1858,7 @@ class AssociativeArray scalar plssem_mga_boot(real matrix X, real matrix Yinit,
 			res = plssem_base(X_bs[selectindex(touse_new), .], ///
 				Yinit_bs[selectindex(touse_new), .], M, S, mode, ///
 				latents, binary, tol, maxit, touse_new_name, scheme, crit, ///
-				structural, rawsum)
+				structural, rawsum, consistent)
 			if (structural) {
 				res_tmp = res.path
 				res_tmp = res_tmp[selectindex(rownonmissing(res_tmp)), ///
@@ -1979,7 +2103,7 @@ real colvector which(real matrix X, |string scalar minmax)
 	return(index)
 }
 
-real rowvector cronbach(real matrix X, real matrix M)
+real rowvector cronbach(real matrix X, real matrix M, real colvector mode)
 {
 	/* Description:
 		 ------------
@@ -1990,6 +2114,9 @@ real rowvector cronbach(real matrix X, real matrix M)
 		 ----------
 		 - X			--> real matrix containing the latent variable scores
 		 - M			--> measurement model's adjacency matrix
+		 - mode		--> real colvector containing the modes of the latent variables
+									(each element must be either 0 for reflective or 1 for
+									formative)
 	*/
 	
 	/* Returned value:
@@ -2013,13 +2140,125 @@ real rowvector cronbach(real matrix X, real matrix M)
 		}
 		l = k*(k - 1)/2
 		r_bar = sum(lowertriangle(correlation(X[., Mind]), 0))/l
-		alpha[p] = k/(1/r_bar + (k - 1))
+		alpha[1, p] = k/(1/r_bar + (k - 1))
 		if (alpha[p] < 0) {
-			alpha[p] = 0
+			alpha[1, p] = 0
+		}
+		if (mode[p]) {
+			alpha[1, p] = .
 		}
 	}
 	
 	return(alpha)
+}
+
+real rowvector dillongoldstein(real matrix X, real matrix load,
+	real colvector mode)
+{
+	/* Description:
+		 ------------
+		 Function that computes the Dillon-Goldstein's reliability coefficients
+	*/
+	
+	/* Arguments:
+		 ----------
+		 - X			--> real matrix containing the latent variable scores
+		 - load		--> real matrix containing the estimated outer loadings
+		 - mode		--> real colvector containing the modes of the latent variables
+									(each element must be either 0 for reflective or 1 for
+									formative)
+	*/
+	
+	/* Returned value:
+		 ---------------
+		 - rho		--> real matrix containing the Dillon-Goldstein's reliability
+									coefficients
+	*/
+	
+	real matrix M, Mind, V, scores
+	real scalar P, p, k, num, den
+	real rowvector S, lambdas, rho
+
+	M = (load :!= .)
+	P = cols(M)   			// number of latent variables
+	/*
+	V = .
+	S = .
+	*/
+	rho = J(1, P, 1)
+
+	for (p = 1; p <= P; p++) {
+		Mind = selectindex(M[., p])
+		k = rows(Mind)
+		if (k == 1) {
+			continue
+		}
+		/* // this is based on equation (9) from Tenenhaus et al. (2005)
+		symeigensystem(correlation(X[., Mind]), V, S)
+		scores = X[., Mind] * V
+		lambdas = correlation((X[., Mind], scores[, 1]))[|(k + 1), 1 \ (k + 1), k|]
+		*/
+		lambdas = load[Mind, p]
+		num = sum(lambdas)^2
+		den = num + (k - sum(lambdas :^ 2))
+		rho[1, p] = num/den
+		if (mode[p]) {
+			rho[1, p] = .
+		}
+	}
+	
+	return(rho)
+}
+
+real rowvector consistentrho(real matrix X, real matrix M, real matrix outerw,
+	real colvector mode)
+{
+	/* Description:
+		 ------------
+		 Function that computes the Dillon-Goldstein's reliability coefficients
+	*/
+	
+	/* Arguments:
+		 ----------
+		 - X			--> real matrix containing the latent variable scores
+		 - M			--> measurement model's adjacency matrix
+		 - outerw	--> real matrix containing the model's outer weights
+		 - mode		--> real colvector containing the modes of the latent variables
+									(each element must be either 0 for reflective or 1 for
+									formative)
+	*/
+	
+	/* Returned value:
+		 ---------------
+		 - rhoA		--> real matrix containing the consistent reliability coefficients
+	*/
+	
+	real matrix Mind, S, w, w_wp
+	real scalar P, p, k, wp_w, num, den
+	real rowvector rhoA
+
+	P = cols(M)   			// number of latent variables
+	rhoA = J(1, P, 1)
+
+	for (p = 1; p <= P; p++) {
+		Mind = selectindex(M[., p])
+		k = rows(Mind)
+		if (k == 1) {
+			continue
+		}
+		w = outerw[Mind, p]
+		S = correlation(X[., Mind])
+		wp_w = w' * w
+		w_wp = w * w'
+		num = wp_w^2*(w' * (S - diag(S)) * w)
+		den = w' * (w_wp - diag(w_wp)) * w
+		rhoA[1, p] = num/den
+		if (mode[p]) {
+			rhoA[1, p] = 1
+		}
+	}
+	
+	return(rhoA)
 }
 
 void meanimp(real matrix X, string scalar vars, |string scalar categ,
@@ -2369,8 +2608,8 @@ struct plssem_struct_rebus scalar plssem_rebus(real matrix X, real matrix M,
 	string scalar binary, real scalar tol, real scalar maxit, string scalar touse,
 	string scalar scheme, string scalar crit, string scalar init,
 	string scalar scale, real scalar structural, real scalar rawsum,
-	string scalar rebus_cl, real scalar numclass, real scalar maxit_reb,
-	real scalar stop, |real scalar noisily)
+	real scalar consistent, string scalar rebus_cl, real scalar numclass,
+	real scalar maxit_reb, real scalar stop, |real scalar noisily)
 {
 	/* Description:
 		 ------------
@@ -2407,7 +2646,9 @@ struct plssem_struct_rebus scalar plssem_rebus(real matrix X, real matrix M,
 		 - structural	--> real scalar equal to 1 if the model has a structural part,
 											and 0 otherwise
 		 - rawsum			--> real scalar equal to 1 if the 'rawsum' option has been
-											chosen
+											chosen, and 0 otherwise
+		 - consistent	--> real scalar equal to 1 if the consistent version (PLSc) is
+											required, and 0 otherwise
 		 - rebus_cl		--> string scalar providing the variable with the REBUS-PLS
 											classes
 		 - numclass		--> real scalar providing the number of REBUS-PLS classes
@@ -2503,7 +2744,8 @@ struct plssem_struct_rebus scalar plssem_rebus(real matrix X, real matrix M,
 			
 			// Run the PLS algorithm
 			localmodels[k, 1] = plssem_base(Xsc, Yinit, M, S, modes, latents, ///
-				binary, tol, maxit, touse_loc_name, scheme, crit, structural, rawsum)
+				binary, tol, maxit, touse_loc_name, scheme, crit, structural, ///
+				rawsum, consistent)
 			Xreb = X[selectindex(touse_loc), .]
 			Xrebsc = scale(Xreb)
 			ow = localmodels[k, 1].outer_weights
@@ -2569,8 +2811,8 @@ real colvector plssem_rebus_ptest(real matrix X, real matrix M, real matrix S,
 	string scalar binary, real scalar tol, real scalar maxit, string scalar touse,
 	string scalar scheme, string scalar crit, string scalar init,
 	string scalar scale, real scalar structural, real scalar rawsum,
-	string scalar rebus_cl, real scalar numclass, |real scalar B,
-	real scalar seed, real scalar noisily)
+	real scalar consistent, string scalar rebus_cl, real scalar numclass,
+	|real scalar B, real scalar seed, real scalar noisily)
 {
 	/* Description:
 		 ------------
@@ -2607,7 +2849,9 @@ real colvector plssem_rebus_ptest(real matrix X, real matrix M, real matrix S,
 		 - structural	--> real scalar equal to 1 if the model has a structural part,
 											and 0 otherwise
 		 - rawsum			--> real scalar equal to 1 if the 'rawsum' option has been
-											chosen
+											chosen, and 0 otherwise
+		 - consistent	--> real scalar equal to 1 if the consistent version (PLSc) is
+											required, and 0 otherwise
 		 - rebus_cl		--> string scalar providing the variable with the REBUS-PLS
 											classes
 		 - numclass		--> real scalar providing the number of REBUS-PLS classes
@@ -2724,7 +2968,8 @@ real colvector plssem_rebus_ptest(real matrix X, real matrix M, real matrix S,
 			
 			// Run the PLS algorithm
 			localmodels[k, 1] = plssem_base(Xsc, Yinit, M, S, modes, latents, ///
-				binary, tol, maxit, touse_loc_name, scheme, crit, structural, rawsum)
+				binary, tol, maxit, touse_loc_name, scheme, crit, structural, ///
+				rawsum, consistent)
 
 			Xreb = X[selectindex(touse_loc), .]
 			Xrebsc = scale(Xreb)
@@ -3317,8 +3562,8 @@ struct plssem_struct_fimix scalar plssem_fimix(real matrix Y, real matrix S,
 	return(res_fimix)
 }
 
-real scalar plssem_gas_fitness(struct plssem_struct_matrix colvector e,
-	struct plssem_struct_matrix colvector f)
+real scalar plssem_gas_fitness(struct plssem_struct_matrix colvector f,
+	|struct plssem_struct_matrix colvector e)
 {
 	/* Description:
 		 ------------
@@ -3327,10 +3572,10 @@ real scalar plssem_gas_fitness(struct plssem_struct_matrix colvector e,
 	
 	/* Arguments:
 		 ----------
-		 - e 			--> struct plssem_struct_matrix colvector containing the
-									measurement model residuals
-		 - f			--> struct plssem_struct_matrix colvector containing the
-									structural model residuals
+		 - f			--> struct plssem_struct_matrix colvector containing structural
+									model's residuals
+		 - e 			--> (optional) struct plssem_struct_matrix colvector containing
+									measurement model's residuals (only for reflective constructs)
 	*/
 	
 	/* Returned value:
@@ -3343,7 +3588,14 @@ real scalar plssem_gas_fitness(struct plssem_struct_matrix colvector e,
 	F = 0
 	
 	for (k = 1; k <= K; k++) {
-		F = F + sum(e[k, 1].mat :^ 2) + sum(f[k, 1].mat :^ 2)
+		if (args() == 1) {
+			// only the structural model's residuals are used
+			F = F + sum(f[k, 1].mat :^ 2)
+		}
+		else {
+			// both the measurement and structural model's residuals are used
+			F = F + sum(e[k, 1].mat :^ 2) + sum(f[k, 1].mat :^ 2)
+		}
 	}
 	
 	return(F)
@@ -3424,9 +3676,9 @@ struct plssem_struct_gas scalar plssem_gas(real matrix X, real matrix M,
 	string scalar latents, string scalar binary, real scalar tol,
 	real scalar maxit, string scalar touse, string scalar scheme,
 	string scalar crit, string scalar init, string scalar scale,
-	real scalar structural, real scalar rawsum, real scalar K, real scalar I,
-	real scalar G, real scalar p_m, real scalar p_t, real scalar maxit_gas,
-	|real scalar seed, real scalar noisily)
+	real scalar structural, real scalar rawsum, real scalar consistent,
+	real scalar K, real scalar I, real scalar G, real scalar p_m, real scalar p_t,
+	real scalar maxit_gas, |real scalar seed, real scalar noisily)
 {
 	/* Description:
 		 ------------
@@ -3464,7 +3716,9 @@ struct plssem_struct_gas scalar plssem_gas(real matrix X, real matrix M,
 		 - structural	--> real scalar equal to 1 if the model has a structural part,
 											and 0 otherwise
 		 - rawsum			--> real scalar equal to 1 if the 'rawsum' option has been
-											chosen
+											chosen, and 0 otherwise
+		 - consistent	--> real scalar equal to 1 if the consistent version (PLSc) is
+											required, and 0 otherwise
 		 - K					--> real scalar providing the number of classes
 		 - I					--> real scalar providing the number of individuals in the
 											current population
@@ -3598,13 +3852,14 @@ struct plssem_struct_gas scalar plssem_gas(real matrix X, real matrix M,
 				
 				// Run the PLS algorithm
 				localmodels[k, 1] = plssem_base(Xsc, Yinit, M, S, modes, latents, ///
-					binary, tol, maxit, touse_loc_name, scheme, crit, structural, rawsum)
+					binary, tol, maxit, touse_loc_name, scheme, crit, structural, ///
+					rawsum, consistent)
 				e[k, 1].mat = localmodels[k, 1].e
 				f[k, 1].mat = localmodels[k, 1].f
 			}
 			
 			// Fitness calculation for individual i
-			F[1, i] = plssem_gas_fitness(e, f)
+			F[1, i] = plssem_gas_fitness(f) //, e) // only structural model's resid
 		}
 		rank = invorder(order(F', 1))'
 		rankF = J(1, I, I + 1) - rank
@@ -3691,13 +3946,14 @@ struct plssem_struct_gas scalar plssem_gas(real matrix X, real matrix M,
 			
 			// Run the PLS algorithm
 			localmodels[k, 1] = plssem_base(Xsc, Yinit, M, S, modes, latents, ///
-				binary, tol, maxit, touse_loc_name, scheme, crit, structural, rawsum)
+				binary, tol, maxit, touse_loc_name, scheme, crit, structural, ///
+				rawsum, consistent)
 			e[k, 1].mat = localmodels[k, 1].e
 			f[k, 1].mat = localmodels[k, 1].f
 		}
 		
 		// Fitness calculation for individual i
-		F[1, i] = plssem_gas_fitness(e, f)
+		F[1, i] = plssem_gas_fitness(f) //, e) // only structural model's resid
 	}
 	rank = invorder(order(F', 1))'
 	rankF = J(1, I, I + 1) - rank
@@ -3720,7 +3976,7 @@ struct plssem_struct_gas scalar plssem_gas(real matrix X, real matrix M,
 
 	best_tmp = best
 	t = 1
-	F_best = plssem_gas_fitness(e, f)
+	F_best = plssem_gas_fitness(f) //, e) // only structural model's resid
 	alloc_best = best
 	
 	while ((t <= maxit_gas) & (nchanged > 0)) {
@@ -3841,12 +4097,13 @@ struct plssem_struct_gas scalar plssem_gas(real matrix X, real matrix M,
 						
 						// Run the PLS algorithm
 						localmodels[k, 1] = plssem_base(Xsc, Yinit, M, S, modes, latents, ///
-							binary, tol, maxit, touse_loc_name, scheme, crit, structural, rawsum)
+							binary, tol, maxit, touse_loc_name, scheme, crit, structural, ///
+							rawsum, consistent)
 						e[k, 1].mat = localmodels[k, 1].e
 						f[k, 1].mat = localmodels[k, 1].f
 					}
 					
-					F_tmp = plssem_gas_fitness(e, f)
+					F_tmp = plssem_gas_fitness(f) //, e) // only structural model's resid
 					if (F_tmp < F_best) {
 						F_best = F_tmp
 						alloc_best = best
@@ -3990,6 +4247,8 @@ mata: mata mlib add lplssem ///
 	sd() ///
 	which() ///
 	cronbach() ///
+	dillongoldstein() ///
+	consistentrho() ///
 	meanimp() ///
 	knnimp() ///
 	euclidean_dist() ///

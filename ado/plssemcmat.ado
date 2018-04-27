@@ -1,9 +1,9 @@
-*!plssemmat version 0.3.0
+*!plssemcmat version 0.3.0
 *!Written 27Apr2018
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
-program plssemmat, byable(onecall)
+program plssemcmat, byable(onecall)
 	version 14.2
 	syntax [anything] [if] [in] [, * ]
 	
@@ -27,10 +27,10 @@ program plssemmat, byable(onecall)
 		}
 		
 		if (`"`options'"' != "") {
-			Display_mat, `options' `nostructural'
+			Display_c_mat, `options' `nostructural'
 		}
 		else {
-			Display_mat, `old_options' `nostructural'
+			Display_c_mat, `old_options' `nostructural'
 		}
 		exit
 	}
@@ -45,30 +45,18 @@ program plssemmat, byable(onecall)
 		local version : display "version " string(_caller()) " :"
 	}
 	
-	local isgroup = strpos(`"`options'"', "gr")
-	if (`isgroup') {
-		if _by() {
-			display as error "the 'group()' option is not allowed with by"
-			exit
-		}
-		else {
-			`version' Compare_mat `0'  // version is not necessary
-		}
-	}
-	else {
-		`version' `BY' Estimate_mat `0'  // version is not necessary
-	}
+	`version' `BY' Estimate_c_mat `0'  // version is not necessary
 end
 
-program Estimate_mat, eclass byable(recall)
+program Estimate_c_mat, eclass byable(recall)
 	version 14.2
 	syntax namelist(id="Measurement model" name=adj_meas min=1 max=1) [if] [in], ///
 		[ STRuctural(name) Wscheme(string) BINary(namelist min=1) ///
 		Boot(numlist integer >0 max=1) Seed(numlist max=1) Tol(real 1e-7) ///
 		MAXiter(integer 100) MISsing(string) k(numlist integer >0 max=1) ///
 		INIT(string) DIGits(integer 3) noHEADer noMEAStable noDISCRIMtable ///
-		noSTRUCTtable LOADPval STATs GRoup(string) CORRelate(string) RAWsum ///
-		noSCale CONVcrit(string) noCLeanup ]
+		noSTRUCTtable LOADPval STATs CORRelate(string) RAWsum noSCale ///
+		CONVcrit(string) noCLeanup ]
 	
 	/* Options:
 	   --------
@@ -94,13 +82,6 @@ program Estimate_mat, eclass byable(recall)
 		 loadpval												--> show the loadings' p-values
 		 stats													--> print a table of summary statistics for
 																				the indicators
-		 group(string)									--> perform multigroup analysis; accepts
-																				the suboptions reps(#), method(), plot,
-																				alpha and groupseed(numlist max=1);
-																				method() accepts either 'permutation',
-																				'bootstrap' or 'normal'; groupseed(numlist
-																				max=1) accepts an optional seed for
-																				multigroup analysis
 		 correlate(string)							--> report the correlation among the
 																				indicators, the LVs as well as the cross
 																				loadings; accepts any combination of 'mv',
@@ -559,7 +540,7 @@ program Estimate_mat, eclass byable(recall)
 				"`convcrit'", ///
 				st_numscalar("`struct_sc'"), ///
 				st_numscalar("`rawsum_sc'"), ///
-				0)
+				1)
 		
 		mata: st_numscalar("`converged'", `res'.converged)
 		mata: st_numscalar("`iter'", `res'.niter)
@@ -590,15 +571,9 @@ program Estimate_mat, eclass byable(recall)
 		tempname xload_v path_v
 		
 		if ("`boot'" == "") {
-			mata: `xload_v' = ///
-				plssem_lv( ///
-					st_data(., "`allstdindicators'", "`touse'"), ///
-					st_data(., "`alllatents'", "`touse'"), ///
-					"`alllatents'", ///
-					"`binary'")
-			if ("`structural'" != "") {
-				mata: `path_v' = `res'.path_v
-			}
+			// in PLSc variances are available only using bootstrap
+			mata: `xload_v' = J(rows(`res'.loadings_c), cols(`res'.loadings_c), .)
+			mata: `path_v' = J(rows(`res'.path_c), cols(`res'.path_c), .)
 		}
 		else {
 			tempname res_bs
@@ -619,7 +594,7 @@ program Estimate_mat, eclass byable(recall)
 					"`convcrit'", ///
 					st_numscalar("`struct_sc'"), ///
 					st_numscalar("`rawsum_sc'"), ///
-					0, ///
+					1, ///
 					strtoreal("`boot'"), ///
 					strtoreal("`seed'"), ///
 					1)
@@ -664,11 +639,11 @@ program Estimate_mat, eclass byable(recall)
 	/* Compute the table of measurement loadings */
 	tempname loadings xloadings annihilate_se loadings_se xloadings_se
 
-	mata: st_matrix("`loadings'", `res'.loadings)
+	mata: st_matrix("`loadings'", `res'.loadings_c)
 	matrix rownames `loadings' = `loadrownames'
 	matrix colnames `loadings' = `loadcolnames'
 
-	mata: st_matrix("`xloadings'", `res'.xloadings)
+	mata: st_matrix("`xloadings'", `res'.xloadings_c)
 	matrix rownames `xloadings' = `loadrownames'
 	matrix colnames `xloadings' = `loadcolnames'
 
@@ -707,8 +682,7 @@ program Estimate_mat, eclass byable(recall)
 		matrix rownames `sqcorr' = `modeA'
 		matrix colnames `sqcorr' = `modeA'
 		*/
-		mata: st_matrix("`sqcorr'", ///
-			correlation(st_data(., "`alllatents'", "`touse'")) :^ 2)
+		mata: st_matrix("`sqcorr'", `res'.R_c :^ 2)
 		matrix rownames `sqcorr' = `alllatents'
 		matrix colnames `sqcorr' = `alllatents'
 	}
@@ -735,7 +709,7 @@ program Estimate_mat, eclass byable(recall)
 		local kk = 1
 		matrix `indstats' = J(`num_ind', 7, .)
 		foreach ind in `allindicators' {
-			quietly summarize `ind' if `touse', detail
+			quietly summarize `ind' if `touse_nomiss', detail
 			matrix `indstats'[`kk', 1] = r(mean)
 			matrix `indstats'[`kk', 2] = r(sd)
 			matrix `indstats'[`kk', 3] = r(p50)
@@ -758,7 +732,7 @@ program Estimate_mat, eclass byable(recall)
 	if ("`structural'" != "") {
 		tempname path path_se rsquared redundancy path_pval pathtab path_toteff
 		
-		mata: st_matrix("`path'", `res'.path)
+		mata: st_matrix("`path'", `res'.path_c)
 		matrix rownames `path' = `alllatents'
 		matrix colnames `path' = `alllatents'
 
@@ -774,11 +748,11 @@ program Estimate_mat, eclass byable(recall)
 		matrix rownames `path_se' = `alllatents'
 		matrix colnames `path_se' = `alllatents'
 
-		mata: st_matrix("`rsquared'", `res'.r2)
+		mata: st_matrix("`rsquared'", `res'.r2_c)
 		matrix rownames `rsquared' = "r2"
 		matrix colnames `rsquared' = `alllatents'
 		
-		mata: st_matrix("`redundancy'", `res'.r2 :* st_matrix("`ave'"))
+		mata: st_matrix("`redundancy'", `res'.r2_c :* st_matrix("`ave'"))
 		matrix rownames `redundancy' = "redundancy"
 		matrix colnames `redundancy' = `alllatents'
 		
@@ -798,14 +772,14 @@ program Estimate_mat, eclass byable(recall)
 				("`boot'" != ""))
 
 		mata: st_matrix("`pathtab'", ///
-			plssem_pathtab(st_matrix("`path'"), `path_pval', `res'.r2_a))
+			plssem_pathtab(st_matrix("`path'"), `path_pval', `res'.r2_a_c))
 		foreach var in `regest_all' {
 			local pathtab_rownames "`pathtab_rownames' `var' ."
 		}
 		matrix rownames `pathtab' = `pathtab_rownames' "r2_a"
 		matrix colnames `pathtab' = `lv_regest_all'
 
-		mata: st_matrix("`path_toteff'", `res'.total_effects)
+		mata: st_matrix("`path_toteff'", `res'.total_effects_c)
 		matrix rownames `path_toteff' = `alllatents'
 		matrix colnames `path_toteff' = `alllatents'
 	}
@@ -844,7 +818,7 @@ program Estimate_mat, eclass byable(recall)
 		matrix rownames `strse' = `struct_rownames'
 		matrix colnames `strse' = `lv_regest_all'
 		
-		mata: st_matrix("`R_Y'", correlation(st_data(., "`alllatents'", "`touse'")))
+		mata: st_matrix("`R_Y'", `res'.R_c)
 		matrix rownames `R_Y' = `alllatents'
 		matrix colnames `R_Y' = `alllatents'
 		mata: `path_vif_mata' = ///
@@ -927,11 +901,11 @@ program Estimate_mat, eclass byable(recall)
 	ereturn local mvs `"`allindicators'"'
 	local varlist `e(mvs)' `e(lvs)'
 	signestimationsample `varlist'
-	ereturn local title "Partial least squares structural equation modeling"
+	ereturn local title "Consistent partial least squares (PLSc) structural equation modeling"
 	ereturn local predict plssem_p
-	ereturn local estat_cmd "plssem_estat"
-	ereturn local cmdline "plssem `cmdline'"
-	ereturn local cmd "plssem"
+	ereturn local estat_cmd "plssemc_estat"
+	ereturn local cmdline "plssemc `cmdline'"
+	ereturn local cmd "plssemc"
 
 	if ("`missing'" != "") {
 		tempname __touse__ imp_data
@@ -994,7 +968,7 @@ program Estimate_mat, eclass byable(recall)
 	/* End of returning values */
 	
 	/* Display results */
-	if (("`display'" == "") & ("`group'" == "")) {  // this saves some time when used with 'group' 
+	if ("`display'" == "") {
 		if ("`structural'" == "") {
 			local nostructural "nostructural"
 		}
@@ -1004,7 +978,7 @@ program Estimate_mat, eclass byable(recall)
 		else {
 			local nodiscrim `discrimtable'
 		}
-		Display_mat, `nostructural' digits(`digits') boot(`boot') ///
+		Display_c_mat, `nostructural' digits(`digits') boot(`boot') ///
 			`header' `meastable' `nodiscrim' `structtable' `loadpval' `stats' ///
 			`corrind' `corrlv' `crossload' cutoff(`cutoff') binary(`binary') `rawsum'
 	}
@@ -1041,774 +1015,7 @@ program Estimate_mat, eclass byable(recall)
 	/* End of cleaning up */
 end
 
-program Compare_mat, eclass sortpreserve
-	version 14.2
-	syntax namelist(id="Measurement model" name=adj_meas min=1 max=1) [if] [in], ///
-		[ STRuctural(name) Wscheme(string) BINary(namelist min=1) ///
-		Boot(numlist integer >0 max=1) Seed(numlist max=1) Tol(real 1e-7) ///
-		MAXiter(integer 100) MISsing(string) k(numlist integer >0 max=1) ///
-		INIT(string) DIGits(integer 3) noHEADer noMEAStable noDISCRIMtable ///
-		noSTRUCTtable LOADPval STATs GRoup(string) CORRelate(string) RAWsum ///
-		noSCale CONVcrit(string) noCLeanup ]
-	
-	/* Options:
-	   --------
-		 structural(name)								--> structural model specification
-		 wscheme(string)								--> weighting scheme ("centroid", "factorial"
-																				or "path")
-		 binary(namelist min=1)					--> indicators to fit using logit
-		 boot(numlist integer >0 max=1)	--> bootstrap estimation (# of repetions)
-		 seed(numlist max=1)						--> bootstrap seed number
-		 tol(real 1e-7)									--> tolerance (default 1e-7)
-		 maxiter(integer 100)						--> maximum number of iterations (default
-																				100)
-		 missing(string)								--> imputation method ("mean" or "knn")
-		 k(numlist integer >0 max=1)		--> neighbor size; to use with
-																				missing("knn") (default 5)
-		 init(string)										--> initialization method ("eigen" or "indsum")
-		 digits(integer 3)							--> number of digits to display (default 3)
-		 noheader												--> do not show the header
-		 nomeastable										--> do not show the measurement table
-		 nodiscrimtable									--> do not show the discriminant validity
-																				table
-		 nostructtable									--> do not show the structural table
-		 loadpval												--> show the loadings' p-values
-		 stats													--> print a table of summary statistics for
-																				the indicators
-		 group(string)									--> perform multigroup analysis; accepts
-																				the suboptions reps(#), method(), plot,
-																				alpha and groupseed(numlist max=1);
-																				method() accepts either 'permutation',
-																				'bootstrap' or 'normal'; groupseed(numlist
-																				max=1) accepts an optional seed for
-																				multigroup analysis
-		 correlate(string)							--> report the correlation among the
-																				indicators, the LVs as well as the cross
-																				loadings; accepts any combination of 'mv',
-																				'lv' and 'cross' (i.e. cross-loadings);
-																				suboption 'cutoff()' can be used to avoid
-																				showing correlations smaller than the
-																				specified value
-		 rawsum													--> estimate the latent scores as the raw
-																				sum of the indicators
-		 noscale												--> manifest variables are not scaled but
-																				only centered
-		 convcrit												--> convergence criterion (either 'relative'
-																				or 'square')
-		 nocleanup											--> Mata temporary objects are not removed
-																				(undocumented)
-	 */
-	
-	/* Warning */
-	if ("`boot'" != "") {
-		display as error "using the 'boot()' option together with 'group()' will slow down excessively the calculation"
-		display as error "try removing 'boot()'"
-		exit
-	}
-	
-	/* Check that digits is nonnegative */
-	if (`digits' < 0) {
-		display as error "number of digits to display must be a nonnegative integer"
-		exit
-	}
-	
-	/* Set macros */
-	if ("`wscheme'" == "") {
-		local wscheme = "path"
-	}
-	if ("`reps'" == "") {
-		local reps = 100
-	}
-	if ("`method'" == "") {
-		local method = "normal"
-	}
-	if ("`alpha'" == "") {
-		local alpha = 0.05
-	}
-	if ("`init'" == "") {
-		local init "indsum"
-	}
-	if ("`convcrit'" == "") {
-		local convcrit "relative"
-	}
-	local skip1 = 1
-	local skip3 = 3
-	local whatstr "loadings"
-	if ("`structural'" != "") {
-		local whatstr "`whatstr' path"
-	}
-	
-	/* Parse the group() option */
-	tokenize `"`group'"', parse(",")
-	local ngroupvars : word count `1'
-	if (`ngroupvars' > 1) {
-		display as error "a single variable allowed in the 'group()' option"
-		exit
-	}
-	local groupvar `"`1'"'
-	local rest `"`3'"'
-	local tok_i = 1
-	tokenize `"`rest'"', parse("() ")
-	while ("``tok_i''" != "") {
-		if (("``tok_i''" != "(") | ("``tok_i''" != ")")) {
-			if ("``tok_i''" == "reps") {
-				local tok_tmp = `tok_i' + 2
-				local reps = int(``tok_tmp'')
-				if (`reps' < 2) {
-					display as error "'reps()' suboption requires an integer larger than 1"
-					exit
-				}
-			}
-			else if ("``tok_i''" == "method") {
-				local tok_tmp = `tok_i' + 2
-				local method = "``tok_tmp''"
-				if (("`method'" != "normal") & ("`method'" != "permutation") & ("`method'" != "bootstrap")) {
-					display as error "'method()' suboption accepts either 'permutation', 'bootstrap' or 'normal'"
-					exit
-				}
-			}
-			else if ("``tok_i''" == "plot") {
-				local plot = "``tok_i''"
-			}
-			else if ("``tok_i''" == "alpha") {
-				local tok_tmp = `tok_i' + 2
-				local alpha = ``tok_tmp''
-				if (`alpha' <= 0 | `alpha' >= 1) {
-					display as error "'alpha()' suboption requires a real scalar in between 0 and 1"
-					exit
-				}
-			}
-			else if ("``tok_i''" == "groupseed") {
-				local tok_tmp = `tok_i' + 2
-				local groupseed = ``tok_tmp''
-				if (`groupseed' < 0 | `groupseed' >  2^31-1) {
-					display as error "'groupseed()' suboption requires a value between 0 and 2^31-1"
-					exit
-				}
-			}
-		}
-		local ++tok_i
-	}
-	/* End of parsing the group() option */
-	
-	/* Estimation using the whole sample */
-	tempname adj_meas adj_struct modes rawsum_sc struct_sc ehold
-	quietly Estimate_mat `0'
-	local alllatents = e(lvs)
-	local allindicators = e(mvs)
-	local allreflective = e(reflective)
-	local nlv : word count `alllatents'
-	
-	foreach what in `whatstr' {
-		tempname tmp_`what' whole_`what' loadrownames_`what' loadcolnames_`what'
-		if ("`what'" == "path") {
-			matrix `tmp_`what'' = e(struct_b)
-			local loadcolnames_`what' : colnames `tmp_`what''
-			matrix `whole_`what'' = vec(`tmp_`what'')
-		}
-		else if ("`what'" == "loadings") {
-			matrix `tmp_`what'' = e(loadings)
-			local loadrownames_`what' : rownames `tmp_`what''
-			local loadcolnames_`what' : colnames `tmp_`what''
-			matrix `whole_`what'' = vec(`tmp_`what'')
-		}
-	}
-	matrix `adj_meas' = e(adj_meas)
-	if ("`structural'" != "") {
-		matrix `adj_struct' = e(adj_struct)
-	}
-	else {
-		matrix `adj_struct' = J(`nlv', `nlv', 0)
-	}
-	matrix `modes' = J(`nlv', 1, 1)
-	local i = 1
-	foreach var in `alllatents' {
-		if (`: list var in allreflective') {
-			matrix `modes'[`i', 1] = 0
-		}
-		local ++i
-	}
-	if ("`rawsum'" == "") {
-		scalar `rawsum_sc' = 0
-	}
-	else {
-		scalar `rawsum_sc' = 1
-	}
-	if ("`structural'" == "") {
-		scalar `struct_sc' = 0
-	}
-	else {
-		scalar `struct_sc' = 1
-	}
-	
-	/* Set obs to use */
-	tempvar touse
-	quietly generate byte `touse' = e(sample)
-	quietly count if `touse'
-	if (r(N) == 0) {
-		error 2000
-	}
-	else if (r(N) < 10) {
-		display as error "at least 10 complete observations required"
-		error 2001
-	}
-
-	if ("`missing'" != "") {
-		/* Save original data set */
-		tempname original_data
-		mata: `original_data' = st_data(., "`: list uniq allindicators'", "`touse'")
-		
-		/* Recovery of missing values */
-		mata: st_store(., tokens("`: list uniq allindicators'"), "`touse'", ///
-			st_matrix("e(imputed_data)"))
-	}
-	
-	_estimates hold `ehold', restore
-	
-	/* Compute group values and sizes */
-	tempname grpvar_tmp groupvar_m groupvals groupsizes alln
-	mata: `grpvar_tmp' = st_data(., "`groupvar'", "`touse'")
-	mata: st_matrix("`groupvar_m'", ///
-		uniqrows(select(`grpvar_tmp', `grpvar_tmp' :!= .), 1))
-	local ngroups = rowsof(`groupvar_m')
-	if (`ngroups' == 1) {
-		display as error "the group() option requires at least two groups to compare"
-		exit
-	}
-	matrix `groupvals' = `groupvar_m'[1..., 1]
-	matrix `groupsizes' = `groupvar_m'[1..., 2]
-	mata: st_numscalar("`alln'", sum(st_matrix("`groupsizes'")))
-	
-	/* Calculate observed test statistic value */
-	tempname idx res
-	mata: `idx' = selectindex(rowsum(st_matrix("`adj_struct'")))
-	mata: st_local("regest_all", invtokens(tokens("`alllatents'")[`idx']))
-	mata: `idx' = selectindex(colsum(st_matrix("`adj_struct'")))
-	mata: st_local("lv_regest_all", invtokens(tokens("`alllatents'")[`idx']))
-	foreach var in `regest_all' {
-		local struct_rownames "`struct_rownames' `var'"
-	}
-	local struct_rownames : list clean struct_rownames
-	foreach var in `allindicators' {
-		local allstdindicators "`allstdindicators' std`var'"
-	}
-	local allstdindicators : list clean allstdindicators
-	
-	tempname zerovar tmp_mata
-	forvalues ng = 1/`ngroups' {
-		capture quietly preserve
-		
-		tempvar touse_gr
-		quietly generate `touse_gr' = `touse'
-		quietly replace `touse_gr' = 0 if (`groupvar' != `groupvals'[`ng', 1])
-		
-		/* Check that there are no "zero-variance" indicators in any group */
-		tempvar touse_gr
-		quietly generate `touse_gr' = `touse'
-		quietly replace `touse_gr' = 0 if (`groupvar' != `groupvals'[`ng', 1])
-		
-		mata: st_numscalar("`zerovar'", ///
-			any(selectindex(sd(st_data(., "`allindicators'", "`touse_gr'")) :== 0)))
-		if (`zerovar') {
-			continue, break
-		}
-		
-		/* Standardize the MVs (if requested) */
-		mata: ///
-			plssem_scale( ///
-				st_data(., "`allindicators'", "`touse_gr'"), ///
-				"`allstdindicators'", ///
-				"`touse_gr'", ///
-				"`scale'")
-		
-		/* Initialize LVs */
-		mata: ///
-			plssem_init( ///
-				st_data(., "`allstdindicators'", "`touse_gr'"), ///
-				st_matrix("`adj_meas'"), ///
-				"`allindicators'", ///
-				"`allstdindicators'", ///
-				"`alllatents'", ///
-				"`touse_gr'", ///
-				st_numscalar("`rawsum_sc'"), ///
-				"`init'")
-		
-		/* Run the PLS algorithm */
-		mata: `res' = ///
-			plssem_base( ///
-				st_data(., "`allstdindicators'", "`touse_gr'"), ///
-				st_data(., "`alllatents'", "`touse_gr'"), ///
-				st_matrix("`adj_meas'"), ///
-				st_matrix("`adj_struct'"), ///
-				st_matrix("`modes'"), ///
-				"`alllatents'", ///
-				"`binary'", ///
-				strtoreal("`tol'"), ///
-				strtoreal("`maxiter'"), ///
-				"`touse_gr'", ///
-				"`wscheme'", ///
-				"`convcrit'", ///
-				st_numscalar("`struct_sc'"), ///
-				st_numscalar("`rawsum_sc'"), ///
-				0)
-		
-		foreach what in `whatstr' {
-			tempname strb_`what'_`ng' strvar_`what'_`ng' group_`what'_`ng'
-			if ("`what'" == "path") {
-				mata: `tmp_mata' = `res'.path
-				mata: `tmp_mata' = `tmp_mata'[selectindex(rownonmissing(`tmp_mata')), ///
-					selectindex(colnonmissing(`tmp_mata'))]
-				mata: st_matrix("`strb_`what'_`ng''", `tmp_mata')
-				matrix rownames `strb_`what'_`ng'' = `struct_rownames'
-				matrix colnames `strb_`what'_`ng'' = `lv_regest_all'
-				matrix `strb_`what'_`ng'' = vec(`strb_`what'_`ng'')
-				
-				mata: `tmp_mata' = sqrt(`res'.path_v)
-				mata: `tmp_mata' = `tmp_mata'[selectindex(rownonmissing(`tmp_mata')), ///
-					selectindex(colnonmissing(`tmp_mata'))]
-				mata: st_matrix("`strvar_`what'_`ng''", `tmp_mata')
-				matrix rownames `strvar_`what'_`ng'' = `struct_rownames'
-				matrix colnames `strvar_`what'_`ng'' = `lv_regest_all'
-				matrix `strvar_`what'_`ng'' = vec(`strvar_`what'_`ng'')
-			}
-			else if ("`what'" == "loadings") {
-				mata: st_matrix("`strb_`what'_`ng''", `res'.loadings)
-				matrix rownames `strb_`what'_`ng'' = `loadrownames_`what''
-				matrix colnames `strb_`what'_`ng'' = `loadcolnames_`what''
-				matrix `strb_`what'_`ng'' = vec(`strb_`what'_`ng'')
-
-				mata: `tmp_mata' = ///
-					plssem_lv( ///
-						st_data(., "`allstdindicators'", "`touse_gr'"), ///
-						st_data(., "`alllatents'", "`touse_gr'"), ///
-						"`alllatents'", ///
-						"`binary'")
-				mata: `tmp_mata' = sqrt(`tmp_mata') :* editvalue(`res'.M, 0, .)
-				mata: st_matrix("`strvar_`what'_`ng''", `tmp_mata')
-				matrix rownames `strvar_`what'_`ng'' = `loadrownames_`what''
-				matrix colnames `strvar_`what'_`ng'' = `loadcolnames_`what''
-				matrix `strvar_`what'_`ng'' = vec(`strvar_`what'_`ng'')
-			}
-		}
-		
-		capture quietly restore
-	}
-	if (`zerovar') {
-		capture quietly restore
-		_estimates unhold `ehold'
-		display as error "at least one indicator has zero variance in one of the groups"
-		exit
-	}
-	
-	foreach what in `whatstr' {
-		local obstest_cn ""
-		local nrows = rowsof(`tmp_`what'')
-		local ncols = colsof(`tmp_`what'')
-		local totrows = `nrows'*`ncols'
-		tempname nonmiss_`what'
-		matrix `nonmiss_`what'' = J(`totrows', 1, 0)
-		local strb_`what'_rn : rowfullnames `strb_`what'_1'
-		forvalues i = 1/`totrows' {
-			if (!missing(`strb_`what'_1'[`i', 1])) {
-				matrix `nonmiss_`what''[`i', 1] = 1
-				local nm_tmp `: word `i' of `strb_`what'_rn''
-				local tok_i = 1
-				tokenize `"`nm_tmp'"', parse(":")
-				while ("``tok_i''" != "") {
-					if (`tok_i' == 1) {
-						local nm_Y "``tok_i''"
-					}
-					else if (`tok_i' == 3) {
-						local nm_X "``tok_i''"
-					}
-					local ++tok_i
-				}
-				if ("`what'" == "path") {
-					local strbok_`what'_rn "`strbok_`what'_rn' `nm_X':`nm_Y'"
-				}
-				else if ("`what'" == "loadings") {
-					local lv_is_ref : list nm_Y in allreflective
-					if (`lv_is_ref') {
-						local strbok_`what'_rn "`strbok_`what'_rn' `nm_Y':`nm_X'"
-					}
-					else {
-						local strbok_`what'_rn "`strbok_`what'_rn' `nm_X':`nm_Y'"
-					}
-				}
-			}
-		}
-		forvalues ng = 1/`ngroups' {
-			tempname strbok_`what'_`ng' strvarok_`what'_`ng' strb_var_`what'_`ng'
-			mata: st_matrix("`strbok_`what'_`ng''", select(st_matrix("`strb_`what'_`ng''"), ///
-				st_matrix("`nonmiss_`what''")))
-			mata: st_matrix("`strvarok_`what'_`ng''", select(st_matrix("`strvar_`what'_`ng''"), ///
-				st_matrix("`nonmiss_`what''")))
-			mata: st_matrix("`strvarok_`what'_`ng''", st_matrix("`strvarok_`what'_`ng''"):^2)
-			matrix `group_`what'_`ng'' = `strbok_`what'_`ng''
-		}
-		tempname numeff obstest_tmp obstest_`what'
-		mata: st_numscalar("`numeff'", colsum(st_matrix("`nonmiss_`what''")))
-		local neff_`what' = `numeff'
-		matrix `obstest_`what'' = J(`neff_`what'', `ngroups' - 1, .)
-		forvalues ng = 2/`ngroups' {
-			mata: st_matrix("`obstest_tmp'", abs(st_matrix("`strbok_`what'_1'") - ///
-				st_matrix("`strbok_`what'_`ng''")))
-			matrix `obstest_`what''[1, `ng' - 1] = `obstest_tmp'
-			local obstest_cn "`obstest_cn' `ng'vs1"
-		}
-		matrix rownames `obstest_`what'' = `strbok_`what'_rn'
-		matrix colnames `obstest_`what'' = `obstest_cn'
-	}
-	
-	/* Standardize the MVs (if requested) */
-	mata: ///
-		plssem_scale( ///
-			st_data(., "`allindicators'", "`touse'"), ///
-			"`allstdindicators'", ///
-			"`touse'", ///
-			"`scale'")
-	
-	/* Initialize LVs */
-	mata: ///
-		plssem_init( ///
-			st_data(., "`allstdindicators'", "`touse'"), ///
-			st_matrix("`adj_meas'"), ///
-			"`allindicators'", ///
-			"`allstdindicators'", ///
-			"`alllatents'", ///
-			"`touse'", ///
-			st_numscalar("`rawsum_sc'"), ///
-			"`init'")
-	
-	foreach what in `whatstr' {
-		tempname dtest_`what'
-		matrix `dtest_`what'' = J(`ngroups' - 1, `neff_`what'', .)
-	}
-	if ("`method'" != "normal") {
-		tempname res_mga
-
-		capture noisily {
-			if ("`method'" == "permutation") {
-				local title "Multigroup comparison (`groupvar') - Permutation test"
-				
-				/* Compute the permutation distribution */
-				mata: `res_mga' = ///
-					plssem_mga_perm( ///
-						st_data(., "`allstdindicators'"), ///		 note: `touse' not used here
-						st_data(., "`alllatents'"), ///					 note: `touse' not used here
-						st_matrix("`adj_meas'"), ///
-						st_matrix("`adj_struct'"), ///
-						st_matrix("`modes'"), ///
-						"`alllatents'", ///
-						"`binary'", ///
-						strtoreal("`tol'"), ///
-						strtoreal("`maxiter'"), ///
-						"`touse'", ///
-						"`wscheme'", ///
-						"`convcrit'", ///
-						st_numscalar("`struct_sc'"), ///
-						st_numscalar("`rawsum_sc'"), ///
-						0, ///
-						st_data(., "`groupvar'"), ///						 note: `touse' not used here
-						strtoreal("`reps'"), ///
-						strtoreal("`groupseed'"), ///
-						1)
-				
-				foreach what in `whatstr' {
-					mata: st_matrix("`dtest_`what''", plssem_mga_perm_diff(`res_mga', ///
-						st_matrix("`obstest_`what''"), "`what'"))
-				}
-			}
-			else if ("`method'" == "bootstrap") {
-				local title "Multigroup comparison (`groupvar') - Bootstrap t-test"
-				
-				/* Compute the bootstrap distribution */
-				mata: `res_mga' = ///
-					plssem_mga_boot( ///
-						st_data(., "`allstdindicators'"), ///		 note: `touse' not used here
-						st_data(., "`alllatents'"), ///					 note: `touse' not used here
-						st_matrix("`adj_meas'"), ///
-						st_matrix("`adj_struct'"), ///
-						st_matrix("`modes'"), ///
-						"`alllatents'", ///
-						"`binary'", ///
-						strtoreal("`tol'"), ///
-						strtoreal("`maxiter'"), ///
-						"`touse'", ///
-						"`wscheme'", ///
-						"`convcrit'", ///
-						st_numscalar("`struct_sc'"), ///
-						st_numscalar("`rawsum_sc'"), ///
-						0, ///
-						st_data(., "`groupvar'"), ///						 note: `touse' not used here
-						strtoreal("`reps'"), ///
-						strtoreal("`groupseed'"), ///
-						1)
-				
-				foreach what in `whatstr' {
-					mata: st_matrix("`dtest_`what''", plssem_mga_boot_diff(`res_mga', ///
-						st_matrix("`groupsizes'"), strtoreal("`neff_`what''"), "`what'"))
-				}
-			}
-		} // end of -capture-
-		local rc = _rc
-		_estimates unhold `ehold'
-		if (`rc' == 1) {
-			display
-			display as error "you pressed the Break key; " _continue
-			display as error "calculation interrupted"
-		}
-		if (`rc' >= 1) {
-			/* Clean up */
-			foreach var in `allstdindicators' {
-				capture quietly drop `var'
-			}
-			if ("`rawsum'" != "") {
-				foreach var in `alllatents' {
-					quietly replace `var' = rs_`var'
-					capture quietly drop rs_`var'
-				}
-			}
-			if ("`missing'" != "") {
-				mata: st_store(., tokens("`: list uniq allindicators'"), "`touse'", ///
-					`original_data')
-			}
-			if ("`cleanup'" == "") {
-				capture mata: cleanup()
-			}
-			/* End of cleaning up */
-			
-			error `rc'
-		}
-	}
-	else {
-		local title "Multigroup comparison (`groupvar') - Normal-based t-test"
-		
-		tempname k0 k1 k2 k3
-		scalar `k0' = `alln' - 2
-		scalar `k1' = ((`groupsizes'[1, 1] - 1)^2)/`k0'
-		forvalues ng = 2/`ngroups' {
-			scalar `k2' = ((`groupsizes'[`ng', 1] - 1)^2)/`k0'
-			scalar `k3' = sqrt(1/`groupsizes'[1, 1] + 1/`groupsizes'[`ng', 1])
-			foreach what in `whatstr' {
-				forvalues j = 1/`neff_`what'' {
-					matrix `dtest_`what''[`ng' - 1, `j'] = ///
-						`obstest_`what''[`j', `ng' - 1]/(sqrt( ///
-						`k1'*`strvarok_`what'_1'[`j', 1] + ///
-						`k2'*`strvarok_`what'_`ng''[`j', 1])*`k3')
-				}
-			}
-		}
-	}
-	foreach what in `whatstr' {
-		matrix rownames `dtest_`what'' = `obstest_cn'
-		matrix colnames `dtest_`what'' = `strbok_`what'_rn'
-		
-		local grp_cn ""
-		local absd_cn ""
-		local stat_cn ""
-		local pval_cn ""
-		tempname results_`what'
-		matrix `results_`what'' = J(`neff_`what'', 1 + `ngroups' + (`ngroups' - 1)*3, .)
-		local resnm : subinstr local strbok_`what'_rn ":" "->", all
-		matrix rownames `results_`what'' = `resnm'
-		if (`ngroups' > 2) {
-			forvalues ng = 1/`ngroups' {
-				local grp_cn `grp_cn' "Group_`ng'"
-				if (`ng' > 1) {
-					local absd_cn `absd_cn' "AD_`ng'vs1"
-					local stat_cn `stat_cn' "S_`ng'vs1"
-					local pval_cn `pval_cn' "P_`ng'vs1"
-				}
-			}
-			matrix colnames `results_`what'' = "Global" `grp_cn' `absd_cn' `stat_cn' `pval_cn'
-		}
-		else {
-			matrix colnames `results_`what'' = "Global" "Group_1" "Group_2" "Abs_Diff" "Statistic" "P-value"
-		}
-
-		tempname alllen_`what' anysig_`what'
-		matrix `alllen_`what'' = J(`neff_`what'', 1, .)
-		mata: st_matrix("`whole_`what''", select(st_matrix("`whole_`what''"), ///
-			st_matrix("`nonmiss_`what''")))
-		local anysig_`what' = 0
-		forvalues j = 1/`neff_`what'' {
-			matrix `results_`what''[`j', 1] = `whole_`what''[`j', 1]
-			forvalues ng = 1/`ngroups' {
-				matrix `results_`what''[`j', 1 + `ng'] = `group_`what'_`ng''[`j', 1]
-				if (`ng' > 1) {
-					matrix `results_`what''[`j', 1 + `ngroups' + (`ng' - 1)] = ///
-						`obstest_`what''[`j', `ng' - 1]
-					matrix `results_`what''[`j', 1 + `ngroups' + (`ngroups' - 1) + (`ng' - 1)] = ///
-						`dtest_`what''[`ng' - 1, `j']
-					if ("`method'" == "permutation") {
-						matrix `results_`what''[`j', 1 + `ngroups' + (`ngroups' - 1)*2 + (`ng' - 1)] = ///
-							(`dtest_`what''[`ng' - 1, `j'] + 1)/(`reps' + 1)
-					}
-					else if (("`method'" == "bootstrap") | ("`method'" == "normal")) {
-						matrix `results_`what''[`j', 1 + `ngroups' + (`ngroups' - 1)*2 + (`ng' - 1)] = ///
-							2*ttail(`alln' - 2, `dtest_`what''[`ng' - 1, `j'])
-					}
-				}
-			}
-			local nm : word `j' of `resnm'
-			local nm_len : strlen local nm
-			matrix `alllen_`what''[`j', 1] = `nm_len' + 2
-			local nm_new_`what' = subinstr("`nm'", "->", " -> ", 1)
-			forvalues ng = 2/`ngroups' {
-				if (`results_`what''[`j', 1 + `ngroups' + (`ngroups' - 1)*2 + (`ng' - 1)] <= `alpha') {
-					local nm_new_`what' "(*) `nm_new_`what''"
-					local anysig_`what' = 1
-					continue, break
-				}
-			}
-			local lblbar_`what' "`lblbar_`what'' `j' "`nm_new_`what''""
-		}
-	}
-	
-	/* Display results */
-	if ("`rawsum'" == "") {
-		if ("`structural'" != "") {
-			mkheader, digits(5)
-		}
-		else {
-			mkheader, digits(5) nostructural
-		}
-	}
-	else {
-		if ("`structural'" != "") {
-			mkheader, digits(5) rawsum
-		}
-		else {
-			mkheader, digits(5) nostructural rawsum
-		}
-	}
-	
-	foreach what in `whatstr' {
-		if ("`what'" == "path") {
-			local firstcollbl_`what' "Structural effect"
-		}
-		else {
-			local firstcollbl_`what' "Measurement effect"
-		}
-		tempname maxlen_`what'
-		mata: st_numscalar("`maxlen_`what''", max(st_matrix("`alllen_`what''")))
-		local `maxlen_`what'' = max(strlen("`firstcollbl_`what''"), `maxlen_`what'') + 2
-		if (`ngroups' == 2) {
-			local colw = 11
-		}
-		else {
-			local colw = 9
-		}
-	}
-	foreach what in `whatstr' {
-		mktable, matrix(`results_`what'') digits(`digits') ///
-			firstcolname(`firstcollbl_`what'') title(`title') ///
-			firstcolwidth(``maxlen_`what''') colwidth(`colw') hlines(`neff_`what'') ///
-			novlines total
-		if ("`method'" != "normal") {
-			display as text _skip(`skip1') "number of replications: `reps'"
-		}
-		if (`ngroups' > 2) {
-			display as text _skip(`skip1') "legend:"
-			display as text _skip(`skip3') "AD: absolute difference"
-			display as text _skip(`skip3') "S: statistic"
-			display as text _skip(`skip3') "P: p-value"
-		}
-		display as text _skip(`skip1') "group labels:"
-		local grplbl : value label `groupvar'
-		forvalues ng = 1/`ngroups' {
-			local grpvarlbl`ng' = `groupvals'[`ng', 1]
-			if ("`grplbl'" != "") {
-				local grpvarlbl`ng' : label `grplbl' `grpvarlbl`ng''
-			}
-			display as text _skip(`skip3') "Group `ng': `grpvarlbl`ng''"
-		}
-		display as text _skip(`skip1') "group sizes:"
-		forvalues ng = 1/`ngroups' {
-			local grpvarlbl`ng' = `groupsizes'[`ng', 1]
-			display as text _skip(`skip3') "Group `ng': `grpvarlbl`ng''"
-		}
-	}
-	
-	if ("`plot'" != "") {
-		foreach what in `whatstr' {
-			tempname barname_`what'
-			local reslbl "__result__`what'"
-			local reslbl_toplot ""
-			quietly svmat `results_`what'', names(`reslbl')
-			generate id = _n
-			local grplbl : value label `groupvar'
-			forvalues ng = 1/`ngroups' {
-				local grpvarlbl`ng' = `groupvals'[`ng', 1]
-				if ("`grplbl'" != "") {
-					local grpvarlbl`ng' : label `grplbl' `grpvarlbl`ng''
-				}
-				local ngp1 = `ng' +  1
-				local reslbl_toplot "`reslbl_toplot' `reslbl'`ngp1'"
-				local res_tolbl "`res_tolbl' label(`ng' `grpvarlbl`ng'')"
-			}
-			if ("`what'" == "path") {
-				local whatplot "Path Coefficients"
-			}
-			else if ("`what'" == "loadings") {
-				local whatplot "Loadings"
-			}
-			local bartitle "`whatplot' Comparison across Groups (`groupvar')"
-			if ("`method'" != "normal") {
-				local barnote "Method: `method' - number of replications: `reps'"
-			}
-			else {
-				local barnote "Method: `method'"
-			}
-			if (`anysig_`what'') {
-				local alpha_perc = string(`alpha'*100, "%5.0g")
-				if (`ngroups' == 2) {
-					local barcaption "(*) Difference significant at {&alpha} = `alpha_perc'%"
-				}
-				else {
-					local barcaption "(*) At least one of the differences is significant at {&alpha} = `alpha_perc'%"
-				}
-			}
-			else {
-				local barcaption ""
-			}
-
-			graph bar (asis) `reslbl_toplot', over(id, relabel(`lblbar_`what'') ///
-				label(angle(90) labsize(small))) nofill legend(pos(12) ///
-				region(style(none)) `res_tolbl' rows(1)) ///
-				ylabel(, nogrid) yline(0, lwidth(vvthin)) title(`bartitle') scheme(sj) ///
-				note(`barnote') caption(`barcaption', size(small)) ///
-				name(`barname_`what'', replace)
-			capture quietly drop `reslbl'* id
-		}
-	}
-	/* End of displaying results */
-	
-	/* Clean up */
-	foreach var in `allstdindicators' {
-		capture quietly drop `var'
-	}
-	if ("`rawsum'" != "") {
-		foreach var in `alllatents' {
-			quietly replace `var' = rs_`var'
-			capture quietly drop rs_`var'
-		}
-	}
-	if ("`missing'" != "") {
-		mata: st_store(., tokens("`: list uniq allindicators'"), "`touse'", ///
-			`original_data')
-	}
-	if ("`cleanup'" == "") {
-		capture mata: cleanup()
-	}
-	/* End of cleaning up */
-
-	/* Return values */
-	// nothing!
-end
-
-program Display_mat
+program Display_c_mat
 	version 14.2
 	syntax [, noSTRuctural DIGits(integer 3) noHEADer noMEAStable ///
 		noDISCRIMtable noSTRUCTtable LOADPval stats corrind corrlv crossload ///
@@ -1832,16 +1039,17 @@ program Display_mat
 				tempname mod_assessment reldiff
 				matrix `mod_assessment' = e(assessment)
 				matrix `reldiff' = e(reldiff)
-				mkheader, matrix1(`mod_assessment') matrix2(`reldiff') digits(5) nogroup
+				mkheader, matrix1(`mod_assessment') matrix2(`reldiff') digits(5) ///
+					nogroup consistent
 			}
 			else {
 				tempname mod_assessment
 				matrix `mod_assessment' = e(assessment)
-				mkheader, matrix1(`mod_assessment') digits(5) nogroup rawsum
+				mkheader, matrix1(`mod_assessment') digits(5) nogroup rawsum consistent
 			}
 		}
 		else {
-			mkheader, digits(5) nogroup nostructural
+			mkheader, digits(5) nogroup nostructural consistent
 		}
 	}
 
@@ -1909,44 +1117,49 @@ program Display_mat
 			hlines(`num_ind' `num_ind_plus_3') novlines
 		
 		if ("`loadpval'" != "") {
-			tempname adj_meas loadings_se nindblock loadings_df loadings_pval
-			matrix `adj_meas' = e(adj_meas)
-			matrix `loadings_se' = e(loadings_se)
-			mata: st_matrix("`nindblock'", colsum(st_matrix("`adj_meas'")))
-			mata: st_matrix("`loadings_df'", ///
-				st_matrix("`adj_meas'")*(st_numscalar("e(N)") - 1))
-			local alllatents = e(lvs)
-			if (`num_lv_B' > 0) {
-				local indi = 1
-				local p = 1
-				foreach lv in `alllatents' {
-					local nbl = `nindblock'[1, `p']
-					forvalues k = 1/`nbl' {
-						if (`: list lv in allformative') {
-							matrix `loadings_df'[`indi', `p'] = `loadings_df'[`indi', `p'] - ///
-								`nindblock'[1, `p']
+			if (`isboot') {
+				tempname adj_meas loadings_se nindblock loadings_df loadings_pval
+				matrix `adj_meas' = e(adj_meas)
+				matrix `loadings_se' = e(loadings_se)
+				mata: st_matrix("`nindblock'", colsum(st_matrix("`adj_meas'")))
+				mata: st_matrix("`loadings_df'", ///
+					st_matrix("`adj_meas'")*(st_numscalar("e(N)") - 1))
+				local alllatents = e(lvs)
+				if (`num_lv_B' > 0) {
+					local indi = 1
+					local p = 1
+					foreach lv in `alllatents' {
+						local nbl = `nindblock'[1, `p']
+						forvalues k = 1/`nbl' {
+							if (`: list lv in allformative') {
+								matrix `loadings_df'[`indi', `p'] = `loadings_df'[`indi', `p'] - ///
+									`nindblock'[1, `p']
+							}
+							else {
+								matrix `loadings_df'[`indi', `p'] = `loadings_df'[`indi', `p'] - 1
+							}
+							local ++indi
 						}
-						else {
-							matrix `loadings_df'[`indi', `p'] = `loadings_df'[`indi', `p'] - 1
-						}
-						local ++indi
+						local ++p
 					}
-					local ++p
 				}
-			}
-			mata: st_matrix("`loadings_pval'", 2*ttail(st_matrix("`loadings_df'"), ///
-				abs(st_matrix("`loadings'") :/ st_matrix("`loadings_se'"))))
-			matrix rownames `loadings_pval' = `:rowfullnames `loadings''
-			matrix colnames `loadings_pval' = `:colfullnames `loadings''
-			if (!`isboot') {
-				local title_meas "Measurement model - Standardized loading p-values"
+				mata: st_matrix("`loadings_pval'", 2*ttail(st_matrix("`loadings_df'"), ///
+					abs(st_matrix("`loadings'") :/ st_matrix("`loadings_se'"))))
+				matrix rownames `loadings_pval' = `:rowfullnames `loadings''
+				matrix colnames `loadings_pval' = `:colfullnames `loadings''
+				if (!`isboot') {
+					local title_meas "Measurement model - Standardized loading p-values"
+				}
+				else {
+					local title_meas "Measurement model - Standardized loading p-values (Bootstrap)"
+				}
+				mktable, matrix(`loadings_pval') digits(`digits') firstcolname("") ///
+					title(`title_meas') firstcolwidth(14) colwidth(14) ///
+					hlines(`num_ind') novlines
 			}
 			else {
-				local title_meas "Measurement model - Standardized loading p-values (Bootstrap)"
+				// when using PLSc p-values are shown only with bootstrap
 			}
-			mktable, matrix(`loadings_pval') digits(`digits') firstcolname("") ///
-				title(`title_meas') firstcolwidth(14) colwidth(14) ///
-				hlines(`num_ind') novlines
 		}
 	}
 
@@ -1979,7 +1192,8 @@ program Display_mat
 			}
 			mktable, matrix(`pathtab') digits(`digits') firstcolname("Variable") ///
 				title(`title_st') firstcolwidth(14) colwidth(14) ///
-				hlines(`hline_path_1' `hline_path_2') novlines path binary(`binary')
+				hlines(`hline_path_1' `hline_path_2') novlines path binary(`binary') ///
+				consistent
 		}
 	}
 
@@ -2003,9 +1217,8 @@ program Display_mat
 		tempname loadings
 		matrix `loadings' = e(loadings)
 		local num_lv = colsof(`loadings')
-		quietly correlate `e(lvs)' if `__touse__'
 		tempname C
-		matrix `C' = r(C)
+		matrix `C' = e(R_c)
 		forvalues i = 1/`num_lv' {
 			local ip1 = `i' + 1
 			forvalues j = `ip1'/`num_lv' {

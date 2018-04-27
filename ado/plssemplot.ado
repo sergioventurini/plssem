@@ -1,12 +1,12 @@
-*!plssemplot version 0.2.0
-*!Written 30Sept2017
+*!plssemplot version 0.3.0
+*!Written 27Apr2018
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
 program plssemplot
 	version 14.2
 
-	if ("`e(cmd)'" != "plssem") {
+	if (("`e(cmd)'" != "plssem") & ("`e(cmd)'" != "plssemc")) {
 		error 301
 	}
 	

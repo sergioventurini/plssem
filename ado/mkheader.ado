@@ -1,5 +1,5 @@
 *!mkheader version 0.3.0
-*!Written 06Apr2018
+*!Written 27Apr2018
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -7,7 +7,7 @@ program mkheader
 	version 14.2
 	syntax [, matrix1(string) matrix2(string) DIGits(integer 5) noGRoup ///
 		noSTRuctural RAWsum rebus_it(integer -999) rebus_gqi(real 0) ///
-		 fimix_it(integer -999) fimix_ll(real 0) GAS ]
+		 fimix_it(integer -999) fimix_ll(real 0) GAS CONsistent ]
 
 	/* Options:
 	   --------
@@ -25,6 +25,7 @@ program mkheader
 		 fimix_it										--> number of FIMIX-PLS iterations
 		 fimix_ll										--> FIMIX-PLS log-likelihood value attained
 		 gas												--> PLS-GAS indicator
+		 consistent									--> indicator for consistent PLS (PLSc)
 	 */
 
 	local props = e(properties)
@@ -39,10 +40,17 @@ program mkheader
 
 	display
 
+	if ("`consistent'" == "") {
+		local header "Partial least squares path modeling"
+	}
+	else {
+		local header "Consistent PLS path modeling (PLSc)"
+	}
+	
 	if ((`rebus_it' == -999) & (`fimix_it' == -999) & ("`gas'" == "")) {
 		if ("`group'" == "nogroup") {
 			if ("`structural'" == "nostructural") {
-				local nobs: display _skip(0) "Partial least squares path modeling" _col(49) ///
+				local nobs: display _skip(0) "`header'" _col(49) ///
 					"Number of obs" _col(69) "=" _skip(5) string(e(N))
 				display as text "`nobs'"
 				
@@ -63,7 +71,7 @@ program mkheader
 					display
 				}
 				
-				local nobs: display _skip(0) "Partial least squares path modeling" _col(49) ///
+				local nobs: display _skip(0) "`header'" _col(49) ///
 					"Number of obs" _col(69) "=" _skip(5) string(e(N))
 				display as text "`nobs'"
 
@@ -115,7 +123,7 @@ program mkheader
 			}
 		}
 		else {
-			local title: display _skip(0) "Partial least squares path modeling"
+			local title: display _skip(0) "`header'"
 			display as text "`title'"
 			
 			display

@@ -1,5 +1,5 @@
 *!plssem_estat version 0.3.0
-*!Written 09Apr2018
+*!Written 26Apr2018
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -773,6 +773,7 @@ program REBUS, rclass
 				"`scale'", ///
 				strtoreal("`isstruct'"), ///
 				strtoreal("`israwsum'"), ///
+				0, ///
 				"`rebus_class'", ///
 				strtoreal("`numclass'"), ///
 				strtoreal("`maxiter'"), ///
@@ -910,6 +911,7 @@ program REBUS, rclass
 				"`scale'", ///
 				strtoreal("`isstruct'"), ///
 				strtoreal("`israwsum'"), ///
+				0, ///
 				"`rebus_class'", ///
 				strtoreal("`numclass'"), ///
 				strtoreal("`reps'"), ///
@@ -1870,6 +1872,7 @@ program GAS, rclass
 				"`scale'", ///
 				strtoreal("`isstruct'"), ///
 				strtoreal("`israwsum'"), ///
+				0, ///
 				strtoreal("`numclass'"), ///
 				strtoreal("`popsize'"), ///
 				strtoreal("`numgen'"), ///
