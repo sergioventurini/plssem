@@ -1,7 +1,7 @@
 clear mata
 
 *!plssem_mata version 0.3.0
-*!Written 27Apr2018
+*!Written 05May2018
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -154,7 +154,7 @@ struct plssem_struct_fimix {
 
 struct plssem_struct_gas {
 	real scalar niter						// number of iterations to reach convergence
-	real colvector gas_class	// column vector of the final class memberships
+	real colvector gas_class		// column vector of the final class memberships
 	real colvector touse_vec		// column vector of the observations used
 	real scalar nclass					// number of classes
 	real scalar popsize					// number of individuals per generation
@@ -166,7 +166,7 @@ void plssem_scale(real matrix X, string scalar stdind, string scalar touse,
 {
 	/* Description:
 		 ------------
-		 Function that implements standardization of the indicators
+		 Function that implements standardization of indicator variables
 	*/
 	
 	/* Arguments:
@@ -215,8 +215,7 @@ real matrix plssem_scale_mat(real matrix X, real colvector touse,
 	/* Arguments:
 		 ----------
 		 - X					--> real matrix containing the observed manifest variables
-		 - touse			--> real colvector containing the name of the variable
-											tracking the subset of the data to use
+		 - touse			--> real colvector containing the data subset to use
 		 - scale	 		--> string scalar indicating if the indicators are scaled
 	*/
 	
@@ -279,7 +278,7 @@ void plssem_init(real matrix X,  real matrix M, string scalar ind,
 	string scalar tmpscores
 	real colvector scores
 	real rowvector monoitem
-	string rowvector lvs, sinds
+	string rowvector lvs, sinds, globalmodel
 	
 	lvs = tokens(latents)
 	V = length(lvs)
@@ -297,6 +296,8 @@ void plssem_init(real matrix X,  real matrix M, string scalar ind,
 			Y = X * M
 		}
 		else if (init == "eigen") {
+			globalmodel = st_tempname()
+			stata("_estimates hold " + globalmodel, 1)
 			for (v = 1; v <= V; v++) {
 				tmpscores = st_tempname()
 				if (!monoitem[v]) {
@@ -310,6 +311,7 @@ void plssem_init(real matrix X,  real matrix M, string scalar ind,
 				}
 			}
 			Y = st_data(., latents, touse)
+			stata("_estimates unhold " + globalmodel, 1)
 		}
 		st_store(., lvs, touse, scale(Y))
 	}
@@ -364,7 +366,7 @@ real matrix plssem_init_mat(real matrix X,  real matrix M, string scalar ind,
 	real scalar V, v
 	string scalar tmpscores
 	real rowvector monoitem
-	string rowvector lvs, sinds
+	string rowvector lvs, sinds, globalmodel
 	
 	lvs = tokens(latents)
 	V = length(lvs)
@@ -377,18 +379,22 @@ real matrix plssem_init_mat(real matrix X,  real matrix M, string scalar ind,
 			Y = X * M
 		}
 		else if (init == "eigen") {
+			Y = J(rows(X), 0, .)
+			globalmodel = st_tempname()
+			stata("_estimates hold " + globalmodel, 1)
 			for (v = 1; v <= V; v++) {
 				tmpscores = st_tempname()
 				if (!monoitem[v]) {
 					stata("quietly factor " + invtokens(sinds[selectindex(M[., v])]) + ///
 						" if " + touse + ", factors(1) pcf", 1)
 					stata("quietly predict " + tmpscores + " if " + touse, 1)
-					Y = st_data(., tmpscores, touse)
+					Y = (Y, st_data(., tmpscores, touse))
 				}
 				else {
 					Y = X[., selectindex(M[., v])]
 				}
 			}
+			stata("_estimates unhold " + globalmodel, 1)
 		}
 	}
 	else {
@@ -1438,7 +1444,12 @@ real matrix plssem_reliability(real matrix X, real matrix load,
 
 	relcoef[1, .] = cronbach(X, M, mode)
 	relcoef[2, .] = dillongoldstein(X, load, mode)
-	relcoef[3, .] = consistentrho(X, M, outerw, mode)
+	if (outerw == J(0, 0, .)) {
+		relcoef[3, .] = J(1, P, .)
+	}
+	else {
+		relcoef[3, .] = consistentrho(X, M, outerw, mode)
+	}
 	
 	return(relcoef)
 }
@@ -2739,6 +2750,7 @@ struct plssem_struct_rebus scalar plssem_rebus(real matrix X, real matrix M,
 			}
 			
 			// Initialize the LVs
+			plssem_scale(Xsc, stdind, touse_loc_name, scale)
 			Yinit = plssem_init_mat(Xsc, M, ind, stdind, latents, touse_loc_name, ///
 				rawsum, init)
 			
@@ -2746,6 +2758,7 @@ struct plssem_struct_rebus scalar plssem_rebus(real matrix X, real matrix M,
 			localmodels[k, 1] = plssem_base(Xsc, Yinit, M, S, modes, latents, ///
 				binary, tol, maxit, touse_loc_name, scheme, crit, structural, ///
 				rawsum, consistent)
+			
 			Xreb = X[selectindex(touse_loc), .]
 			Xrebsc = scale(Xreb)
 			ow = localmodels[k, 1].outer_weights
@@ -2774,7 +2787,7 @@ struct plssem_struct_rebus scalar plssem_rebus(real matrix X, real matrix M,
 		nchanged = sum(old_class :!= new_class)
 		old_class = new_class
 		
-		class_freq = uniqrows(new_class, 1)[., 2]
+		class_freq = uniqrows(new_class[selectindex(touse_vec), .], 1)[., 2]
 		if (anyof(class_freq, 0)) {
 			rN0 = 1
 			break
@@ -2963,6 +2976,7 @@ real colvector plssem_rebus_ptest(real matrix X, real matrix M, real matrix S,
 			}
 			
 			// Initialize the LVs
+			plssem_scale(Xsc, stdind, touse_loc_name, scale)
 			Yinit = plssem_init_mat(Xsc, M, ind, stdind, latents, touse_loc_name, ///
 				rawsum, init)
 			
@@ -3847,6 +3861,7 @@ struct plssem_struct_gas scalar plssem_gas(real matrix X, real matrix M,
 				}
 				
 				// Initialize the LVs
+				plssem_scale(Xsc, stdind, touse_loc_name, scale)
 				Yinit = plssem_init_mat(Xsc, M, ind, stdind, latents, touse_loc_name, ///
 					rawsum, init)
 				
@@ -3941,6 +3956,7 @@ struct plssem_struct_gas scalar plssem_gas(real matrix X, real matrix M,
 			}
 			
 			// Initialize the LVs
+			plssem_scale(Xsc, stdind, touse_loc_name, scale)
 			Yinit = plssem_init_mat(Xsc, M, ind, stdind, latents, touse_loc_name, ///
 				rawsum, init)
 			
@@ -4092,6 +4108,7 @@ struct plssem_struct_gas scalar plssem_gas(real matrix X, real matrix M,
 						}
 						
 						// Initialize the LVs
+						plssem_scale(Xsc, stdind, touse_loc_name, scale)
 						Yinit = plssem_init_mat(Xsc, M, ind, stdind, latents, touse_loc_name, ///
 							rawsum, init)
 						

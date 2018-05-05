@@ -1,5 +1,5 @@
 *!mktable version 0.2.0
-*!Written 31Mar2018
+*!Written 05May2018
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -127,7 +127,7 @@ program mktable
 		}
 		local todisp : word `j' of `matcolnames'
 		if (strpos("`todisp'", "_")) {
-			local todisp = subinstr("`todisp'", "_", " ", .)
+			//local todisp = subinstr("`todisp'", "_", " ", .)
 		}
 		if (strlen("`todisp'") > `usable') {
 			local todisp = abbrev("`todisp'", `usable')
@@ -150,7 +150,7 @@ program mktable
 	}
 	local todisp : word `ncols' of `matcolnames'
 	if (strpos("`todisp'", "_")) {
-		local todisp = subinstr("`todisp'", "_", " ", .)
+		//local todisp = subinstr("`todisp'", "_", " ", .)
 	}
 	if (strlen("`todisp'") > `usable') {
 		local todisp = abbrev("`todisp'", `usable')
