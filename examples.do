@@ -790,7 +790,7 @@ plssem (Expectation > CUEX1-CUEX3) (Satisfaction > CUSA1-CUSA3) ///
 	(Quality < PERQ1-PERQ7) (Value > PERV1-PERV2), ///
 	wscheme("path") digits(7) boot(200) seed(101) init(eigen)
 
-tempname M S
+tempname M
 matrix `M' = e(adj_meas)
 plssemmat `M', wscheme("path") digits(7) boot(200) seed(101) init(eigen)
 
@@ -1030,3 +1030,62 @@ plssemc (LIKE > like_?) (COMP > comp_?) (CUSA > cusa) (CUSL > cusl_?) ///
 			 structural(CUSA COMP, CUSA LIKE, CUSL COMP, CUSL LIKE, CUSL CUSA, ///
 									LIKE QUAL, LIKE CSOR, LIKE PERF, LIKE ATTR, COMP QUAL, ///
 									COMP CSOR, COMP PERF, COMP ATTR)
+
+/* Example 54 */
+/* ---------- */
+use ./data/Maihaugen_Generell_2010, clear
+
+// 1. Standardization of the interactions occurs AFTER forming them
+// 1.1 Automatic approach (using the * operator)
+plssem (CULTURE > V1A V1B V1C) /// 
+       (CURIOSITY > V2A V2E V2F) ///
+			 (H_INTEREST > V3A V3B), /// 
+	     structural(H_INTEREST CULTURE*CURIOSITY) ///
+			 wscheme("centroid") init("eigen")
+
+// 1.2 Manual approach (creating the product indicators)
+local V1 = "A B C"
+local V2 = "A E F"
+foreach i of local V1 {
+	foreach j of local V2 {
+		capture quietly drop V1`i'V2`j'
+		generate V1`i'V2`j' = V1`i'*V2`j'
+	}
+}
+
+plssem (CULTURE > V1A V1B V1C) /// 
+       (CURIOSITY > V2A V2E V2F) ///
+			 (H_INTEREST > V3A V3B) ///
+			 (INTER > V1?V2?), /// 
+	     structural(H_INTEREST CULTURE CURIOSITY INTER) ///
+			 wscheme("centroid") init("eigen")
+
+// 2. Standardization of the interactions occurs BEFORE forming them
+capture quietly drop std*
+
+foreach var of varlist V1A-V1C V2A V2E V2F V3A V3B{
+	egen std`var' = std(`var')
+}
+
+// 2.1 Automatic approach (using the * operator)
+plssem (CULTURE > stdV1A stdV1B stdV1C) /// 
+       (CURIOSITY > stdV2A stdV2E stdV2F) ///
+			 (H_INTEREST > stdV3A stdV3B), /// 
+	     structural(H_INTEREST CULTURE*CURIOSITY) ///
+			 wscheme("centroid") init("eigen")
+
+// 2.2 Manual approach (creating the product indicators)
+local V1 = "A B C"
+local V2 = "A E F"
+foreach i of local V1 {
+	foreach j of local V2 {
+		generate stdV1`i'V2`j' = stdV1`i'*stdV2`j'
+	}
+}
+
+plssem (CULTURE > stdV1A stdV1B stdV1C) /// 
+       (CURIOSITY > stdV2A stdV2E stdV2F) ///
+			 (H_INTEREST > stdV3A stdV3B) ///
+			 (INTER > stdV1?V2?), /// 
+	     structural(H_INTEREST CULTURE CURIOSITY INTER) ///
+			 wscheme("centroid") init("eigen")

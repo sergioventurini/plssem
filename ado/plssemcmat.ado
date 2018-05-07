@@ -1,5 +1,5 @@
 *!plssemcmat version 0.3.0
-*!Written 27Apr2018
+*!Written 07May2018
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -916,7 +916,7 @@ program Estimate_c_mat, eclass byable(recall)
 		ereturn matrix imputed_data = `imp_data'
 	}
 	if ("`structural'" != "") {
-		ereturn matrix R_c = `R_Y'
+		ereturn matrix R = `R_Y'
 		if ("`rawsum'" == "") {
 			ereturn matrix reldiff = `matreldiff'
 			ereturn matrix outerweights =  `outerW'
@@ -1218,7 +1218,7 @@ program Display_c_mat
 		matrix `loadings' = e(loadings)
 		local num_lv = colsof(`loadings')
 		tempname C
-		matrix `C' = e(R_c)
+		matrix `C' = e(R)
 		forvalues i = 1/`num_lv' {
 			local ip1 = `i' + 1
 			forvalues j = `ip1'/`num_lv' {

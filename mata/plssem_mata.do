@@ -1,7 +1,7 @@
 clear mata
 
 *!plssem_mata version 0.3.0
-*!Written 05May2018
+*!Written 07May2018
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -278,7 +278,7 @@ void plssem_init(real matrix X,  real matrix M, string scalar ind,
 	string scalar tmpscores
 	real colvector scores
 	real rowvector monoitem
-	string rowvector lvs, sinds, globalmodel
+	string rowvector lvs, sinds
 	
 	lvs = tokens(latents)
 	V = length(lvs)
@@ -296,8 +296,6 @@ void plssem_init(real matrix X,  real matrix M, string scalar ind,
 			Y = X * M
 		}
 		else if (init == "eigen") {
-			globalmodel = st_tempname()
-			stata("_estimates hold " + globalmodel, 1)
 			for (v = 1; v <= V; v++) {
 				tmpscores = st_tempname()
 				if (!monoitem[v]) {
@@ -311,7 +309,6 @@ void plssem_init(real matrix X,  real matrix M, string scalar ind,
 				}
 			}
 			Y = st_data(., latents, touse)
-			stata("_estimates unhold " + globalmodel, 1)
 		}
 		st_store(., lvs, touse, scale(Y))
 	}

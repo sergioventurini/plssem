@@ -1,7 +1,8 @@
 {smcl}
-{* *! version 0.3.0  27Apr2017}{...}
+{* *! version 0.3.0  07May2018}{...}
 {vieweralsosee "plssemc postestimation" "help plssemc postestimation"}{...}
 {vieweralsosee "plssemplot" "help plssemplot"}{...}
+{vieweralsosee "plssem" "help plssem"}{...}
 {viewerjumpto "Syntax" "plssemc##syntax"}{...}
 {viewerjumpto "Description" "plssemc##description"}{...}
 {viewerjumpto "Options" "plssemc##options"}{...}
@@ -366,6 +367,7 @@ if the {cmd:boot()} option is chosen){p_end}
 {synopt:{cmd:e(reldiff)}}vector containing the history of weights' relative differences{p_end}
 {synopt:{cmd:e(imputed_data)}}matrix of imputed indicators; available only if the
 the {cmd:missing} option has been used{p_end}
+{synopt:{cmd:e(R)}}consistent latent variable correlation matrix{p_end}
 
 {synoptset 24 tabbed}{...}
 {p2col 5 24 28 2: Functions}{p_end}

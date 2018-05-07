@@ -1,5 +1,13 @@
+/* TO DO:
+		 1. 
+*/
+
+/* ISSUES:
+		 2. 
+*/
+
 *!plssemc version 0.3.0
-*!Written 27Apr2018
+*!Written 07May2018
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -436,9 +444,13 @@ program Estimate_c, eclass byable(recall)
 								else {
 									quietly replace `indnm' = `ind1'*`ind2' if `touse'
 								}
+								
 								// Add the product indicator to the list of indicators
 								local allindicators "`allindicators' `indnm'"
 								local inter_ind "`inter_ind' `indnm'"
+								
+								// Create a macro for the product indicators to use for scaling
+								local inter_for_scale "`inter_for_scale' `ind1'%£%]_[%£%`ind2'"
 							}
 						}
 						local i`num_lv' `inter_ind'
@@ -997,7 +1009,7 @@ program Estimate_c, eclass byable(recall)
 		ereturn matrix imputed_data = `imp_data'
 	}
 	if ("`structural'" != "") {
-		ereturn matrix R_c = `R_Y'
+		ereturn matrix R = `R_Y'
 		if ("`rawsum'" == "") {
 			ereturn matrix reldiff = `matreldiff'
 			ereturn matrix outerweights =  `outerW'
@@ -1299,7 +1311,7 @@ program Display_c
 		matrix `loadings' = e(loadings)
 		local num_lv = colsof(`loadings')
 		tempname C
-		matrix `C' = e(R_c)
+		matrix `C' = e(R)
 		forvalues i = 1/`num_lv' {
 			local ip1 = `i' + 1
 			forvalues j = `ip1'/`num_lv' {

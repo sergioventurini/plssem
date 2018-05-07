@@ -1,5 +1,5 @@
 *!plssemmat version 0.3.0
-*!Written 27Apr2018
+*!Written 07May2018
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -942,7 +942,7 @@ program Estimate_mat, eclass byable(recall)
 		ereturn matrix imputed_data = `imp_data'
 	}
 	if ("`structural'" != "") {
-		ereturn matrix R_c = `R_Y'
+		ereturn matrix R = `R_Y'
 		if ("`rawsum'" == "") {
 			ereturn matrix reldiff = `matreldiff'
 			ereturn matrix outerweights =  `outerW'
