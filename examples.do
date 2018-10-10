@@ -9,7 +9,7 @@ plssem (Expectation > CUEX1-CUEX3) (Satisfaction > CUSA1-CUSA3) ///
 	structural(Expectation Image, Quality Expectation, Value Expectation Quality, ///
 	Satisfaction Value Quality Image Expectation, Complaints Satisfaction, ///
 	Loyalty Complaints Satisfaction Image) ///
-	wscheme("path") digits(7) correlate(mv lv cross, cutoff(.3)) ///
+	wscheme("path") digits(7) //correlate(mv lv cross, cutoff(.3)) ///
 	//noheader nomeastable nodiscrimtable nostructtable //boot(50)
 
 estat indirect, effects(Loyalty Satisfaction Image, ///
@@ -282,8 +282,8 @@ plssem (Expectation > CUEX1-CUEX3) (Satisfaction > CUSA1-CUSA3) ///
 	Loyalty Complaints Satisfaction Image) ///
 	wscheme("path") digits(4) correlate(mv lv cross, cutoff(.3)) //boot(50)
 
-estat unobshet, test reps(300) //plot
-estat unobshet, numclass(5) stop(.1) method("fimix")
+estat unobshet, numclass(3) method ("rebus") //test reps(300) //plot
+estat unobshet, numclass(3) method("fimix")
 estat unobshet, stop(1e-3) method("fimix") restart(3) groups(1/8)
 	
 /* Example 20 */
@@ -707,9 +707,8 @@ mvdecode _all, mv(-99)
 
 plssem (LIKE > like_?) (COMP > comp_?) (CUSA > cusa) (CUSL > cusl_?) ///
 			 (CSOR < csor_?) (ATTR < attr_?) (PERF < perf_?) (QUAL < qual_?), ///
-			 structural(CUSA COMP, CUSA LIKE, CUSL COMP, CUSL LIKE, CUSL CUSA, ///
-									LIKE QUAL, LIKE CSOR, LIKE PERF, LIKE ATTR, COMP QUAL, ///
-									COMP CSOR, COMP PERF, COMP ATTR)
+			 structural(CUSA COMP LIKE, CUSL COMP LIKE CUSA, ///
+									LIKE QUAL CSOR PERF ATTR, COMP QUAL CSOR PERF ATTR)
 
 plssemplot, loadings
 plssemplot, cross
@@ -1025,11 +1024,11 @@ import excel "./data/Corporate Reputation Data.xlsx", ///
 	sheet("Sheet1") firstrow clear
 mvdecode _all, mv(-99)
 
-plssemc (LIKE > like_?) (COMP > comp_?) (CUSA > cusa) (CUSL > cusl_?) ///
-			 (CSOR < csor_?) (ATTR < attr_?) (PERF < perf_?) (QUAL < qual_?), ///
-			 structural(CUSA COMP, CUSA LIKE, CUSL COMP, CUSL LIKE, CUSL CUSA, ///
-									LIKE QUAL, LIKE CSOR, LIKE PERF, LIKE ATTR, COMP QUAL, ///
-									COMP CSOR, COMP PERF, COMP ATTR)
+plssemc	(LIKE > like_?) (COMP > comp_?) (CUSA > cusa) (CUSL > cusl_?) ///
+				(CSOR < csor_?) (ATTR < attr_?) (PERF < perf_?) (QUAL < qual_?), ///
+				structural(CUSA COMP, CUSA LIKE, CUSL COMP, CUSL LIKE, CUSL CUSA, ///
+									 LIKE QUAL, LIKE CSOR, LIKE PERF, LIKE ATTR, COMP QUAL, ///
+									 COMP CSOR, COMP PERF, COMP ATTR)
 
 /* Example 54 */
 /* ---------- */
@@ -1089,3 +1088,31 @@ plssem (CULTURE > stdV1A stdV1B stdV1C) ///
 			 (INTER > stdV1?V2?), /// 
 	     structural(H_INTEREST CULTURE CURIOSITY INTER) ///
 			 wscheme("centroid") init("eigen")
+
+/* Example 55 */
+/* ---------- */
+use ./data/ecsimobi, clear
+quietly plssem (Expectation > CUEX1-CUEX3) (Satisfaction > CUSA1-CUSA3) ///
+							 (Complaints > CUSCO) (Loyalty > CUSL1-CUSL3) ///
+							 (Image > IMAG1-IMAG5) (Quality > PERQ1-PERQ7) ///
+							 (Value > PERV1-PERV2), ///
+							 structural(Expectation Image, Quality Expectation, ///
+													Value Expectation Quality, ///
+													Satisfaction Value Quality Image Expectation, ///
+													Complaints Satisfaction, ///
+													Loyalty Complaints Satisfaction Image) ///
+							 // boot(200) seed(123)
+
+/*
+plssemplot, innermodel
+
+estat indirect, effects(Loyalty Satisfaction Image, ///
+	Value Quality Expectation) level(0.9) ///
+	digits(5) //seed(123) boot(50)
+*/
+
+estat mediate, indep(Satisfaction) med(Complaints) dep(Loyalty) zlc rit rid ///
+							 // reps(200) seed(456)
+
+estat mediate, indep(Image) med(Expectation) dep(Satisfaction) zlc rit rid ///
+							 // reps(200) seed(456)

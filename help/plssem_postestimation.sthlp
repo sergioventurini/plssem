@@ -1,10 +1,12 @@
 {smcl}
-{* *! version 0.0.1  27Apr2018}{...}
+{* *! version 0.0.1  10OCt2018}{...}
 {vieweralsosee "plssem" "help plssem"}{...}
 {vieweralsosee "plssemplot" "help plssemplot"}{...}
 {viewerjumpto "Postestimation commands" "plssem postestimation##description"}{...}
 {viewerjumpto "estat" "plssem postestimation##syntax_estat"}{...}
 {viewerjumpto "estat options" "plssem postestimation##options_estat"}{...}
+{viewerjumpto "estat indirect stored results" "plssem postestimation##results_indirect"}{...}
+{viewerjumpto "estat mediate stored results" "plssem postestimation##results_meidate"}{...}
 {viewerjumpto "predict" "plssem postestimation##syntax_predict"}{...}
 {viewerjumpto "predict options" "plssem postestimation##options_predict"}{...}
 {viewerjumpto "predict stored results" "plssem postestimation##results_predict"}{...}
@@ -31,6 +33,8 @@ The following postestimation commands are of special interest after
 	inference for indirect effects{p_end}
 {synopt:{helpb plssem postestimation##total:estat total}}decomposition of
 	total effects{p_end}
+{synopt:{helpb plssem postestimation##mediate:estat mediate}}testing of
+	a mediation effect{p_end}
 {p2coldent:* {helpb plssem postestimation##vif:estat vif}}variance inflation
 	factors for the structural model equations sample{p_end}
 {p2coldent:* {helpb plssem postestimation##unobshet:estat unobshet}}unobserved
@@ -71,6 +75,17 @@ Display the decomposition of the total effects in the corresponding direct and i
 {p 8 14 2}
 {cmd:estat} {cmdab:to:tal}
 [{cmd:,} {opt dig:its(#)} {opt p:lot}]
+
+
+{marker mediate}{...}
+{pstd}
+Display the mediation analysis using partial least squares structural equation modelling
+
+{p 8 14 2}
+{cmd:estat} {cmdab:me:diate}
+{cmdab:ind:ep(}{it:varname}{cmd:)} {cmdab:med:(}{it:varname}{cmd:)}
+{cmdab:dep:(}{it:varname}{cmd:)} [{opt r:eps(#)} {opt s:eed(#)} {opt zlc:}
+{opt rit:} {opt rid:} {opt bc:a} {opt l:evel(#)} {opt dig:its(#)}]
 
 
 {marker vif}{...}
@@ -114,12 +129,20 @@ bootstrap results, the sub-option {cmd:seed(#)} can further be added. Confidence
 the level of confidence interval, the sub-option {cmd:level(#)} can be added. To change the
 number of decimals used to display the model estimates, you can change the default ({cmd:3})
 to any other value by adding the sub-option {cmd:digits(#)}.
- 
+
 {pstd}
 {cmd:estat total}
 produces the decomposition of the total effects into standardized direct and indirect effects.
 Adding the sub-option {cmd:plot} generates a bar plot of the effects. You can change
 the number decimals digits reported by setting the sub-option {cmd:digits(#)}.
+
+{pstd}
+{cmd:estat mediate}
+conducts a mediation analysis based on a fitted PLS-SEM model estimated using the
+{helpb plssem} command. Two methods are implemented, the 
+{help plssem_postestimation##BaronKenny1986:Baron and Kenny (1986)} approach adjusted by
+{help plssem_postestimation##Iacobuccietal2007:Iacobucci et al. 2007},
+and that by {help plssem_postestimation##Zhaoetal2010:Zhao et al. 2010}.
 
 {pstd} {cmd:estat vif}
 computes the variance inflation factors (VIFs) for the independent variables
@@ -144,13 +167,14 @@ effects using bootstrap; the number of replications is specified via {#}.
 
 {phang}
 {opt seed(#)},
-an option used with {cmd:estat indirect}, allows to set the bootstrap seed
-number.
+an option used with {cmd:estat indirect} and {cmd:estat mediate}, allows to set
+the bootstrap seed number.
 
 {phang}
 {opt level(#)},
-an option used with {cmd:estat indirect}, allows to set the confidence level
-to use for indirect effects confidence intervals; default is {cmd:0.95}.
+an option used with {cmd:estat indirect} and {cmd:estat mediate}, allows to set
+the confidence level to use for indirect effects confidence intervals; default
+is {cmd:0.95}.
 
 {phang}
 {opt digits(#)},
@@ -277,6 +301,50 @@ corresponding to the replications of the permutation test on the GQI.
 an option used with {cmd:estat unobshet}, allows to set the name of the variable
 that will contain the final classification obtained.
 
+{phang}
+{cmdab:dep(}{it:varname}{cmd:)},
+an option used with {cmd:estat mediate}, specifies the name of the dependent
+variable to use in the mediation analysis.
+
+{phang}
+{cmdab:med(}{it:varname}{cmd:)},
+an option used with {cmd:estat mediate}, specifies the name of the mediator
+variable to use in the mediation analysis.
+
+{phang}
+{cmdab:indep(}{it:varname}{cmd:)},
+an option used with {cmd:estat mediate}, specifies the name of the independent
+variable to use in the mediation analysis.
+
+{phang}
+{opt breps(#)},
+an option used with {cmd:estat mediate}, specifies the number of bootstrap
+replications to be performed. The default is {cmd:50}.
+
+{phang}
+{opt zlc},
+an option used with {cmd:estat mediate} providing the approach by
+{help plssem_postestimation##Zhaoetal2010:Zhao et al. 2010} together with
+the {help plssem_postestimation##BaronKenny1986:Baron and Kenny (1986)} approach
+adjusted by {help plssem_postestimation##Iacobuccietal2007:Iacobucci et al. 2007}
+(default).
+
+{phang}
+{opt rit},
+an option used with {cmd:estat mediate} providing the ratio of the indirect
+effect to the total effect.
+
+{phang}
+{opt rid},
+an option used with {cmd:estat mediate} providing the ratio of the indirect
+effect to the direct effect.
+
+{phang}
+{opt bca},
+an option used with {cmd:estat mediate} providing the bias-corrected accelerated
+(BCa) bootstrap confidence intervals instead of the percentile confidence
+intervals (default).
+
 
 {marker syntax_predict}{...}
 {marker predict}{...}
@@ -326,6 +394,30 @@ are not saved in the data set.
 {phang}
 {opt nooinner} fitted values and residuals for the structural/inner model
 are not saved in the data set.
+
+
+{marker results_indirect}{...}
+{title:Stored results for estat indirect}
+
+{pstd}
+{cmd:estat indirect} stores the following in {cmd:r()}:
+
+{synoptset 20 tabbed}{...}
+{p2col 5 20 24 2: Matrices}{p_end}
+{synopt:{cmd:r(indirect)}}matrix of indirect effect testing results{p_end}
+{p2colreset}{...}
+
+
+{marker results_mediate}{...}
+{title:Stored results for estat mediate}
+
+{pstd}
+{cmd:estat mediate} stores the following in {cmd:r()}:
+
+{synoptset 20 tabbed}{...}
+{p2col 5 20 24 2: Matrices}{p_end}
+{synopt:{cmd:r(mediate)}}matrix of indirect effect testing results{p_end}
+{p2colreset}{...}
 
 
 {marker results_predict}{...}
@@ -407,6 +499,12 @@ Hair, J. F., Hult, G. T. M., Ringle, C. M., and Sarstedt, M. 2017. {it:A Primer 
 {phang}
 Hair, J. F., Sarstedt, M., Ringle, C. M., and Gudergan, S. P. 2018. {it:Advanced Issues in Partial Least Squares Structural Equation Modeling}. Sage.
 
+{marker Iacobuccietal2007}{...}
+{phang}
+Iacobucci, D., Saldanha, N., & Deng, X. 2007. A meditation on mediation: evidence
+that structural equation models perform better than regressions. Journal of
+Consumer Psychology, 17, 140-154.
+
 {marker Ringleetal2014}{...}
 {phang}
 Ringle, C. M., Sarstedt, M., and Schlittgen, R. 2014. Genetic algorithm segmentation
@@ -424,4 +522,9 @@ Trinchera, L. 2007. {it:Unobserved Heterogeneity in Structural Equation Models: 
 {marker VanderWeele2015}{...}
 {phang}
 VanderWeele, T. J. 2015. {it:Explanation in Causal Inference}. Oxford University Press.
+
+{marker Zhaoetal2010}{...}
+{phang}
+Zhao, X., Lynch, J. G. Jr., & Chen, Q. 2010. Reconsidering Baron and Kenny: myths and
+truths about mediation analysis. Journal of Consumer Research, 37, 197-206.
 {p_end}
