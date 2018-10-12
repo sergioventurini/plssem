@@ -9,7 +9,7 @@ program mktable_mediate
 		matrix_rit(string) matrix_rid(string) FIRSTCOLName(string) ///
 		depv(string) medv(string) indepv(string) FIRSTCOLWidth(integer 25) ///
 		COLWidth(integer 15) Title(string) HLines(numlist >0 integer sort) ///
-		NOVLines Reps(integer >0) DIGits(integer 3) Level(real 0.95) ]
+		NOVLines Reps(integer 50) DIGits(integer 3) Level(real 0.95) ]
 
 	/* Options:
 	   --------
@@ -27,7 +27,7 @@ program mktable_mediate
 		 title(string)							--> table's main title
 		 hlines											--> rows at which to insert an horizontal line
 		 novlines										--> no vertical lines between columns
-		 reps(integer >0)						--> number of bootstrap replications
+		 reps(integer 50)						--> number of bootstrap replications
 		 digits(integer 3)					--> number of digits to display (default 3)
 		 level(real 0.95)						--> confidence level (default 0.95)
 	 */

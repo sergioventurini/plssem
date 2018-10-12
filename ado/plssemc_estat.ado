@@ -1,5 +1,5 @@
 *!plssemc_estat version 0.3.0
-*!Written 27Apr2018
+*!Written 10Oct2018
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -16,6 +16,9 @@ program plssemc_estat, rclass
 	}
 	else if ("`subcmd'" == substr("vif", 1, max(2, `lsubcmd'))) {
 		plssem_vif_c `rest'
+	}
+	else if ("`subcmd'" == substr("mediate", 1, max(2, `lsubcmd'))) {
+		mediate_c `rest'
 	}
 	else {
 		// estat_default `0'
@@ -382,4 +385,326 @@ program plssem_vif_c, rclass
 	
 	/* Return values */
 	return matrix strvif `strvif'
+end
+
+program mediate_c, rclass
+	version 14.2
+	syntax , INDep(string) MED(string) DEP(string) ///
+		[ BReps(numlist integer >0 min=1 max=1) Seed(numlist max=1) ZLC RIT RID ///
+		BCa Level(real 0.95) DIGits(integer 3) ]
+	
+	/* Options:
+	   --------
+		 indep(string)							--> independent variable
+		 med(string)								--> mediator variable
+		 dep(string)								--> dependent variable
+		 breps(numlist integer >0 min=1 max=1)
+																--> number of bootstrap replications (default
+																		is 50)
+		 seed(numlist max=1)				--> bootstrap seed number
+		 zlc												--> mediation procedures described by Zhao
+																		et al. (2010)
+		 rit												--> ratio of the indirect effect to the total
+																		effect
+		 rid												--> ratio of the indirect effect to the direct
+																		effect
+		 bca												--> returns bias-corrected accelerated bootstrap
+																		confidence intervals instead of percentile
+																		confidence intervals, which is the default
+		 level(real 0.95)						--> confidence level (default 0.95)
+		 digits(integer 3)					--> number of digits to display (default 3)
+	 */
+	 
+	 /* Description:
+			------------
+			This postestimation command provides the details for a single indirect
+			effect mediated by only one LV.
+	 */
+
+	display as error "estat mediate after plssemc will be available soon! :)"
+	exit
+	
+	tempname coef coef_el
+	matrix `coef' = e(struct_b)
+	
+	local exo_nm : rownames `coef'
+	local endo_nm : colnames `coef'
+	
+	if (!`: list dep in endo_nm') {
+		display as error "`dep' is not an endogenous variable"
+		exit
+	}
+	if (!`: list med in endo_nm') {
+		display as error "`med' is not an endogenous variable"
+		exit
+	}
+	if (!`: list indep in exo_nm') {
+		display as error "`indep' is not an exogenous variable"
+		exit
+	}
+
+	local coef_el = `coef'[rownumb(`coef', "`indep'"), colnumb(`coef', "`dep'")]
+	if (missing(`coef_el')) {
+		display as error "the `indep' variable has no direct effect on `dep'"
+		exit
+	}
+	local coef_el = `coef'[rownumb(`coef', "`med'"), colnumb(`coef', "`dep'")]
+	if (missing(`coef_el')) {
+		display as error "the `med' variable has no direct effect on `dep'"
+		exit
+	}
+	local coef_el = `coef'[rownumb(`coef', "`indep'"), colnumb(`coef', "`med'")]
+	if (missing(`coef_el')) {
+		display as error "the `indep' variable has no direct effect on `med'"
+		exit
+	}
+
+	local struct "structural"
+	local props = e(properties)
+	local isstruct : list struct in props
+	if (!`isstruct') {
+		display as error "the fitted plssem model includes only the measurement part"
+		exit
+	}
+
+	tempvar __touse__
+	quietly generate `__touse__' = e(sample)
+	local reg3eqs = e(struct_eqs)
+	if (`level' <= 0 | `level' >= 1) {
+		display as error "confidence level must be in the range (0, 1)"
+		exit
+	}
+
+	if ("`breps'" == "") {
+		local breps = 50
+	}
+
+	tempname normperc alpha_cl
+	scalar `alpha_cl' = 1 - ((1 - `level')/2)
+	scalar `normperc' = invnormal(`alpha_cl')
+
+	tempname sobel_se sobel_z sobel_pv indirect sobel_lci sobel_uci
+	tempname indmeas mat_bk mat_zlc mat_rit mat_rid reg3coef reg3var
+	tempname dommat dommat2 moimat moimat2
+
+	matrix `indmeas' = J(6, 3, .)
+	matrix `mat_bk' = J(7, 1, .)
+	matrix `mat_zlc' = J(4, 1, .)
+	matrix `mat_rit' = J(3, 1, .)
+	matrix `mat_rid' = J(3, 1, .)
+	
+	tempname ehold
+	_estimates hold `ehold'
+
+	display as text "Bootstrapping mediation effect..."
+
+	capture {
+		if ("`dep'" != "" & "`med'" != "" & "`indep'" != "") {
+			local doi `dep':`indep'
+			local moi `med':`indep'
+			local dom `dep':`med'
+
+			tempname reg3coef_b reg3var_b reg3ciP reg3ciBC reg3coef reg3var
+			quietly bootstrap indeff=(_b[`dom']*_b[`moi']), reps(`breps') ///
+				seed(`seed'): reg3 `reg3eqs' if `__touse__', mvreg corr(independent)
+			quietly estat bootstrap, all
+			matrix `reg3coef_b' = e(b)
+			matrix `reg3var_b' = e(V)
+			matrix `reg3ciP' = e(ci_percentile)
+			matrix `reg3ciBC' = e(ci_bc)
+
+			tempname perc_lci perc_uci bc_lci bc_uci
+			scalar `perc_lci' = `reg3ciP'[1, 1]
+			scalar `perc_uci' = `reg3ciP'[2, 1]
+			scalar `bc_lci' = `reg3ciBC'[1, 1]
+			scalar `bc_uci' = `reg3ciBC'[2, 1]
+
+			quietly reg3 `reg3eqs' if `__touse__', mvreg corr(independent)
+			matrix `reg3coef' = e(b)
+			matrix `reg3var' = e(V)
+
+			tempname moimat moicoef moimat2 moivar dommat domcoef dommat2 domvar
+			matrix `moimat' = `reg3coef'[1, "`moi'"]
+			scalar `moicoef' = `moimat'[1, 1]
+			matrix `moimat2' = `reg3var'["`moi'", "`moi'"]
+			scalar `moivar' = `moimat2'[1, 1]
+			matrix `dommat' = `reg3coef'[1, "`dom'"]
+			scalar `domcoef' = `dommat'[1, 1]
+			matrix `dommat2' = `reg3var'["`dom'", "`dom'"]
+			scalar `domvar' = `dommat2'[1, 1]
+		}
+		else {
+			display as error "provide a single dependent, independent and mediator variable for each indirect effect"
+			exit
+		}
+	} // end of -capture-
+	local rc = _rc
+	error `rc'
+	
+	/* Description of mediating effect */
+	tempname indmeas mat_bk mat_zlc mat_rit mat_rid
+
+	matrix `indmeas' = J(6, 3, .)
+	matrix `mat_bk' = J(7, 1, .)
+	matrix `mat_zlc' = J(4, 1, .)
+	matrix `mat_rit' = J(3, 1, .)
+	matrix `mat_rid' = J(3, 1, .)
+	
+	tempname coef_moi se_moi var_moi coef_dom se_dom var_dom prodterm
+	scalar `coef_moi' = `moicoef'
+	scalar `var_moi' = `moivar'
+	scalar `se_moi' = sqrt(`var_moi')
+	scalar `coef_dom' = `domcoef'
+	scalar `var_dom' = `domvar'
+	scalar `se_dom' = sqrt(`var_dom')
+	scalar `prodterm' = `coef_moi'*`coef_dom'
+
+	// Sobel's method
+	tempname sobel_se sobel_z sobel_pv sobel_lci sobel_uci
+	scalar `sobel_se' = sqrt(((`coef_dom')^2)*`var_moi' + ((`coef_moi')^2)*`var_dom')
+	scalar `sobel_z' = `prodterm'/`sobel_se'
+	scalar `sobel_pv' =  2*(1 - normal(abs(`sobel_z')))
+	scalar `sobel_lci' = `prodterm' - `normperc'*`sobel_se'
+	scalar `sobel_uci' = `prodterm' + `normperc'*`sobel_se'
+
+	matrix `indmeas'[1, 1] = `prodterm'
+	matrix `indmeas'[2, 1] = `sobel_se'
+	matrix `indmeas'[3, 1] = `sobel_z'
+	matrix `indmeas'[4, 1] = `sobel_pv'
+	matrix `indmeas'[5, 1] = `sobel_lci'
+	matrix `indmeas'[6, 1] = `sobel_uci'
+	
+	// Delta method
+	tempname v delta_var delta_se delta_z delta_pv delta_lci delta_uci
+	quietly nlcom _b[`moi']*_b[`dom']
+	matrix `v' = r(V)
+	scalar `delta_var' = `v'[1, 1]
+	scalar `delta_se' = sqrt(`delta_var')
+	scalar `delta_z' = `prodterm'/`delta_se'
+	scalar `delta_pv' =  2*(1 - normal(abs(`delta_z')))
+	scalar `delta_lci' = `prodterm' - `normperc'*`delta_se'
+	scalar `delta_uci' = `prodterm' + `normperc'*`delta_se'
+
+	matrix `indmeas'[1, 2] = `prodterm'
+	matrix `indmeas'[2, 2] = `delta_se'
+	matrix `indmeas'[3, 2] = `delta_z'
+	matrix `indmeas'[4, 2] = `delta_pv'
+	matrix `indmeas'[5, 2] = `delta_lci'
+	matrix `indmeas'[6, 2] = `delta_uci'
+	
+	// Bootstrap method
+	tempname boot_prod boot_se boot_z boot_pv
+	scalar `boot_prod' = `reg3coef_b'[1, 1]
+	scalar `boot_se' = sqrt(`reg3var_b'[1, 1])
+	scalar `boot_z' = `boot_prod'/`boot_se'
+	scalar `boot_pv' =  2*(1 - normal(abs(`boot_z'))) 						// CHECK THIS!!!
+	
+	matrix `indmeas'[1, 3] = `boot_prod'
+	matrix `indmeas'[2, 3] = `boot_se'
+	matrix `indmeas'[3, 3] = `boot_z'
+	matrix `indmeas'[4, 3] = `boot_pv'
+	if ("`bca'" == "") {
+		matrix `indmeas'[5, 3] = `perc_lci'
+		matrix `indmeas'[6, 3] = `perc_uci'
+	}
+	else {
+		matrix `indmeas'[5, 3] = `bc_lci'
+		matrix `indmeas'[6, 3] = `bc_uci'
+	}
+	
+	matrix rownames `indmeas' = "Indirect effect" "Standard error" ///
+		"Z statistic" "P-value" "Lower CI" "Upper CI"
+	matrix colnames `indmeas' = "Sobel" "Delta" "Bootstrap"
+
+	/* Clean up */
+	_estimates unhold `ehold'
+
+	/* Baron-Kenny mediation testing adjusted by Iacobucci et al. */
+	tempname coef st_tab pval stderr
+	matrix `coef' = e(struct_b)
+	local struct_b_rn : rownames `coef'
+	local struct_b_cn : colnames `coef'
+	matrix `st_tab' = e(struct_table)
+	local st_nrow : rowsof(`st_tab')
+	local st_nrow = (`st_nrow' - 1)/2
+	local st_ncol : colsof(`st_tab')
+	matrix `pval' = J(`st_nrow', `st_ncol', .)
+	forvalues i = 1/`st_nrow' {
+		matrix `pval'[`i', 1] = `st_tab'[`i'*2, 1...]
+	}
+	matrix rownames `pval' = `struct_b_rn'
+	matrix colnames `pval' = `struct_b_cn'
+	mat `stderr' = e(struct_se)
+
+	// X -> M
+	tempname coef_moi_m coef_moi moi_pval_m moi_pval
+	matrix `coef_moi_m' = `coef'["`indep'", "`med'"]
+	scalar `coef_moi' = `coef_moi_m'[1, 1]
+	matrix `moi_pval_m' = `pval'["`indep'", "`med'"]
+	scalar `moi_pval' = `moi_pval_m'[1, 1]
+	
+	// M -> Y
+	tempname coef_dom_m coef_dom dom_pval_m dom_pval
+	matrix `coef_dom_m' = `coef'["`med'", "`dep'"]
+	scalar `coef_dom' = `coef_dom_m'[1, 1]
+	matrix `dom_pval_m' = `pval'["`med'", "`dep'"]
+	scalar `dom_pval' = `dom_pval_m'[1, 1]
+	
+	// X -> Y
+	tempname coef_doi_m coef_doi doi_pval_m doi_pval
+	matrix `coef_doi_m' = `coef'["`indep'", "`dep'"]
+	scalar `coef_doi' = `coef_doi_m'[1, 1]
+	matrix `doi_pval_m' = `pval'["`indep'", "`dep'"]
+	scalar `doi_pval' = `doi_pval_m'[1, 1]
+	
+	matrix `mat_bk'[1, 1] = `coef_doi'
+	matrix `mat_bk'[2, 1] = `coef_moi'
+	matrix `mat_bk'[3, 1] = `coef_dom'
+	matrix `mat_bk'[4, 1] = `doi_pval'
+	matrix `mat_bk'[5, 1] = `moi_pval'
+	matrix `mat_bk'[6, 1] = `dom_pval'
+	matrix `mat_bk'[7, 1] = `sobel_pv'	
+
+	/* Zhao et al. mediation testing */
+	if ("`zlc'" != "") {
+		tempname axbxc
+		scalar `axbxc' = `coef_moi'*`coef_dom'*`coef_doi'
+		
+		matrix `mat_zlc'[1, 1] = `boot_pv'
+		matrix `mat_zlc'[2, 1] = `doi_pval'
+		matrix `mat_zlc'[3, 1] = `coef_doi'
+		matrix `mat_zlc'[4, 1] = `axbxc'
+	}
+	
+	if ("`rit'" != "") {
+		tempname prod toteff
+		scalar `prod' = abs(`prodterm')
+		scalar `toteff' = abs(`prodterm' + `coef_doi')
+		
+		matrix `mat_rit'[1, 1] = `prod'
+		matrix `mat_rit'[2, 1] = `toteff'
+		matrix `mat_rit'[3, 1] = `prod'/`toteff'
+	}
+	
+	if ("`rid'" != "") {
+		tempname prod absprod
+		scalar `prod' = abs(`prodterm')
+		scalar `absprod' = abs(`coef_doi')
+		
+		matrix `mat_rid'[1, 1] = `prod'
+		matrix `mat_rid'[2, 1] = `absprod'
+		matrix `mat_rid'[3, 1] = `prod'/`absprod'
+	}
+	
+	/* Display results */
+	local med_line = 5
+	mktable_mediate, matrix(`indmeas') matrix_bk(`mat_bk') ///
+		matrix_zlc(`mat_zlc') matrix_rit(`mat_rit') matrix_rid(`mat_rid') ///
+		depv("`dep'") medv("`med'") indepv("`indep'") ///
+		title("Significance testing of (standardized) indirect effect") ///
+		firstcolname("Statistics") firstcolwidth(24) colwidth(20) ///
+		hlines(`med_line') reps(`breps') digits(`digits') level(`level')
+	
+	/* Return values */
+	return matrix mediate `indmeas'
 end
