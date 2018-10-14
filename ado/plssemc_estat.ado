@@ -421,9 +421,6 @@ program mediate_c, rclass
 			effect mediated by only one LV.
 	 */
 
-	display as error "estat mediate after plssemc will be available soon! :)"
-	exit
-	
 	tempname coef coef_el
 	matrix `coef' = e(struct_b)
 	
@@ -483,16 +480,6 @@ program mediate_c, rclass
 	scalar `alpha_cl' = 1 - ((1 - `level')/2)
 	scalar `normperc' = invnormal(`alpha_cl')
 
-	tempname sobel_se sobel_z sobel_pv indirect sobel_lci sobel_uci
-	tempname indmeas mat_bk mat_zlc mat_rit mat_rid reg3coef reg3var
-	tempname dommat dommat2 moimat moimat2
-
-	matrix `indmeas' = J(6, 3, .)
-	matrix `mat_bk' = J(7, 1, .)
-	matrix `mat_zlc' = J(4, 1, .)
-	matrix `mat_rit' = J(3, 1, .)
-	matrix `mat_rid' = J(3, 1, .)
-	
 	tempname ehold
 	_estimates hold `ehold'
 
@@ -543,7 +530,6 @@ program mediate_c, rclass
 	
 	/* Description of mediating effect */
 	tempname indmeas mat_bk mat_zlc mat_rit mat_rid
-
 	matrix `indmeas' = J(6, 3, .)
 	matrix `mat_bk' = J(7, 1, .)
 	matrix `mat_zlc' = J(4, 1, .)

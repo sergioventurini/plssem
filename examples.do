@@ -1116,3 +1116,31 @@ estat mediate, indep(Satisfaction) med(Complaints) dep(Loyalty) zlc rit rid ///
 
 estat mediate, indep(Image) med(Expectation) dep(Satisfaction) zlc rit rid ///
 							 // reps(200) seed(456)
+
+/* Example 56 */
+/* ---------- */
+use ./data/ecsimobi, clear
+quietly plssemc (Expectation > CUEX1-CUEX3) (Satisfaction > CUSA1-CUSA3) ///
+								(Complaints > CUSCO) (Loyalty > CUSL1-CUSL3) ///
+								(Image > IMAG1-IMAG5) (Quality > PERQ1-PERQ7) ///
+								(Value > PERV1-PERV2), ///
+								structural(Expectation Image, Quality Expectation, ///
+													 Value Expectation Quality, ///
+													 Satisfaction Value Quality Image Expectation, ///
+													 Complaints Satisfaction, ///
+													 Loyalty Complaints Satisfaction Image) ///
+								boot(200) seed(123)
+
+/*
+plssemplot, innermodel
+
+estat indirect, effects(Loyalty Satisfaction Image, ///
+	Value Quality Expectation) level(0.9) ///
+	digits(5) //seed(123) boot(50)
+*/
+
+estat mediate, indep(Satisfaction) med(Complaints) dep(Loyalty) zlc rit rid ///
+							 // reps(200) seed(456)
+
+estat mediate, indep(Image) med(Expectation) dep(Satisfaction) zlc rit rid ///
+							 // reps(200) seed(456)
