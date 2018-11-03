@@ -1,5 +1,5 @@
 *!plssemc_estat version 0.3.0
-*!Written 10Oct2018
+*!Written 03Nov2018
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -689,7 +689,7 @@ program mediate_c, rclass
 		depv("`dep'") medv("`med'") indepv("`indep'") ///
 		title("Significance testing of (standardized) indirect effect") ///
 		firstcolname("Statistics") firstcolwidth(24) colwidth(20) ///
-		hlines(`med_line') reps(`breps') digits(`digits') level(`level')
+		hlines(`med_line') reps(`breps') digits(`digits') level(`level') novlines
 	
 	/* Return values */
 	return matrix mediate `indmeas'
