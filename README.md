@@ -11,4 +11,4 @@ The `examples.do` file contains many examples taken from the literature as well 
 
 As a reference, you can refer to the following paper accepted by the Journal of Statistical Sofwtare:
 
-[plssem: A Stata Package for Structural Equation Modeling with Partial Least Squares](https://www.researchgate.net/publication/320895449_plssem_A_Stata_Package_for_Structural_Equation_Modeling_with_Partial_Least_Squares)
+[plssem: A Stata Package for Structural Equation Modeling with Partial Least Squares](https://www.jstatsoft.org/article/view/v088i08)
