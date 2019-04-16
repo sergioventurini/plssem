@@ -1,3 +1,10 @@
+/* TO DO:
+		 1. help for estat mediate after plssemc must still be added
+*/
+
+/* ISSUES:
+		 1. 
+*/
 {smcl}
 {* *! version 0.0.1  27Apr2018}{...}
 {vieweralsosee "plssemc" "help plssemc"}{...}

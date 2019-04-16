@@ -4,7 +4,7 @@
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
 program mktable_mediate
-	version 14.2
+	version 15.1
 	syntax , matrix(string) matrix_bk(string) [ matrix_zlc(string) ///
 		matrix_rit(string) matrix_rid(string) FIRSTCOLName(string) ///
 		depv(string) medv(string) indepv(string) FIRSTCOLWidth(integer 25) ///

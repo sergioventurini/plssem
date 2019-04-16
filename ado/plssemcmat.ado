@@ -4,7 +4,7 @@
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
 program plssemcmat, byable(onecall)
-	version 14.2
+	version 15.1
 	syntax [anything] [if] [in] [, * ]
 	
 	if replay() {
@@ -49,7 +49,7 @@ program plssemcmat, byable(onecall)
 end
 
 program Estimate_c_mat, eclass byable(recall)
-	version 14.2
+	version 15.1
 	syntax namelist(id="Measurement model" name=adj_meas min=1 max=1) [if] [in], ///
 		[ STRuctural(name) Wscheme(string) BINary(namelist min=1) ///
 		Boot(numlist integer >0 max=1) Seed(numlist max=1) Tol(real 1e-7) ///
@@ -1016,7 +1016,7 @@ program Estimate_c_mat, eclass byable(recall)
 end
 
 program Display_c_mat
-	version 14.2
+	version 15.1
 	syntax [, noSTRuctural DIGits(integer 3) noHEADer noMEAStable ///
 		noDISCRIMtable noSTRUCTtable LOADPval stats corrind corrlv crossload ///
 		CUToff(real 0) BINary(namelist min=1) RAWsum * ]

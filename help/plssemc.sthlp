@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 0.3.0  07May2018}{...}
+{* *! version 0.3.0  12Apr2019}{...}
 {vieweralsosee "plssemc postestimation" "help plssemc postestimation"}{...}
 {vieweralsosee "plssemplot" "help plssemplot"}{...}
 {vieweralsosee "plssem" "help plssem"}{...}
@@ -47,7 +47,7 @@ and P the number of latent variables in the model).
 {synopthdr}
 {synoptline}
 {synopt:{cmdab:w:scheme(centroid)}}use the centroid weighting scheme{p_end}
-{synopt:{cmdab:w:scheme(factor)}}use the factorial weighting scheme{p_end}
+{synopt:{cmdab:w:scheme(factorial)}}use the factorial weighting scheme{p_end}
 {synopt:{cmdab:w:scheme(path)}}use the path weighting scheme; the default{p_end}
 {synopt:{opth bin:ary(syntax##description_of_namelist:namelist)}}list of latent variables to fit using {helpb logit}{p_end}
 {synopt:{opth b:oot(numlist)}}number of bootstrap replications{p_end}

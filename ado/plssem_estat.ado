@@ -4,7 +4,7 @@
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
 program plssem_estat, rclass
-	version 14.2
+	version 15.1
 	gettoken subcmd rest : 0 , parse(", ")
 	local lsubcmd = length("`subcmd'")
 	
@@ -33,7 +33,7 @@ program plssem_estat, rclass
 end
 
 program indirect, rclass
-	version 14.2
+	version 15.1
 	syntax , Effects(string) [ Boot(numlist integer >0 min=1 max=1) ///
 		Seed(numlist max=1) Level(real 0.95) DIGits(integer 3) ]
 	
@@ -233,7 +233,7 @@ program indirect, rclass
 end
 
 program total, rclass
-	version 14.2
+	version 15.1
 	syntax [ , DIGits(integer 3) Plot ]
 	
 	/* Options:
@@ -352,7 +352,7 @@ program total, rclass
 end
 
 program plssem_vif, rclass
-	version 14.2
+	version 15.1
 	syntax [ , DIGits(integer 3) ]
 	
 	/* Options:
@@ -387,7 +387,7 @@ program plssem_vif, rclass
 end
 
 program unobshet
-	version 14.2
+	version 15.1
 	syntax [ , Method(string) Numclass(numlist integer >=1 max=1) ///
 		POPsize(numlist integer >=1 max=1) MAXCLass(integer 20) Dendrogram ///
 		MAXITer(integer 50) NUMGen(integer 1000) PMut(real 0.3) ///
@@ -474,7 +474,7 @@ program unobshet
 end
 
 program REBUS, rclass
-	version 14.2
+	version 15.1
 	syntax [ , Method(string) Numclass(numlist integer >=1 max=1) ///
 		MAXCLass(integer 20) Dendrogram MAXITer(integer 50) Stop(real 0.005) ///
 		Test Reps(numlist integer >1 max=1) SEed(numlist max=1) Plot ///
@@ -1143,7 +1143,7 @@ program REBUS, rclass
 end
 
 program FIMIX, rclass
-	version 14.2
+	version 15.1
 	syntax [ , Method(string) Numclass(numlist integer >=1 max=1) ///
 		MAXITer(integer 30000) Stop(real 1.e-5) ///
 		REStart(numlist integer >=1 max=1) SEed(numlist max=1) ///
@@ -1623,7 +1623,7 @@ program FIMIX, rclass
 end
 
 program GAS, rclass
-	version 14.2
+	version 15.1
 	syntax [ , Method(string) Numclass(numlist integer >=1 max=1) ///
 		POPsize(numlist integer >=1 max=1) NUMGen(integer 1000) ///
 		PMut(real 0.3) PTransf(real 0.1) SEed(numlist max=1) name(string) ///
@@ -2073,7 +2073,7 @@ program GAS, rclass
 end
 
 program mediate, rclass
-	version 14.2
+	version 15.1
 	syntax , INDep(string) MED(string) DEP(string) ///
 		[ BReps(numlist integer >0 min=1 max=1) Seed(numlist max=1) ZLC RIT RID ///
 		BCa Level(real 0.95) DIGits(integer 3) ]

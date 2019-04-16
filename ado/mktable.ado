@@ -4,7 +4,7 @@
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
 program mktable
-	version 14.2
+	version 15.1
 	syntax , matrix(string) [ FIRSTCOLName(string) FIRSTCOLWidth(integer 25) ///
 		COLWidth(integer 15) Title(string) HLines(numlist >0 integer sort) ///
 		NOVLines DIGits(integer 3) Path STats TOTal CORr CUToff(real 0) ///

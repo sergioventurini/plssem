@@ -4,7 +4,7 @@
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
 program plssemc_estat, rclass
-	version 14.2
+	version 15.1
 	gettoken subcmd rest : 0 , parse(", ")
 	local lsubcmd = length("`subcmd'")
 	
@@ -30,7 +30,7 @@ program plssemc_estat, rclass
 end
 
 program indirect_c, rclass
-	version 14.2
+	version 15.1
 	syntax , Effects(string) [ Boot(numlist min=1 max=1) Seed(numlist max=1) ///
 		Level(real 0.95) DIGits(integer 3) ]
 	
@@ -234,7 +234,7 @@ program indirect_c, rclass
 end
 
 program total_c, rclass
-	version 14.2
+	version 15.1
 	syntax [ , DIGits(integer 3) Plot ]
 	
 	/* Options:
@@ -353,7 +353,7 @@ program total_c, rclass
 end
 
 program plssem_vif_c, rclass
-	version 14.2
+	version 15.1
 	syntax [ , DIGits(integer 3) ]
 	
 	/* Options:
@@ -388,7 +388,7 @@ program plssem_vif_c, rclass
 end
 
 program mediate_c, rclass
-	version 14.2
+	version 15.1
 	syntax , INDep(string) MED(string) DEP(string) ///
 		[ BReps(numlist integer >0 min=1 max=1) Seed(numlist max=1) ZLC RIT RID ///
 		BCa Level(real 0.95) DIGits(integer 3) ]

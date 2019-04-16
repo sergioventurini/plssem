@@ -4,7 +4,7 @@
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
 program plssem_p, rclass sortpreserve
-	version 14.2
+	version 15.1
 
 	syntax , [ xb RESiduals NOOUTer NOINner ]
 	

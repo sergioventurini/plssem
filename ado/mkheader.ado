@@ -4,7 +4,7 @@
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
 program mkheader
-	version 14.2
+	version 15.1
 	syntax [, matrix1(string) matrix2(string) DIGits(integer 5) noGRoup ///
 		noSTRuctural RAWsum rebus_it(integer -999) rebus_gqi(real 0) ///
 		 fimix_it(integer -999) fimix_ll(real 0) GAS CONsistent ]

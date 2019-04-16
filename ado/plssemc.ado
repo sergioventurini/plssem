@@ -1,18 +1,10 @@
-/* TO DO:
-		 1. 
-*/
-
-/* ISSUES:
-		 2. 
-*/
-
 *!plssemc version 0.3.0
 *!Written 07May2018
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
 program plssemc, byable(onecall)
-	version 14.2
+	version 15.1
 	syntax [anything] [if] [in] [, * ]
 	
 	if replay() {
@@ -57,7 +49,7 @@ program plssemc, byable(onecall)
 end
 
 program Estimate_c, eclass byable(recall)
-	version 14.2
+	version 15.1
 	syntax anything(id="Measurement model" name=blocks) [if] [in], ///
 		[ STRuctural(string) Wscheme(string) BINary(namelist min=1) ///
 		Boot(numlist integer >0 max=1) Seed(numlist max=1) Tol(real 1e-7) ///
@@ -1109,7 +1101,7 @@ program Estimate_c, eclass byable(recall)
 end
 
 program Display_c
-	version 14.2
+	version 15.1
 	syntax [, noSTRuctural DIGits(integer 3) noHEADer noMEAStable ///
 		noDISCRIMtable noSTRUCTtable LOADPval stats corrind corrlv crossload ///
 		CUToff(real 0) BINary(namelist min=1) RAWsum * ]
