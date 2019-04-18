@@ -1,5 +1,5 @@
 *!plssem version 0.3.0
-*!Written 07May2018
+*!Written 18Apr2019
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -213,6 +213,15 @@ program Estimate, eclass byable(recall)
 	
 	/* Parse the binary() option */
 	if ("`binary'" != "") {
+		noisily {
+			display
+			display as error "WARNING: the use of binary latent variables " _continue
+			display as error "goes beyond the original scopes of PLS-SEM. "
+			display as error "         They are provided here only for exploratory " _continue
+			display as error "purposes and we suggest not to "
+			display as error "         report the corresponding results " _continue
+			display as error "in any published study or report."
+		}
 		local binary : list clean binary
 		foreach var in `binary' {
 			local nind_bin : word count `i`var''
