@@ -32,7 +32,7 @@ In case you find any bug, please send us an e-mail or open an issue on GitHub.
 # Citation    
 You can cite the `plssem` package as:
 
-Venturini, S., Mehmetoglu, M. (2019). plssem: A Stata Package for Structural Equation Modeling with Partial Least Squares. Journal of Statistical Software, 88(8)1--35
+Venturini, S., Mehmetoglu, M. (2019). plssem: A Stata Package for Structural Equation Modeling with Partial Least Squares. Journal of Statistical Software, 88(8)1-35
 
 Paper webpage: https://www.jstatsoft.org/article/view/v088i08
 
