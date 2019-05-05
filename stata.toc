@@ -1,0 +1,3 @@
+v 0.3.0
+d 'PLSSEM': module to implement Partial least squares structural equation modelling (PLS-SEM).
+p plssem

@@ -1,0 +1,36 @@
+d 'PLSSEM': module to implement Partial least squares structural equation modelling (PLS-SEM).
+d
+d KW: latent variables
+d KW: partial least squares structural equation model
+d KW: PLS-SEM
+d KW: SEM
+d
+d Requires: Stata version 15.1
+d
+d Distribution-Date: 20190505
+d
+d Author: Sergio Venturini, Department of Decision Sciences, Università Bocconi, Milan, Italy
+d Support: email sergio.venturini@unibocconi.it
+d
+d Author: Mehmet Mehmetoglu, Department of Psychology, Norwegian University of Science and Technology, Trondheim, Norway
+d Support: email mehmetm@svt.ntnu.no
+d
+F lplssem.mlib
+F mkheader.ado
+F mktable_corr.ado
+F mktable_indirect.ado
+F mktable_mediate.ado
+F mktable.ado
+F plssem_estat.ado
+F plssem_p.ado
+F plssem_postestimation.sthlp
+F plssem.ado
+F plssem.sthlp
+F plssemc_estat.ado
+F plssemc_postestimation.sthlp
+F plssemc.ado
+F plssemc.sthlp
+F plssemcmat.ado
+F plssemmat.ado
+F plssemplot.ado
+F plssemplot.sthlp

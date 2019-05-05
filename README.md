@@ -3,10 +3,33 @@
 ###### Stata version required: at least 15.1
 Stata package for Structural Equation Modeling with Partial Least Squares (PLS-SEM).
 
-To use the package copy the ado, mlib, data and help files in one of the Stata's system directories. The easiest way to have the package working is to copy everything in the `PERSONAL` directory returned by the `adopath` command.
+# Installation note    
 
-The `examples.do` file contains many examples taken from the literature as well as some simulated data examples.
+To install `plssem` directly from GitHub you need to use the `github` Stata module for installing Stata packages from GitHub. You can install the latest version of the `github` command by executing the following code in your Stata session.
+**Note**: you need a Stata version greater or equal than 13.2, otherwise you can install the package manually downloading the files from the GitHub repository and placing it in your Stata `PERSONAL` directory returned by the `adopath` command:
 
-As a reference, you can refer to the following paper accepted by the Journal of Statistical Software:
+    net install github, from("https://haghish.github.io/github/")
 
-[plssem: A Stata Package for Structural Equation Modeling with Partial Least Squares](https://www.jstatsoft.org/article/view/v088i08)
+Then, you can install `plssem` simply using the following code in Stata:
+
+    github install sergioventurini/plssem
+
+The `examples.do` file contains many examples taken from the literature as well as some simulated data examples. All the example data set are placed in the separate `data` directory in this repository.
+
+# Authors
+Sergio Venturini, Department of Decision Sciences, Università Bocconi, Milan, Italy
+E-mail: sergio.venturini@unibocconi.it
+Mehmet Mehmetoglu, Department of Psychology, Norwegian University of Science and Technology, Trondheim, Norway
+E-mail: mehmetm@svt.ntnu.no
+
+# Bugs
+In case you find any bug, please send us an e-mail or open an issue on GitHub.
+
+# Citation    
+You can cite the `plssem` package as:
+Venturini, S., Mehmetoglu, M. (2019). plssem: A Stata Package for Structural Equation Modeling with Partial Least Squares. Journal of Statistical Software, 88(8)1--35
+Paper webpage: https://www.jstatsoft.org/article/view/v088i08
+GitHub repository: https://github.com/sergioventurini/plssem
+
+# Copyright
+This software is distributed under the GPL-3 license (see LICENSE file).
