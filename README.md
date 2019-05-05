@@ -5,15 +5,15 @@ Stata package for Structural Equation Modeling with Partial Least Squares (PLS-S
 
 # Installation note    
 
-To install `plssem` directly from GitHub you need to use the `github` Stata module. You can install the latest version of the `github` command by executing the following code in your Stata session.
-
-**Note**: you need a Stata version greater or equal than 13.2, otherwise you can install the package manually downloading the files from the GitHub repository and placing it in your Stata `PERSONAL` directory (if you don't know what this is, run the `adopath` command):
+To install `plssem` directly from GitHub you need to use the `github` Stata module. You can install the latest version of the `github` command by executing the following code in your Stata session:
 
     net install github, from("https://haghish.github.io/github/")
 
 Then, you can install `plssem` simply using the following code in Stata:
 
     github install sergioventurini/plssem
+
+Alternatively, you can install the package manually downloading the files from this GitHub repository and placing it in your Stata `PERSONAL` directory (if you don't know what this is, run the `adopath` command).
 
 The `examples.do` file contains many examples taken from the literature as well as some simulated data examples. All the example data sets are placed in the separate `data` directory in this repository.
 
