@@ -17,6 +17,8 @@ Alternatively, you can install the package manually downloading the files from t
 
 The `examples.do` file contains many examples taken from the literature as well as some simulated data examples. All the example data sets are placed in the separate `data` directory in this repository.
 
+**Note:** if you installed the package prior to 5 May 2019, you need to manually remove the previous installation. You can do it by deleting all the files used by `plssem` from your Stata `PERSONAL` directory.
+
 # Authors
 Sergio Venturini, Department of Decision Sciences, Università Bocconi, Milan, Italy
 
