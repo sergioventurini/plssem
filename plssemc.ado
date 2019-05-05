@@ -1,5 +1,5 @@
 *!plssemc version 0.3.0
-*!Written 18Apr2019
+*!Written 05May2019
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -379,12 +379,16 @@ program Estimate_c, eclass byable(recall)
 	
 	/* Parse inner relationships */
 	local num_lv: word count `alllatents'
+	local num_ind: word count `allindicators'
+	tempname isproduct
+	mata: `isproduct' = J(`num_ind', 1, 0)
 	
 	if ("`structural'" != "") {
 		tokenize `"`structural'"', parse(",")
 		
 		local reg3eqs = "("
 		local tok_i = 1
+		local allorigindicators "`allindicators'"
 		while ("``tok_i''" != "") {
 			// Parse the interactions
 			if (strpos("``tok_i''", "*")) {
@@ -424,6 +428,9 @@ program Estimate_c, eclass byable(recall)
 						local num_lv: word count `alllatents'
 						local LV`num_lv' `internm'
 						
+						// Create macros of product indicators to use for scaling
+						local inter_latent "`inter_latent' `var1'%£%]_[%£%`var2'"
+						
 						// Check that the new interaction is reflective
 						local int_in_modeB : list internm in modeB
 						if (`int_in_modeB') {
@@ -448,9 +455,10 @@ program Estimate_c, eclass byable(recall)
 								
 								// Add the product indicator to the list of indicators
 								local allindicators "`allindicators' `indnm'"
+								mata: `isproduct' = (`isproduct' \ 1)
 								local inter_ind "`inter_ind' `indnm'"
 								
-								// Create a macro for the product indicators to use for scaling
+								// Create macros of product indicators to use for scaling
 								local inter_for_scale "`inter_for_scale' `ind1'%£%]_[%£%`ind2'"
 							}
 						}
@@ -719,7 +727,7 @@ program Estimate_c, eclass byable(recall)
 		if ("`missing'" != "") {
 			tempvar __touse__
 			quietly generate `__touse__' = e(sample)
-			mata: st_store(., tokens("`: list uniq allindicators'"), "`__touse__'", ///
+			mata: st_store(., tokens("`: list uniq allorigindicators'"), "`__touse__'", ///
 				`original_data')
 		}
 		if ("`cleanup'" == "") {
@@ -993,6 +1001,7 @@ program Estimate_c, eclass byable(recall)
 	}
 	ereturn local lvs `"`alllatents'"'
 	ereturn local mvs `"`allindicators'"'
+	ereturn local mvs_orig `"`allorigindicators'"'
 	local varlist `e(mvs)' `e(lvs)'
 	signestimationsample `varlist'
 	ereturn local title "Consistent partial least squares (PLSc) structural equation modeling"
@@ -1100,7 +1109,7 @@ program Estimate_c, eclass byable(recall)
 		}
 	}
 	if ("`missing'" != "") {
-		mata: st_store(., tokens("`: list uniq allindicators'"), "`__touse__'", ///
+		mata: st_store(., tokens("`: list uniq allorigindicators'"), "`__touse__'", ///
 			`original_data')
 	}
 	if ("`cleanup'" == "") {
