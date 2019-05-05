@@ -18,9 +18,11 @@ The `examples.do` file contains many examples taken from the literature as well 
 
 # Authors
 Sergio Venturini, Department of Decision Sciences, Università Bocconi, Milan, Italy
+
 E-mail: sergio.venturini@unibocconi.it
 
 Mehmet Mehmetoglu, Department of Psychology, Norwegian University of Science and Technology, Trondheim, Norway
+
 E-mail: mehmetm@svt.ntnu.no
 
 # Bugs
