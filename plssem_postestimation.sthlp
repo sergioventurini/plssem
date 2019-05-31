@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 0.0.1  10OCt2018}{...}
+{* *! version 0.0.1  31May2019}{...}
 {vieweralsosee "plssem" "help plssem"}{...}
 {vieweralsosee "plssemplot" "help plssemplot"}{...}
 {viewerjumpto "Postestimation commands" "plssem postestimation##description"}{...}
@@ -84,7 +84,7 @@ Display the mediation analysis using partial least squares structural equation m
 {p 8 14 2}
 {cmd:estat} {cmdab:me:diate}
 {cmdab:ind:ep(}{it:varname}{cmd:)} {cmdab:med:(}{it:varname}{cmd:)}
-{cmdab:dep:(}{it:varname}{cmd:)} [{opt r:eps(#)} {opt s:eed(#)} {opt zlc:}
+{cmdab:dep:(}{it:varname}{cmd:)} [{opt br:eps(#)} {opt s:eed(#)} {opt zlc:}
 {opt rit:} {opt rid:} {opt bc:a} {opt l:evel(#)} {opt dig:its(#)}]
 
 
