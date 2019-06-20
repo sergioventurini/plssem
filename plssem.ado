@@ -1,5 +1,5 @@
 *!plssem version 0.3.0
-*!Written 05May2019
+*!Written 20Jun2019
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -1703,6 +1703,8 @@ program Compare, eclass sortpreserve
 				}
 			}
 		}
+		
+		_estimates unhold `ehold'
 	}
 	foreach what in `whatstr' {
 		matrix rownames `dtest_`what'' = `obstest_cn'
