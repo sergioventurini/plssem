@@ -1,5 +1,5 @@
-*!plssem_estat version 0.3.1
-*!Written 03Nov2018
+*!plssem_estat version 0.3.2
+*!Written 03Jul2020
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -167,7 +167,7 @@ program indirect, rclass
 					matrix `reg3coef' = e(b)
 					matrix `reg3var' = e(V)
 					matrix `reg3ciP' = e(ci_percentile)
-					matrix `reg3ciBC' = e(ci_bc)
+					matrix `reg3ciBC' = e(ci_bca)
 
 					tempname iecoef ievar perc_lci perc_uci bc_lci bc_uci
 					matrix `moimat' = `reg3coef'[1, 1]
@@ -465,7 +465,7 @@ program unobshet
 	}
 	else {
 		display as error "currently 'estat unobshet' implements only the " _continue
-		display as error "REBUS-PLS and FIMIX-PLS methods"
+		display as error "REBUS-PLS, FIMIX-PLS and PLS-GAS methods"
 		error 198
 	}
 	
@@ -667,7 +667,7 @@ program REBUS, rclass
 	}
 	if (`N' < 5*`numclass') {
 		display as text "warning: the number of classes chosen seems to be too large"
-		display as text "calculations may abort; " _continue
+		display as text "         calculations may abort; " _continue
 		display as text "in this case, consider reducing the number of classes"
 	}
 	tempvar rebus_class
@@ -1137,7 +1137,7 @@ program REBUS, rclass
 	/* Maximum number of iterations reached */
 	if (`iter' > `maxiter') {
 		display as error "warning: REBUS-PLS algorithm did not converge"
-		display as error "the solution provided may not be acceptable; " _continue
+		display as error "         the solution provided may not be acceptable; " _continue
 		display as error "try relaxing the stopping criteria"
 	}
 end
@@ -1180,6 +1180,9 @@ program FIMIX, rclass
 			This postestimation command implements the FIMIX-PLS approach to assess
 			the presence of unobserved heterogeneity.
 	 */
+	
+	display as error "warning: FIMIX-PLS calculations are in alpha version"
+	display as error "         and need further testing; use at your own risk!"
 	
 	local props = e(properties)
 	local struct "structural"
@@ -1617,7 +1620,7 @@ program FIMIX, rclass
 	}
 	if (`iter' > `maxiter') {
 		display as error "warning: FIMIX-PLS algorithm did not converge"
-		display as error "the solution provided may not be acceptable; " _continue
+		display as error "         the solution provided may not be acceptable; " _continue
 		display as error "try relaxing the stopping criteria"
 	}
 end
@@ -1661,6 +1664,9 @@ program GAS, rclass
 			This postestimation command implements the PLS-GAS approach to assess
 			the presence of unobserved heterogeneity.
 	 */
+
+	display as error "warning: PLS-GAS calculations are in alpha version"
+	display as error "         and need further testing; use at your own risk!"
 	
 	local props = e(properties)
 	local struct "structural"
@@ -2183,7 +2189,7 @@ program mediate, rclass
 			matrix `reg3coef_b' = e(b)
 			matrix `reg3var_b' = e(V)
 			matrix `reg3ciP' = e(ci_percentile)
-			matrix `reg3ciBC' = e(ci_bc)
+			matrix `reg3ciBC' = e(ci_bca)
 
 			tempname perc_lci perc_uci bc_lci bc_uci
 			scalar `perc_lci' = `reg3ciP'[1, 1]

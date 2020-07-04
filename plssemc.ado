@@ -1,5 +1,5 @@
 *!plssemc version 0.3.0
-*!Written 19Oct2019
+*!Written 05May2019
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -580,19 +580,6 @@ program Estimate_c, eclass byable(recall)
 	}
 	matrix rownames `adj_meas' = `loadrownames'
 	matrix colnames `adj_meas' = `loadcolnames'
-	local adj_sum = 0
-	local adj_nrows = rowsof(`adj_meas')
-	local adj_ncols = colsof(`adj_meas')
-	forvalues adj_i = 1(1)`adj_nrows' {
-		forvalues adj_j = 1(1)`adj_ncols' {
-			local adj_el = `adj_meas'[`adj_i', `adj_j']
-			local adj_sum = `adj_sum' + `adj_el'
-		}
-	}
-	if (`adj_sum' == 0) {
-		display as error "the adjacency matrix of the measurement model is empty"
-		exit
-	}
 
 	matrix `adj_struct' = J(`num_lv', `num_lv', 0)
 	local B_j = 1
@@ -611,19 +598,6 @@ program Estimate_c, eclass byable(recall)
 	}
 	matrix rownames `adj_struct' = `alllatents'
 	matrix colnames `adj_struct' = `alllatents'
-	local adj_sum = 0
-	local adj_nrows = rowsof(`adj_struct')
-	local adj_ncols = colsof(`adj_struct')
-	forvalues adj_i = 1(1)`adj_nrows' {
-		forvalues adj_j = 1(1)`adj_ncols' {
-			local adj_el = `adj_struct'[`adj_i', `adj_j']
-			local adj_sum = `adj_sum' + `adj_el'
-		}
-	}
-	if (`adj_sum' == 0) {
-		display as error "the adjacency matrix of the structural model is empty"
-		exit
-	}
 	/* End of creating the adjacency matrices */
 	
 	capture noisily {
