@@ -1181,7 +1181,7 @@ program FIMIX, rclass
 			the presence of unobserved heterogeneity.
 	 */
 	
-	display as error "warning: FIMIX-PLS calculations are in alpha version"
+	display as error "warning: FIMIX-PLS calculations are experimental"
 	display as error "         and need further testing; use at your own risk!"
 	
 	local props = e(properties)
@@ -1665,7 +1665,7 @@ program GAS, rclass
 			the presence of unobserved heterogeneity.
 	 */
 
-	display as error "warning: PLS-GAS calculations are in alpha version"
+	display as error "warning: PLS-GAS calculations are experimental"
 	display as error "         and need further testing; use at your own risk!"
 	
 	local props = e(properties)
