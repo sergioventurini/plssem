@@ -1,5 +1,5 @@
 *!plssem_estat version 0.3.2
-*!Written 03Jul2020
+*!Written 15Jul2020
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -161,13 +161,13 @@ program indirect, rclass
 				}
 				else {
 					tempname reg3ciP reg3ciBC
-					quietly bootstrap indeff=(_b[`dom']*_b[`moi']), reps(`boot') ///
+					quietly bootstrap indeff=(_b[`dom']*_b[`moi']), ties reps(`boot') ///
 						seed(`seed'): reg3 `reg3eqs' if `__touse__', mvreg corr(independent)
 					quietly estat bootstrap, all
 					matrix `reg3coef' = e(b)
 					matrix `reg3var' = e(V)
 					matrix `reg3ciP' = e(ci_percentile)
-					matrix `reg3ciBC' = e(ci_bca)
+					matrix `reg3ciBC' = e(ci_bc)
 
 					tempname iecoef ievar perc_lci perc_uci bc_lci bc_uci
 					matrix `moimat' = `reg3coef'[1, 1]
@@ -2183,13 +2183,24 @@ program mediate, rclass
 			local dom `dep':`med'
 
 			tempname reg3coef_b reg3var_b reg3ciP reg3ciBC reg3coef reg3var
-			quietly bootstrap indeff=(_b[`dom']*_b[`moi']), reps(`breps') ///
-				seed(`seed'): reg3 `reg3eqs' if `__touse__', mvreg corr(independent)
+			if ("`bca'" == "") {
+				quietly bootstrap indeff=(_b[`dom']*_b[`moi']), ties reps(`breps') ///
+					seed(`seed'): reg3 `reg3eqs' if `__touse__', mvreg corr(independent)
+			}
+			else {
+				quietly bootstrap indeff=(_b[`dom']*_b[`moi']), bca ties reps(`breps') ///
+					seed(`seed'): reg3 `reg3eqs' if `__touse__', mvreg corr(independent)
+			}
 			quietly estat bootstrap, all
 			matrix `reg3coef_b' = e(b)
 			matrix `reg3var_b' = e(V)
 			matrix `reg3ciP' = e(ci_percentile)
-			matrix `reg3ciBC' = e(ci_bca)
+			if ("`bca'" == "") {
+				matrix `reg3ciBC' = e(ci_bc)
+			}
+			else {
+				matrix `reg3ciBC' = e(ci_bca)
+			}
 
 			tempname perc_lci perc_uci bc_lci bc_uci
 			scalar `perc_lci' = `reg3ciP'[1, 1]
