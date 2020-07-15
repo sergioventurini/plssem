@@ -1,5 +1,5 @@
-*!plssemc version 0.3.0
-*!Written 05May2019
+*!plssemc version 0.3.1
+*!Written 15Jul2020
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -8,7 +8,7 @@ program plssemc, byable(onecall)
 	syntax [anything] [if] [in] [, * ]
 	
 	if replay() {
-		if ("`e(cmd)'" != "plssem") {
+		if ("`e(cmd)'" != "plssemc") {
 			error 301
 		}
 		if (_by()) {
@@ -27,10 +27,10 @@ program plssemc, byable(onecall)
 		}
 		
 		if (`"`options'"' != "") {
-			Display, `options' `nostructural'
+			Display_c, `options' `nostructural'
 		}
 		else {
-			Display, `old_options' `nostructural'
+			Display_c, `old_options' `nostructural'
 		}
 		exit
 	}

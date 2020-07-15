@@ -1,5 +1,5 @@
-*!plssemcmat version 0.3.0
-*!Written 18Apr2019
+*!plssemcmat version 0.3.1
+*!Written 15Jul2020
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -8,7 +8,7 @@ program plssemcmat, byable(onecall)
 	syntax [anything] [if] [in] [, * ]
 	
 	if replay() {
-		if ("`e(cmd)'" != "plssem") {
+		if ("`e(cmd)'" != "plssemc") {
 			error 301
 		}
 		if (_by()) {
