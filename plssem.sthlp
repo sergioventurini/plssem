@@ -301,9 +301,9 @@ default is {bf:relative}.
 {title:Authors}
 
 {pstd} Sergio Venturini{break}
-Department of Decision Sciences{break}
-Università Bocconi, Italy{break}
-{browse "mailto:sergio.venturini@unibocconi.it":sergio.venturini@unibocconi.it}{break}
+Department of Management{break}
+Università degli Studi di Torino, Italy{break}
+{browse "mailto:sergio.venturini@unito.it":sergio.venturini@unito.it}{break}
 
 {pstd} Mehmet Mehmetoglu{break}
 Department of Psychology{break}

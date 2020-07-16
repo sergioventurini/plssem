@@ -41,10 +41,10 @@ program mkheader
 	display
 
 	if ("`consistent'" == "") {
-		local header "Partial least squares path modeling"
+		local header "Partial least squares SEM"
 	}
 	else {
-		local header "Consistent PLS path modeling (PLSc)"
+		local header "Consistent partial least squares (PLSc) SEM"
 	}
 	
 	if ((`rebus_it' == -999) & (`fimix_it' == -999) & ("`gas'" == "")) {

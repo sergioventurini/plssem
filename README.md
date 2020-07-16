@@ -1,5 +1,5 @@
 # plssem
-###### Current release: 0.3.0
+###### Current release: 0.3.1
 ###### Stata version required: at least 15.1
 Stata package for Structural Equation Modeling with Partial Least Squares (PLS-SEM).
 
@@ -14,9 +14,9 @@ Then, you can install the `plssem` package using the following code in Stata:
     github install sergioventurini/plssem
 
 # Authors
-Sergio Venturini, Department of Decision Sciences, Università Bocconi, Milan, Italy
+Sergio Venturini, Department of Management, Università degli Studi di Torino, Turin, Italy
 
-E-mail: sergio.venturini@unibocconi.it
+E-mail: sergio.venturini@unito.it
 
 Mehmet Mehmetoglu, Department of Psychology, Norwegian University of Science and Technology, Trondheim, Norway
 
