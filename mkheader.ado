@@ -1,5 +1,5 @@
-*!mkheader version 0.3.0
-*!Written 27Apr2018
+*!mkheader version 0.3.1
+*!Written 29Jul2020
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -64,7 +64,7 @@ program mkheader
 					local niter = colsof(`matrix2')
 					forvalues i = 1/`niter' {
 						local iter_lbl = "Iteration " + string(`i') + ///
-							":   outer weights rel. diff. = " + string(`matrix2'[1, `i'], "%9.`digits'e")
+							": outer weights rel. diff. = " + string(`matrix2'[1, `i'], "%9.`digits'e")
 						display as text _skip(0) "`iter_lbl'"
 					}
 					
@@ -79,35 +79,39 @@ program mkheader
 					local avrsq: display _skip(0) _col(49) "Average R-squared" _col(69) "=" ///
 						_skip(5) string(`matrix1'[1, 1], "%9.`digits'f")
 					display as text "`avrsq'"
+					
+					local avave: display _skip(0) _col(49) "`avave'" "Average communality" ///
+						_col(69) "=" _skip(5) string(`matrix1'[1, 2], "%9.`digits'f")
+					display as text "`avave'"
 				}
 				else {
 					display
 				}
 
 				if ("`rawsum'" == "") {
-					local avave: display _skip(0) "Weighting scheme: `wscheme'" _col(49)
+					local gof: display _skip(0) "Weighting scheme: `wscheme'" _col(49)
 				}
 				else {
-					local avave: display _skip(0) "Weighting scheme: rawsum" _col(49)
+					local gof: display _skip(0) "Weighting scheme: rawsum" _col(49)
 				}
 				if (`num_lv_A' > 0) {
-					local avave: display "`avave'" "Average communality" _col(69) "=" ///
-					_skip(5) string(`matrix1'[1, 2], "%9.`digits'f")
+					local gof: display "`gof'" "Absolute GoF" _col(69) "=" ///
+						_skip(5) string(`matrix1'[1, 3], "%9.`digits'f")
 				}
-				display as text "`avave'"
+				display as text "`gof'"
 				
 				if ("`rawsum'" == "") {
-					local gof: display _skip(0) "Tolerance: " string(`tol', "%9.`digits'e") ///
+					local gof_rel: display _skip(0) "Tolerance: " string(`tol', "%9.`digits'e") ///
 						_col(49)
 				}
 				else {
-					local gof: display _skip(0) _col(49)
+					local gof_rel: display _skip(0) _col(49)
 				}
 				if (`num_lv_A' > 0) {
-					local gof: display "`gof'" "GoF" _col(69) "=" _skip(5) ///
-						string(`matrix1'[1, 3], "%9.`digits'f")
+					local gof_rel: display "`gof_rel'" "Relative GoF" _col(69) "=" _skip(5) ///
+						string(`matrix1'[1, 4], "%9.`digits'f")
 				}
-				display as text "`gof'"
+				display as text "`gof_rel'"
 				
 				if ("`rawsum'" == "") {
 					local avred: display _skip(0) "Initialization: `init'" _col(49)
@@ -117,7 +121,7 @@ program mkheader
 				}
 				if (`num_lv_A' > 0) {
 					local avred: display "`avred'" "Average redundancy" _col(69) "=" _skip(5) ///
-						string(`matrix1'[1, 4], "%9.`digits'f")
+						string(`matrix1'[1, 5], "%9.`digits'f")
 				}
 				display as text "`avred'"
 			}

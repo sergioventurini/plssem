@@ -1,5 +1,5 @@
 *!plssemc version 0.3.1
-*!Written 15Jul2020
+*!Written 29Jul2020
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -580,6 +580,19 @@ program Estimate_c, eclass byable(recall)
 	}
 	matrix rownames `adj_meas' = `loadrownames'
 	matrix colnames `adj_meas' = `loadcolnames'
+	local adj_sum = 0
+	local adj_nrows = rowsof(`adj_meas')
+	local adj_ncols = colsof(`adj_meas')
+	forvalues adj_i = 1(1)`adj_nrows' {
+		forvalues adj_j = 1(1)`adj_ncols' {
+			local adj_el = `adj_meas'[`adj_i', `adj_j']
+			local adj_sum = `adj_sum' + `adj_el'
+		}
+	}
+	if (`adj_sum' == 0) {
+		display as error "the adjacency matrix of the measurement model is empty"
+		exit
+	}
 
 	matrix `adj_struct' = J(`num_lv', `num_lv', 0)
 	local B_j = 1
@@ -598,6 +611,19 @@ program Estimate_c, eclass byable(recall)
 	}
 	matrix rownames `adj_struct' = `alllatents'
 	matrix colnames `adj_struct' = `alllatents'
+	local adj_sum = 0
+	local adj_nrows = rowsof(`adj_struct')
+	local adj_ncols = colsof(`adj_struct')
+	forvalues adj_i = 1(1)`adj_nrows' {
+		forvalues adj_j = 1(1)`adj_ncols' {
+			local adj_el = `adj_struct'[`adj_i', `adj_j']
+			local adj_sum = `adj_sum' + `adj_el'
+		}
+	}
+	if (`adj_sum' == 0) {
+		display as error "the adjacency matrix of the structural model is empty"
+		exit
+	}
 	/* End of creating the adjacency matrices */
 	
 	capture noisily {
@@ -935,7 +961,7 @@ program Estimate_c, eclass byable(recall)
 	
 	/* Calculate the model assessment indexes (GOF, etc.) */
 	if (("`structural'" != "") & (`num_lv_A' > 0)) {
-		tempname gof avrsq avave avred mod_assessment tmp tmp_w
+		tempname gof_all gof gof_r avrsq avave avred mod_assessment tmp tmp_w
 		matrix `tmp' = (`rsquared')'
 		mata: st_numscalar("`avrsq'", mean(st_matrix("`tmp'")))
 		matrix `tmp' = (`ave')'
@@ -944,14 +970,25 @@ program Estimate_c, eclass byable(recall)
 			st_matrix("`tmp_w'")))
 		matrix `tmp' = (`redundancy')'
 		mata: st_numscalar("`avred'", mean(st_matrix("`tmp'")))
-		scalar `gof' = sqrt(`avrsq' * `avave')
-		matrix `mod_assessment' = J(1, 4, .)
+		// scalar `gof_all' = sqrt(`avrsq' * `avave')
+		mata: `gof_all' = gof( ///
+			st_matrix("`rsquared'"), ///
+		  st_matrix("`ave'"), ///
+			st_matrix("`ave_num'"), ///
+			st_data(., "`allstdindicators'", "`touse'"), ///
+			st_matrix("`adj_meas'"), ///
+			st_matrix("`adj_struct'"), ///
+			st_matrix("`modes'"))
+		mata: st_numscalar("`gof'", `gof_all'[1])
+		mata: st_numscalar("`gof_r'", `gof_all'[2])
+		matrix `mod_assessment' = J(1, 5, .)
 		matrix `mod_assessment'[1, 1] = `avrsq'
 		matrix `mod_assessment'[1, 2] = `avave'
 		matrix `mod_assessment'[1, 3] = `gof'
-		matrix `mod_assessment'[1, 4] = `avred'
+		matrix `mod_assessment'[1, 4] = `gof_r'
+		matrix `mod_assessment'[1, 5] = `avred'
 		matrix colnames `mod_assessment' = "Average R-squared" ///
-			"Average communality (AVE)" "GoF" "Average redundancy"
+			"Average communality (AVE)" "Absolute GoF" "Relative GoF" "Average redundancy"
 	}
 	/* End of calculating the model assessment indexes (GOF, etc.) */
 	
