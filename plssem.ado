@@ -1001,7 +1001,7 @@ program Estimate, eclass byable(recall)
 			st_matrix("`rsquared'"), ///
 		  st_matrix("`ave'"), ///
 			st_matrix("`ave_num'"), ///
-			st_data(., "`allstdindicators'", "`touse'"), ///
+			st_data(., "`allindicators'", "`touse'"), ///
 			st_matrix("`adj_meas'"), ///
 			st_matrix("`adj_struct'"), ///
 			st_matrix("`modes'"))
