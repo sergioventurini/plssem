@@ -1,5 +1,5 @@
-*!plssemc version 0.3.1
-*!Written 29Jul2020
+*!plssemc version 0.3.2
+*!Written 04Aug2020
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -621,8 +621,8 @@ program Estimate_c, eclass byable(recall)
 		}
 	}
 	if (`adj_sum' == 0) {
-		display as error "the adjacency matrix of the structural model is empty"
-		exit
+		* display as error "the adjacency matrix of the structural model is empty"
+		* exit
 	}
 	/* End of creating the adjacency matrices */
 	

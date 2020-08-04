@@ -1,5 +1,5 @@
-*!plssemplot version 0.3.0
-*!Written 27Apr2018
+*!plssemplot version 0.3.1
+*!Written 04Aug2020
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -74,6 +74,7 @@ program _plssemplot
 			exit
 		}
 		
+		quietly nwclear
 		quietly nwset, mat(`adjmat') directed labs(`e(lvs)')
 		quietly nwplot, lab layout(circle) title("Structural model" " ") ///
 			labelopt(mlabposition(0)) nodefactor(4.5) arcstyle(automatic) ///

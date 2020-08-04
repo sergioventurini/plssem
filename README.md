@@ -1,9 +1,9 @@
 # plssem
-###### Current release: 0.3.1
+###### Current release: 0.3.2
 ###### Stata version required: at least 15.1
 Stata package for Structural Equation Modeling with Partial Least Squares (PLS-SEM).
 
-# Installation note    
+# Installation notes
 
 To install `plssem` directly from GitHub you need to use the `github` Stata package. You can install the latest version of the `github` package by executing the following code in your Stata session:
 
