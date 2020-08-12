@@ -205,10 +205,11 @@ can get the results based on permutation or bootstrap resampling. The default nu
 of replications for both permutation and bootstrap is 100. However, this can be
 changed by adding the suboption {bf:reps(#)}. Further, with the suboption {bf:groupseed(#)}
 one can also set a certain seed number to be able reproduce the bootstrap or permutation
-results. Finally, by using the suboption {bf:plot} we can get a graphical output
+results. By specifying the suboption {bf:plot} we can get a graphical output
 showing the estimates differences between the groups based on alpha level of 0.05
 (default). The significance level can also be changed by adding the suboption
-{bf:alpha(#)}.
+{bf:alpha(#)}. Finally, the {bf:unequal} suboption indicates that unequal variances
+must be assumed in the parametric bootstrap test.
 
 {phang}{opt correlate(mv lv cross [, cutoff(#)])}
 lets the user ask for correlations among the indicators
@@ -254,7 +255,7 @@ default is {bf:relative}.
 {phang2}{cmd:. estat vif}{p_end}
 
 {pstd}Multigroup analysis using bootstrap{p_end}
-{phang2}{cmd:. plssem (Attractive > face sexy) (Appearance > body appear attract) (Weight > lweight calories cweight), structural(Appearance Attractive, Weight Appearance) group(women, method(bootstrap) reps(50) plot)}{p_end}
+{phang2}{cmd:. plssem (Attractive > face sexy) (Appearance > body appear attract) (Weight > lweight calories cweight), structural(Appearance Attractive, Weight Appearance) group(women, method(bootstrap) reps(500) unequal plot)}{p_end}
 
     {hline}
 {pstd}Setup{p_end}

@@ -1,5 +1,5 @@
-*!plssem version 0.3.2
-*!Written 04Aug2020
+*!plssem version 0.4.0
+*!Written 12Aug2020
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -96,7 +96,7 @@ program Estimate, eclass byable(recall)
 																				the indicators
 		 group(string)									--> perform multigroup analysis; accepts
 																				the suboptions reps(#), method(), plot,
-																				alpha and groupseed(numlist max=1);
+																				alpha, unequal and groupseed(numlist max=1);
 																				method() accepts either 'permutation',
 																				'bootstrap' or 'normal'; groupseed(numlist
 																				max=1) accepts an optional seed for
@@ -1217,7 +1217,7 @@ program Compare, eclass sortpreserve
 																				the indicators
 		 group(string)									--> perform multigroup analysis; accepts
 																				the suboptions reps(#), method(), plot,
-																				alpha and groupseed(numlist max=1);
+																				alpha, unequal and groupseed(numlist max=1);
 																				method() accepts either 'permutation',
 																				'bootstrap' or 'normal'; groupseed(numlist
 																				max=1) accepts an optional seed for
@@ -1288,6 +1288,7 @@ program Compare, eclass sortpreserve
 	local groupvar `"`1'"'
 	local rest `"`3'"'
 	local tok_i = 1
+  local unequal = 0
 	tokenize `"`rest'"', parse("() ")
 	while ("``tok_i''" != "") {
 		if (("``tok_i''" != "(") | ("``tok_i''" != ")")) {
@@ -1326,6 +1327,10 @@ program Compare, eclass sortpreserve
 					exit
 				}
 			}
+      else if ("``tok_i''" == "unequal") {
+        local tok_tmp = `tok_i' + 2
+        local unequal = 1
+      }
 		}
 		local ++tok_i
 	}
@@ -1546,7 +1551,7 @@ program Compare, eclass sortpreserve
 		local nrows = rowsof(`tmp_`what'')
 		local ncols = colsof(`tmp_`what'')
 		local totrows = `nrows'*`ncols'
-		tempname nonmiss_`what'
+		tempname nonmiss_`what' strvarok_`what'_all
 		matrix `nonmiss_`what'' = J(`totrows', 1, 0)
 		local strb_`what'_rn : rowfullnames `strb_`what'_1'
 		forvalues i = 1/`totrows' {
@@ -1599,6 +1604,11 @@ program Compare, eclass sortpreserve
 		}
 		matrix rownames `obstest_`what'' = `strbok_`what'_rn'
 		matrix colnames `obstest_`what'' = `obstest_cn'
+    
+    matrix `strvarok_`what'_all' = `strvarok_`what'_1'
+    forvalues ng = 2/`ngroups' {
+      matrix `strvarok_`what'_all' = (`strvarok_`what'_all', `strvarok_`what'_`ng'')
+    }
 	}
 	
 	/* Standardize the MVs (if requested) */
@@ -1622,8 +1632,9 @@ program Compare, eclass sortpreserve
 			"`init'")
 	
 	foreach what in `whatstr' {
-		tempname dtest_`what'
-		matrix `dtest_`what'' = J(`ngroups' - 1, `neff_`what'', .)
+    tempname dtest_`what' df_`what'
+    matrix `dtest_`what'' = J(`ngroups' - 1, `neff_`what'', .)
+    matrix `df_`what'' = J(`ngroups' - 1, `neff_`what'', .)
 	}
 	if ("`method'" != "normal") {
 		tempname res_mga
@@ -1686,10 +1697,13 @@ program Compare, eclass sortpreserve
 						strtoreal("`groupseed'"), ///
 						1)
 				
-				foreach what in `whatstr' {
-					mata: st_matrix("`dtest_`what''", plssem_mga_boot_diff(`res_mga', ///
-						st_matrix("`groupsizes'"), strtoreal("`neff_`what''"), "`what'"))
-				}
+        foreach what in `whatstr' {
+          mata: st_matrix("`dtest_`what''", plssem_mga_boot_diff(`res_mga', ///
+            st_matrix("`groupsizes'"), strtoreal("`neff_`what''"), "`what'", ///
+            `unequal'))
+          mata: st_matrix("`df_`what''", plssem_mga_boot_df(`res_mga', ///
+            st_matrix("`groupsizes'"), strtoreal("`neff_`what''"), "`what'", `unequal'))
+        }
 			}
 		} // end of -capture-
 		local rc = _rc
@@ -1725,21 +1739,41 @@ program Compare, eclass sortpreserve
 	else {
 		local title "Multigroup comparison (`groupvar') - Normal-based t-test"
 		
-		tempname k0 k1 k2 k3
-		scalar `k0' = `alln' - 2
-		scalar `k1' = ((`groupsizes'[1, 1] - 1)^2)/`k0'
-		forvalues ng = 2/`ngroups' {
-			scalar `k2' = ((`groupsizes'[`ng', 1] - 1)^2)/`k0'
-			scalar `k3' = sqrt(1/`groupsizes'[1, 1] + 1/`groupsizes'[`ng', 1])
-			foreach what in `whatstr' {
-				forvalues j = 1/`neff_`what'' {
-					matrix `dtest_`what''[`ng' - 1, `j'] = ///
-						`obstest_`what''[`j', `ng' - 1]/(sqrt( ///
-						`k1'*`strvarok_`what'_1'[`j', 1] + ///
-						`k2'*`strvarok_`what'_`ng''[`j', 1])*`k3')
-				}
-			}
-		}
+    tempname k0 k1 k2 k3
+    forvalues ng = 2/`ngroups' {
+      if (`unequal') {
+        scalar `k1' = (`groupsizes'[1, 1] - 1)/`groupsizes'[1, 1]
+        scalar `k2' = (`groupsizes'[`ng', 1] - 1)/`groupsizes'[`ng', 1]
+        foreach what in `whatstr' {
+          forvalues j = 1/`neff_`what'' {
+            matrix `dtest_`what''[`ng' - 1, `j'] = ///
+              `obstest_`what''[`j', `ng' - 1]/sqrt( ///
+              `k1'*`strvarok_`what'_1'[`j', 1] + ///
+              `k2'*`strvarok_`what'_`ng''[`j', 1])
+          }
+        }
+      }
+      else {
+        scalar `k0' = `groupsizes'[1, 1] + `groupsizes'[`ng', 1] - 2
+        scalar `k1' = ((`groupsizes'[1, 1] - 1)^2)/`k0'
+        scalar `k2' = ((`groupsizes'[`ng', 1] - 1)^2)/`k0'
+        scalar `k3' = sqrt(1/`groupsizes'[1, 1] + 1/`groupsizes'[`ng', 1])
+        foreach what in `whatstr' {
+          forvalues j = 1/`neff_`what'' {
+            matrix `dtest_`what''[`ng' - 1, `j'] = ///
+              `obstest_`what''[`j', `ng' - 1]/(sqrt( ///
+              `k1'*`strvarok_`what'_1'[`j', 1] + ///
+              `k2'*`strvarok_`what'_`ng''[`j', 1])*`k3')
+          }
+        }
+      }
+    }
+
+    foreach what in `whatstr' {
+      mata: st_matrix("`df_`what''", ///
+        plssem_mga_normal_df(st_matrix("`strvarok_`what'_all'"), ///
+        st_matrix("`groupsizes'"), strtoreal("`neff_`what''"), "`what'", `unequal'))
+    }
 		
 		_estimates unhold `ehold'
 	}
@@ -1790,7 +1824,7 @@ program Compare, eclass sortpreserve
 					}
 					else if (("`method'" == "bootstrap") | ("`method'" == "normal")) {
 						matrix `results_`what''[`j', 1 + `ngroups' + (`ngroups' - 1)*2 + (`ng' - 1)] = ///
-							2*ttail(`alln' - 2, `dtest_`what''[`ng' - 1, `j'])
+							2*ttail(`df_`what''[`ng' - 1, `j'], `dtest_`what''[`ng' - 1, `j'])
 					}
 				}
 			}
@@ -1852,6 +1886,14 @@ program Compare, eclass sortpreserve
 		if ("`method'" != "normal") {
 			display as text _skip(`skip1') "number of replications: `reps'"
 		}
+    if ("`method'" == "normal" | "`method'" == "bootstrap") {
+      if (`unequal') {
+        display as text _skip(`skip1') "unequal variances assumed"
+      }
+      else {
+        display as text _skip(`skip1') "equal variances assumed"
+      }
+    }
 		if (`ngroups' > 2) {
 			display as text _skip(`skip1') "legend:"
 			display as text _skip(`skip3') "AD: absolute difference"
