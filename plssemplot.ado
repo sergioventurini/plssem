@@ -1,5 +1,5 @@
-*!plssemplot version 0.3.1
-*!Written 04Aug2020
+*!plssemplot version 0.3.2
+*!Written 22Aug2020
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -424,7 +424,7 @@ program _plssemplot
 		twoway (line `e(mvs)' `iter', lpattern(solid)), ///
 			by(`lv', legend(position(3)) title("Outer weights convergence") ///
 			note("")) xtitle("Iteration") ytitle("Outer weights") xlabel(#`niter') ///
-			legend(cols(1) size(vsmall)) scheme(s2gcolor)
+			legend(cols(1) size(vsmall)) scheme(sj) // scheme(s2gcolor)
 
 		restore
 	}	
