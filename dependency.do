@@ -1,2 +1,2 @@
-github install ThomasGrund/nwcommands
+net install nwcommands-ado.pkg, from(http://www.nwcommands.org)
 nwinstall, all
