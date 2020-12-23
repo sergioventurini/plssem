@@ -1,5 +1,5 @@
-*!plssemmat version 0.4.0
-*!Written 12Aug2020
+*!plssemmat version 0.4.1
+*!Written 23Dec2020
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -1328,10 +1328,6 @@ program Compare_mat, eclass sortpreserve
 		quietly replace `touse_gr' = 0 if (`groupvar' != `groupvals'[`ng', 1])
 		
 		/* Check that there are no "zero-variance" indicators in any group */
-		tempvar touse_gr
-		quietly generate `touse_gr' = `touse'
-		quietly replace `touse_gr' = 0 if (`groupvar' != `groupvals'[`ng', 1])
-		
 		mata: st_numscalar("`zerovar'", ///
 			any(selectindex(sd(st_data(., "`allindicators'", "`touse_gr'")) :== 0)))
 		if (`zerovar') {
@@ -1551,7 +1547,7 @@ program Compare_mat, eclass sortpreserve
 				}
 			}
 			else if ("`method'" == "bootstrap") {
-				local title "Multigroup comparison (`groupvar') - Bootstrap t-test"
+				local title "Multigroup comparison (`groupvar') - Parametric test"
 				
 				/* Compute the bootstrap distribution */
 				mata: `res_mga' = ///
@@ -1578,8 +1574,8 @@ program Compare_mat, eclass sortpreserve
 				
         foreach what in `whatstr' {
           mata: st_matrix("`dtest_`what''", plssem_mga_boot_diff(`res_mga', ///
-            st_matrix("`groupsizes'"), strtoreal("`neff_`what''"), "`what'", ///
-            `unequal'))
+            st_matrix("`groupsizes'"), strtoreal("`neff_`what''"), ///
+						st_matrix("`obstest_`what''"), "`what'", `unequal'))
           mata: st_matrix("`df_`what''", plssem_mga_boot_df(`res_mga', ///
             st_matrix("`groupsizes'"), strtoreal("`neff_`what''"), "`what'", `unequal'))
         }
