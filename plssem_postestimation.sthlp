@@ -466,9 +466,9 @@ are not saved in the data set.
 {title:Authors}
 
 {pstd} Sergio Venturini{break}
-Department of Management{break}
-Università degli Studi di Torino, Italy{break}
-{browse "mailto:sergio.venturini@unito.it":sergio.venturini@unito.it}{break}
+Department of Economic and Social Sciences{break}
+Università Cattolica del Sacro Cuore, Italy{break}
+{browse "mailto:sergio.venturini@unicatt.it":sergio.venturini@unicatt.it}{break}
 
 {pstd} Mehmet Mehmetoglu{break}
 Department of Psychology{break}
