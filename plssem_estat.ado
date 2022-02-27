@@ -1,5 +1,5 @@
-*!plssem_estat version 0.3.2
-*!Written 15Jul2020
+*!plssem_estat version 0.3.3
+*!Written 27Feb2022
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -721,13 +721,13 @@ program REBUS, rclass
 		local options "tol(`e(tolerance)') maxiter(`e(maxiter)') wscheme("
 	}
 	local ws_centroid "centroid"
-	local ws_factor "factor"
+	local ws_factorial "factorial"
 	local ws_path "path"
 	if (`: list ws_centroid in props') {
 		local scheme "centroid"
 	}
-	else if (`: list ws_factor in props') {
-		local scheme "factor"
+	else if (`: list ws_factorial in props') {
+		local scheme "factorial"
 	}
 	else if (`: list ws_path in props') {
 		local scheme "path"
@@ -1324,13 +1324,13 @@ program FIMIX, rclass
 		local options "tol(`e(tolerance)') maxiter(`e(maxiter)') wscheme("
 	}
   local ws_centroid "centroid"
-  local ws_factor "factor"
+  local ws_factorial "factorial"
   local ws_path "path"
   if (`: list ws_centroid in props') {
     local scheme "centroid"
   }
-  else if (`: list ws_factor in props') {
-    local scheme "factor"
+  else if (`: list ws_factorial in props') {
+    local scheme "factorial"
   }
   else if (`: list ws_path in props') {
     local scheme "path"
@@ -1829,13 +1829,13 @@ program GAS, rclass
 		local options "tol(`e(tolerance)') maxiter(`e(maxiter)') wscheme("
 	}
   local ws_centroid "centroid"
-  local ws_factor "factor"
+  local ws_factorial "factorial"
   local ws_path "path"
   if (`: list ws_centroid in props') {
     local scheme "centroid"
   }
-  else if (`: list ws_factor in props') {
-    local scheme "factor"
+  else if (`: list ws_factorial in props') {
+    local scheme "factorial"
   }
   else if (`: list ws_path in props') {
     local scheme "path"
