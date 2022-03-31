@@ -1,5 +1,5 @@
-*!plssem_estat version 0.3.3
-*!Written 27Feb2022
+*!plssem_estat version 0.3.4
+*!Written 31Mar2022
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -23,6 +23,9 @@ program plssem_estat, rclass
 	else if ("`subcmd'" == substr("mediate", 1, max(2, `lsubcmd'))) {
 		mediate `rest'
 	}
+  else if ("`subcmd'" == substr("htmt", 1, max(2, `lsubcmd'))) {
+    htmt `rest'
+  }
 	else {
 		// estat_default `0'
 		display as error "the `subcmd' postestimation command is not implemented for plssem"
@@ -2395,4 +2398,79 @@ program mediate, rclass
 	
 	/* Return values */
 	return matrix mediate `indmeas'
+end
+
+program htmt, rclass
+  version 15.1
+  syntax , [ CUToff(real 0) DIGits(integer 3) ]
+  
+  /* Options:
+     --------
+     cutoff(real 0)             --> do not show correlation smaller than cutoff
+     digits(integer 3)          --> number of digits to display (default 3)
+  */
+   
+  /* Description:
+     ------------
+     This postestimation command provides the heterotrait-monotrait ratio of
+     correlations for assessing discriminant validity.
+  */
+  
+  /* Set temporary variables */
+  tempvar __touse__
+  quietly generate `__touse__' = e(sample)
+  local allindicators = e(mvs)
+  local alllatents = e(lvs)
+  foreach var in `allindicators' {
+    local allstdindicators "`allstdindicators' std`var'"
+  }
+  local allstdindicators : list clean allstdindicators
+
+  /* Compute the heterotrait-monotrait ratios (HTMT) */
+  tempname res_htmt mata_htmt res_htmt2 mata_htmt2
+  capture noisily {
+    mata: `mata_htmt' = ///
+      plssem_htmt( ///
+        st_data(., "`allindicators'"), ///       note: `__touse__' not used here
+        st_matrix("e(adj_meas)"), ///
+        "`allindicators'", ///
+        "`allstdindicators'", ///
+        "`alllatents'", ///
+        "`e(binarylvs)'", ///
+        "`__touse__'")
+    mata: `mata_htmt2' = ///
+      plssem_htmt2( ///
+        st_data(., "`allindicators'"), ///       note: `__touse__' not used here
+        st_matrix("e(adj_meas)"), ///
+        "`allindicators'", ///
+        "`allstdindicators'", ///
+        "`alllatents'", ///
+        "`e(binarylvs)'", ///
+        "`__touse__'")
+  }
+
+  /* Display results */
+  mata: st_matrix("`res_htmt'", `mata_htmt')
+  matrix rownames `res_htmt' = `alllatents'
+  matrix colnames `res_htmt' = `alllatents'
+  mata: st_matrix("`res_htmt2'", `mata_htmt2')
+  matrix rownames `res_htmt2' = `alllatents'
+  matrix colnames `res_htmt2' = `alllatents'
+  
+  mktable_corr, matrix(`res_htmt') ///
+    title("Discriminant validity - Heterotrait-monotrait ratio of correlations (HTMT)") ///
+    cutoff(`cutoff')
+  if (!matmissing(`res_htmt2')) {
+    mktable_corr, matrix(`res_htmt2') ///
+      title("Discriminant validity - Heterotrait-monotrait ratio of correlations (HTMT2)") ///
+      cutoff(`cutoff')
+  }
+  else {
+    display as text ""
+    display as text "Note: heterotrait-monotrait ratios using the geometric mean (HTMT2) are not available"
+  }
+  
+  /* Return values */
+  return matrix htmt `res_htmt'
+  return matrix htmt2 `res_htmt2'
 end

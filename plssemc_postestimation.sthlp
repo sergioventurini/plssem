@@ -1,12 +1,5 @@
-/* TO DO:
-		 1. help for estat mediate after plssemc must still be added
-*/
-
-/* ISSUES:
-		 1. 
-*/
 {smcl}
-{* *! version 0.0.1  27Apr2018}{...}
+{* *! version 0.0.1  31Mar2022}{...}
 {vieweralsosee "plssemc" "help plssemc"}{...}
 {vieweralsosee "plssemplot" "help plssemplot"}{...}
 {viewerjumpto "Postestimation commands" "plssemc postestimation##description"}{...}
@@ -40,6 +33,8 @@ The following postestimation commands are of special interest after
 	total effects{p_end}
 {p2coldent:* {helpb plssemc postestimation##vif:estat vif}}variance inflation
 	factors for the structural model equations sample{p_end}
+{synopt:{helpb plssemc postestimation##htmt:estat htmt}}heterotrait-monotrait
+  ratio of correlations for assessing discriminant validity{p_end}
 {synoptline}
 {p2colreset}{...}
 {p 4 6 2}
@@ -87,6 +82,16 @@ Display the variance inflation factors for the structural model equations
 [{cmd:,} {opt dig:its(#)}]
 
 
+{marker htmt}{...}
+{pstd}
+Display the assessment of discriminant validity using heterotrait-monotrait 
+ratios of correlations
+
+{p 8 14 2}
+{cmd:estat} {cmdab:ht:mt},
+[{opt cut:off(#)}]
+
+
 {marker desc_estat}{...}
 {title:Description for estat}
 
@@ -117,6 +122,11 @@ the number decimals digits reported by setting the sub-option {cmd:digits(#)}.
 computes the variance inflation factors (VIFs) for the independent variables
 of the equations in the structural part of a PLS-SEM model. With the
 {cmd:digit(#)} sub-option you change the number decimals digits displayed.
+
+{pstd} {cmd:estat htmt}
+assesses discriminant validity using heterotrait-monotrait ratios of correlations; both
+the HTMT (arithmetic average of correlations) and HTMT2 (geometric average of correlations)
+approaches are available.
 
  
 {marker options_estat}{...}
@@ -149,6 +159,11 @@ the total effects decomposition.
 {phang}
 {opt seed(#)},
 allows to set the seed for reproducing results.
+
+{phang}
+{opt cutoff(#)},
+an option used with {cmd:estat htmt}, specifies the cutoff value to use for
+showing the heterotrait-monotrait ratios.
 
 
 {marker syntax_predict}{...}
@@ -224,6 +239,9 @@ are not saved in the data set.
 {pstd}Model estimation{p_end}
 {phang2}{cmd:. plssemc (Attractive > face sexy) (Appearance > body appear attract) (Muscle > muscle strength endur) (Weight > lweight calories cweight), structural(Appearance Attractive, Muscle Appearance, Weight Appearance)}{p_end}
 
+{pstd}Discriminant validity assessment (HTMT){p_end}
+{phang2}{cmd:. estat htmt}{p_end}
+
 {pstd}Multicollinearity assessment{p_end}
 {phang2}{cmd:. estat vif}{p_end}
 
@@ -241,7 +259,7 @@ are not saved in the data set.
 {title:Authors}
 
 {pstd} Sergio Venturini{break}
-Department of Economic and Social Sciences{break}
+Department of Economics and Social Sciences{break}
 Università Cattolica del Sacro Cuore, Italy{break}
 {browse "mailto:sergio.venturini@unicatt.it":sergio.venturini@unicatt.it}{break}
 

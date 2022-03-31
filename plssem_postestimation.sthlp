@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 0.0.1  31May2019}{...}
+{* *! version 0.0.1  31Mar2022}{...}
 {vieweralsosee "plssem" "help plssem"}{...}
 {vieweralsosee "plssemplot" "help plssemplot"}{...}
 {viewerjumpto "Postestimation commands" "plssem postestimation##description"}{...}
@@ -39,6 +39,8 @@ The following postestimation commands are of special interest after
 	factors for the structural model equations sample{p_end}
 {p2coldent:* {helpb plssem postestimation##unobshet:estat unobshet}}unobserved
 	heterogeneity assessment{p_end}
+{synopt:{helpb plssem postestimation##htmt:estat htmt}}heterotrait-monotrait
+  ratio of correlations for assessing discriminant validity{p_end}
 {synoptline}
 {p2colreset}{...}
 {p 4 6 2}
@@ -110,6 +112,16 @@ Display the assessment for the presence of unobserved heterogeneity
 {opt p:lot} {cmdab:name(}{it:varname}{cmd:)} {opt dig:its(#)}]
 
 
+{marker htmt}{...}
+{pstd}
+Display the assessment of discriminant validity using heterotrait-monotrait 
+ratios of correlations
+
+{p 8 14 2}
+{cmd:estat} {cmdab:ht:mt},
+[{opt cut:off(#)}]
+
+
 {marker desc_estat}{...}
 {title:Description for estat}
 
@@ -155,6 +167,11 @@ using the {it:methodname} approach. Currently, the REBUS-PLS
 ({help plssem_postestimation##Trinchera2007:Trinchera 2007}), FIMIX-PLS
 ({help plssem_postestimation##Hahnetal2002:Hahn et al. 2007}) and PLS-GAS
 ({help plssem_postestimation##Ringleetal2014:Ringle et al. 2014}) approaches are implemented.
+
+{pstd} {cmd:estat htmt}
+assesses discriminant validity using heterotrait-monotrait ratios of correlations; both
+the HTMT (arithmetic average of correlations) and HTMT2 (geometric average of correlations)
+approaches are available.
  
  
 {marker options_estat}{...}
@@ -345,6 +362,11 @@ an option used with {cmd:estat mediate} providing the bias-corrected accelerated
 (BCa) bootstrap confidence intervals instead of the percentile confidence
 intervals (default).
 
+{phang}
+{opt cutoff(#)},
+an option used with {cmd:estat htmt}, specifies the cutoff value to use for
+showing the heterotrait-monotrait ratios.
+
 
 {marker syntax_predict}{...}
 {marker predict}{...}
@@ -443,6 +465,9 @@ are not saved in the data set.
 {pstd}Model estimation{p_end}
 {phang2}{cmd:. plssem (Attractive > face sexy) (Appearance > body appear attract) (Muscle > muscle strength endur) (Weight > lweight calories cweight), structural(Appearance Attractive, Muscle Appearance, Weight Appearance)}{p_end}
 
+{pstd}Discriminant validity assessment (HTMT){p_end}
+{phang2}{cmd:. estat htmt}{p_end}
+
 {pstd}Multicollinearity assessment{p_end}
 {phang2}{cmd:. estat vif}{p_end}
 
@@ -466,7 +491,7 @@ are not saved in the data set.
 {title:Authors}
 
 {pstd} Sergio Venturini{break}
-Department of Economic and Social Sciences{break}
+Department of Economics and Social Sciences{break}
 Università Cattolica del Sacro Cuore, Italy{break}
 {browse "mailto:sergio.venturini@unicatt.it":sergio.venturini@unicatt.it}{break}
 
