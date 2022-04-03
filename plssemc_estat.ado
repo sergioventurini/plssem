@@ -746,6 +746,7 @@ program htmt_c, rclass
         "`allstdindicators'", ///
         "`alllatents'", ///
         "`e(binarylvs)'", ///
+        "`e(reflective)'", ///
         "`__touse__'")
     mata: `mata_htmt2' = ///
       plssem_htmt2( ///
@@ -755,6 +756,7 @@ program htmt_c, rclass
         "`allstdindicators'", ///
         "`alllatents'", ///
         "`e(binarylvs)'", ///
+        "`e(reflective)'", ///
         "`__touse__'")
   }
 
@@ -765,11 +767,14 @@ program htmt_c, rclass
   mata: st_matrix("`res_htmt2'", `mata_htmt2')
   matrix rownames `res_htmt2' = `alllatents'
   matrix colnames `res_htmt2' = `alllatents'
-  
+
+  tempname res_htmt2_null
+  mata: st_numscalar("`res_htmt2_null'", allof(`mata_htmt2', .))
+
   mktable_corr, matrix(`res_htmt') ///
     title("Discriminant validity - Heterotrait-monotrait ratio of correlations (HTMT)") ///
     cutoff(`cutoff')
-  if (!matmissing(`res_htmt2')) {
+  if (!`res_htmt2_null') {
     mktable_corr, matrix(`res_htmt2') ///
       title("Discriminant validity - Heterotrait-monotrait ratio of correlations (HTMT2)") ///
       cutoff(`cutoff')
