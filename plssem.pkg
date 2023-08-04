@@ -7,7 +7,7 @@ d KW: SEM
 d
 d Requires: Stata version 15.1
 d
-d Distribution-Date: 20200716
+d Distribution-Date: 20230804
 d
 d Author: Sergio Venturini, Department of Economics and Social Sciences, Università Cattolica del Sacro Cuore, Cremona, Italy
 d Support: email sergio.venturini@unicatt.it
@@ -17,17 +17,23 @@ d Support: email mehmetm@svt.ntnu.no
 d
 F ecsimobi.dta
 F lplssem.mlib
+F mkheader_mi.ado
 F mkheader.ado
 F mktable_corr.ado
 F mktable_indirect.ado
 F mktable_mediate.ado
 F mktable.ado
+F mktable_ci.ado
 F plssem_estat.ado
+F plssem_mi.ado
+F plssem_mi.sthlp
 F plssem_p.ado
 F plssem_postestimation.sthlp
 F plssem.ado
+F plssem.pkg
 F plssem.sthlp
 F plssemc_estat.ado
+F plssemc_mi.ado
 F plssemc_postestimation.sthlp
 F plssemc.ado
 F plssemc.sthlp

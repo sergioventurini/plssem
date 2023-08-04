@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 0.0.1  31Mar2022}{...}
+{* *! version 0.4.0  26Apr2023}{...}
 {vieweralsosee "plssemc" "help plssemc"}{...}
 {vieweralsosee "plssemplot" "help plssemplot"}{...}
 {viewerjumpto "Postestimation commands" "plssemc postestimation##description"}{...}
@@ -284,9 +284,9 @@ Personality and Social Psychology, 51, 1173-1182.
 Hahn, C., Johnson, M. D., Herrmann, A., and Huber, F. 2002. Capturing Customer Heterogeneity Using a
 Finite Mixture PLS Approach. Schmalenbach Business Review, 54, 243-269.
 
-{marker Hairetal2017}{...}
+{marker Hairetal2022}{...}
 {phang}
-Hair, J. F., Hult, G. T. M., Ringle, C. M., and Sarstedt, M. 2017. {it:A Primer on Partial Least Squares Structural Equation Modeling (PLS-SEM)}. Second edition. Sage.
+Hair, J. F., Hult, G. T. M., Ringle, C. M., and Sarstedt, M. 2022. {it:A Primer on Partial Least Squares Structural Equation Modeling (PLS-SEM)}. Third edition. Sage.
 
 {marker Hairetal2018}{...}
 {phang}

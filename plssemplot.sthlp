@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 0.0.1  06Oct2017}{...}
+{* *! version 0.0.1  09Feb2022}{...}
 {vieweralsosee "plssem" "help plssem"}{...}
 {vieweralsosee "plssem postestimation" "help plssem postestimation"}{...}
 {viewerjumpto "Syntax" "plssemplot##syntax"}{...}
@@ -103,7 +103,7 @@ the block defining the latent variable {cmd:LV}.
 {title:Authors}
 
 {pstd} Sergio Venturini{break}
-Department of Economic and Social Sciences{break}
+Department of Economics and Social Sciences{break}
 Università Cattolica del Sacro Cuore, Italy{break}
 {browse "mailto:sergio.venturini@unicatt.it":sergio.venturini@unicatt.it}{break}
 

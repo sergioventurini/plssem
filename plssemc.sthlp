@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 0.3.0  12Apr2019}{...}
+{* *! version 0.4.0  26Apr2023}{...}
 {vieweralsosee "plssemc postestimation" "help plssemc postestimation"}{...}
 {vieweralsosee "plssemplot" "help plssemplot"}{...}
 {vieweralsosee "plssem" "help plssem"}{...}
@@ -12,7 +12,7 @@
 {viewerjumpto "References" "plssemc##references"}{...}
 {title:Title}
 
-{p 4 18 2}
+{p 4 15 2}
 {hi:plssemc} {hline 2} Consistent partial least squares structural equation modelling
 (PLSc-SEM)
 
@@ -288,7 +288,7 @@ default is {bf:relative}.
 {title:Authors}
 
 {pstd} Sergio Venturini{break}
-Department of Economic and Social Sciences{break}
+Department of Economics and Social Sciences{break}
 Università Cattolica del Sacro Cuore, Italy{break}
 {browse "mailto:sergio.venturini@unicatt.it":sergio.venturini@unicatt.it}{break}
 
@@ -313,11 +313,14 @@ Norwegian University of Science and Technology{break}
 {synopt:{cmd:e(tolerance)}}chosen tolerance value{p_end}
 {synopt:{cmd:e(maxiter)}}maximum number of iterations allowed{p_end}
 {synopt:{cmd:e(converged)}}equal to 1 if convergence is achieved; 0 otherwise{p_end}
+{synopt:{cmd:e(k_aux)}}number of auxiliary variables{p_end}
+{synopt:{cmd:e(df_m)}}model degrees of freedom{p_end}
 
 {synoptset 24 tabbed}{...}
 {p2col 5 24 28 2: Macros}{p_end}
 {synopt:{cmd:e(cmd)}}{cmd:plssemc}{p_end}
 {synopt:{cmd:e(cmdline)}}command as typed{p_end}
+{synopt:{cmd:e(vce)}}type of the variance-covariance matrix of the estimators{p_end}
 {synopt:{cmd:e(estat_cmd)}}program used to implement {cmd:estat}{p_end}
 {synopt:{cmd:e(predict)}}program used to implement {cmd:predict}{p_end}
 {synopt:{cmd:e(title)}}title in estimation output{p_end}
@@ -336,6 +339,8 @@ not{p_end}
 
 {synoptset 24 tabbed}{...}
 {p2col 5 24 28 2: Matrices}{p_end}
+{synopt:{cmd:e(b)}}coefficient vector{p_end}
+{synopt:{cmd:e(V)}}variance-covariance matrix of the estimators{p_end}
 {synopt:{cmd:e(loadings)}}outer loadings matrix{p_end}
 {synopt:{cmd:e(loadings_bs)}}bootstrap-based outer loadings matrix (available only
 if the {cmd:boot()} option is chosen){p_end}
@@ -389,9 +394,9 @@ Personality and Social Psychology, 51, 1173-1182.
 Dijkstra, T. K., and Henseler, J. 2015 Consistent and Asymptotically Normal PLS Estimators for Linear Structural Equations. 
 Computational Statistics and Data Analysis, 81, 10-23
 
-{marker Hairetal2017}{...}
+{marker Hairetal2022}{...}
 {phang}
-Hair, J. F., Hult, G. T. M., Ringle, C. M., and Sarstedt, M. 2017. {it:A Primer on Partial Least Squares Structural Equation Modeling (PLS-SEM)}. Second edition. Sage.
+Hair, J. F., Hult, G. T. M., Ringle, C. M., and Sarstedt, M. 2022. {it:A Primer on Partial Least Squares Structural Equation Modeling (PLS-SEM)}. Third edition. Sage.
 
 {marker Lohmoller1989}{...}
 {phang}
