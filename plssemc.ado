@@ -1009,10 +1009,9 @@ program Estimate_c, eclass byable(recall)
     matrix `tmp' = (`redundancy')'
     mata: st_numscalar("`avred'", mean(st_matrix("`tmp'")))
     // scalar `gof_all' = sqrt(`avrsq' * `avave')
-    mata: `gof_all' = gof( ///
+    mata: `gof_all' = plssem_gof( ///
       st_matrix("`rsquared'"), ///
-      st_matrix("`ave'"), ///
-      st_matrix("`ave_num'"), ///
+      st_matrix("`loadings'"), ///
       st_data(., "`allindicators'", "`touse'"), ///
       st_matrix("`adj_meas'"), ///
       st_matrix("`adj_struct'"), ///
