@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 0.4.0  26Apr2023}{...}
+{* *! version 0.5.0  03Aug2023}{...}
 {vieweralsosee "plssemc postestimation" "help plssemc postestimation"}{...}
 {vieweralsosee "plssemplot" "help plssemplot"}{...}
 {vieweralsosee "plssem" "help plssem"}{...}
@@ -14,7 +14,7 @@
 
 {p 4 15 2}
 {hi:plssemc} {hline 2} Consistent partial least squares structural equation modelling
-(PLSc-SEM)
+(PLSc)
 
 
 {marker syntax}{...}
@@ -66,6 +66,7 @@ and P the number of latent variables in the model).
 {synopt:{cmd:no}{cmdab:struct:table}}suppress display of structural model estimates table{p_end}
 {synopt:{opt loadp:val}}show the outer loadings' p-values{p_end}
 {synopt:{opt stat:s}}print a table of summary statistics for the indicators{p_end}
+{synopt:{opt gr:oup()}}perform multigroup analysis; see {help plssemc##options:{it:Options}} for details{p_end}
 {synopt:{opt corr:elate()}}report the correlation among indicators, latent variables and cross loadings; see {help plssemc##options:{it:Options}} for details{p_end}
 {synopt:{opt raw:sum}}estimate the latent scores as the raw sum of the indicators{p_end}
 {synopt:{cmd:no}{cmdab:sc:ale}}manifest variables are not standardized before running the algorithm{p_end}
@@ -179,26 +180,42 @@ are {bf:indsum} (default) and {bf:eigen}. The {bf:eigen} option also allows the 
 measurement part of the model.
 
 {phang}{opt digits(#)}
-sets the number of decimals to display the model estimates. The default is 3. 
+sets the number of decimals to display the model estimates. The default is 3.
 
 {phang}{opt noheader}
-suppresses the output header. 
+suppresses the output header.
 
 {phang}{opt nodiscrimtable}
-suppresses discriminant validity assessment section of the output. 
+suppresses discriminant validity assessment section of the output.
 
 {phang}{opt nomeastable}
-suppresses measurement model section of the output. 
+suppresses measurement model section of the output.
  
 {phang}{opt nostructtable}
-suppresses structural model section of the output. 
+suppresses structural model section of the output.
 
 {phang}{opt loadpval}
 shows the table of loadings' p-values. 
 
 {phang}{opt stats}
 displays some summary statistics (mean, standard deviations, etc.) for the original
-indicators. 
+indicators.
+
+{phang}{opt group(grouping_variable, [sub-options])}
+provides both the structural and the measurement part of the estimation
+results for each category of the grouping variable as well as the comparison
+between the categories based on normal-theory (default). As an alternative to
+normal-based theory estimations, the user can use two resampling techniques. More
+specifically, by adding the suboption {bf:method(permutation} or {bf:bootstrap)} one
+can get the results based on permutation or bootstrap resampling. The default number
+of replications for both permutation and bootstrap is 100. However, this can be
+changed by adding the suboption {bf:reps(#)}. Further, with the suboption {bf:groupseed(#)}
+one can also set a certain seed number to be able reproduce the bootstrap or permutation
+results. By specifying the suboption {bf:plot} we can get a graphical output
+showing the estimates differences between the groups based on alpha level of 0.05
+(default). The significance level can also be changed by adding the suboption
+{bf:alpha(#)}. Finally, the {bf:unequal} suboption indicates that unequal variances
+must be assumed in the parametric bootstrap test.
 
 {phang}{opt correlate(mv lv cross [, cutoff(#)])}
 lets the user ask for correlations among the indicators
@@ -309,6 +326,7 @@ Norwegian University of Science and Technology{break}
 {p2col 5 24 28 2: Scalars}{p_end}
 {synopt:{cmd:e(N)}}number of observations{p_end}
 {synopt:{cmd:e(reps)}}number of bootstrap replications{p_end}
+{synopt:{cmd:e(n_inadmissibles)}}number of inadmissable bootstrap replications{p_end}
 {synopt:{cmd:e(iterations)}}number of iterations to reach convergence{p_end}
 {synopt:{cmd:e(tolerance)}}chosen tolerance value{p_end}
 {synopt:{cmd:e(maxiter)}}maximum number of iterations allowed{p_end}
@@ -401,6 +419,10 @@ Hair, J. F., Hult, G. T. M., Ringle, C. M., and Sarstedt, M. 2022. {it:A Primer 
 {marker Lohmoller1989}{...}
 {phang}
 Lohmöller, J. B. 1989. {it:Latent Variable Path Modeling with Partial Least Squares}. Heidelberg: Physica.
+
+{marker MehmetogluVenturini2021}{...}
+{phang}
+Mehmetoglu, M., and Venturini, S. 2021. {it:Structural Equation Modelling with Partial Least Squares Using Stata and R}. CRC Press
 
 {marker Sobel1982}{...}
 {phang}

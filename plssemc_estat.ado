@@ -1,5 +1,5 @@
-*!plssemc_estat version 0.5.1
-*!Written 03Aug2023
+*!plssemc_estat version 0.5.2
+*!Written 07Feb2024
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -27,6 +27,9 @@ program plssemc_estat, rclass
   }
   else if ("`subcmd'" == substr("htmt", 1, max(2, `lsubcmd'))) {
     htmt_c `rest'
+  }
+  else if ("`subcmd'" == substr("f2", 1, max(2, `lsubcmd'))) {
+    f2_c `rest'
   }
   else if ("`subcmd'" == substr("ci", 1, max(2, `lsubcmd'))) {
     ci_c `rest'
@@ -67,6 +70,10 @@ program indirect_c, rclass
   
   if ("`effects'" == "") {
     display as error "effects() option must be provided"
+    exit
+  }
+  if (`digits' < 0) {
+    display as error "number of digits must be a nonnegative integer"
     exit
   }
   local struct "structural"
@@ -373,6 +380,11 @@ program plssem_vif_c, rclass
      digits(integer 3)          --> number of digits to display (default 3)
    */
   
+  if (`digits' < 0) {
+    display as error "number of digits must be a nonnegative integer"
+    exit
+  }
+
   local struct "structural"
   local boot "bootstrap"
   local props = e(properties)
@@ -449,6 +461,10 @@ program mediate_c, rclass
   }
   if (!`: list indep in exo_nm') {
     display as error "`indep' is not an exogenous variable"
+    exit
+  }
+  if (`digits' < 0) {
+    display as error "number of digits must be a nonnegative integer"
     exit
   }
 
@@ -720,10 +736,11 @@ end
 
 program htmt_c, rclass
   version 15.1
-  syntax , [ CUToff(real 0) DIGits(integer 3) ]
+  syntax , [ All CUToff(real 0) DIGits(integer 3) ]
   
   /* Options:
      --------
+     all                        --> include all latent variables
      cutoff(real 0)             --> do not show correlation smaller than cutoff
      digits(integer 3)          --> number of digits to display (default 3)
   */
@@ -733,7 +750,17 @@ program htmt_c, rclass
      This postestimation command provides the heterotrait-monotrait ratio of
      correlations for assessing discriminant validity.
   */
+
+  if (`digits' < 0) {
+    display as error "number of digits must be a nonnegative integer"
+    exit
+  }
   
+  local is_all = 0
+  if ("`all'" != "") {
+    local is_all = 1
+  }
+
   /* Set temporary variables */
   tempvar __touse__
   quietly generate `__touse__' = e(sample)
@@ -758,6 +785,7 @@ program htmt_c, rclass
         "`alllatents'", ///
         "`e(binarylvs)'", ///
         "`e(reflective)'", ///
+        `is_all', ///
         "`__touse__'")
     mata: `mata_htmt2' = ///
       plssem_htmt2( ///
@@ -768,31 +796,44 @@ program htmt_c, rclass
         "`alllatents'", ///
         "`e(binarylvs)'", ///
         "`e(reflective)'", ///
+        `is_all', ///
         "`__touse__'")
   }
 
   /* Display results */
   mata: st_matrix("`res_htmt'", `mata_htmt')
-  matrix rownames `res_htmt' = `alllatents'
-  matrix colnames `res_htmt' = `alllatents'
+  if (`is_all') {
+    matrix rownames `res_htmt' = `alllatents'
+    matrix colnames `res_htmt' = `alllatents'
+  }
+  else {
+    matrix rownames `res_htmt' = `e(reflective)'
+    matrix colnames `res_htmt' = `e(reflective)'
+  }
   mata: st_matrix("`res_htmt2'", `mata_htmt2')
-  matrix rownames `res_htmt2' = `alllatents'
-  matrix colnames `res_htmt2' = `alllatents'
+  if (`is_all') {
+    matrix rownames `res_htmt2' = `alllatents'
+    matrix colnames `res_htmt2' = `alllatents'
+  }
+  else {
+    matrix rownames `res_htmt2' = `e(reflective)'
+    matrix colnames `res_htmt2' = `e(reflective)'
+  }
 
   tempname res_htmt2_null
   mata: st_numscalar("`res_htmt2_null'", allof(`mata_htmt2', .))
 
   mktable_corr, matrix(`res_htmt') ///
     title("Discriminant validity - Heterotrait-monotrait ratio of correlations (HTMT)") ///
-    cutoff(`cutoff')
+    cutoff(`cutoff') digits(`digits')
   if (!`res_htmt2_null') {
     mktable_corr, matrix(`res_htmt2') ///
-      title("Discriminant validity - Heterotrait-monotrait ratio of correlations (HTMT2)") ///
-      cutoff(`cutoff')
+      title("Discriminant validity - Advanced heterotrait-monotrait ratio of correlations (HTMT2)") ///
+      cutoff(`cutoff') digits(`digits')
   }
   else {
     display as text ""
-    display as text "Note: heterotrait-monotrait ratios using the geometric mean (HTMT2) are not available"
+    display as text "Note: advanced heterotrait-monotrait ratios (HTMT2) are not available"
   }
   
   /* Return values */
@@ -842,6 +883,10 @@ program ci_c, rclass
   
   if (`level' <= 0 | `level' >= 1) {
     display as error "confidence level must be in the range (0, 1)"
+    exit
+  }
+  if (`digits' < 0) {
+    display as error "number of digits must be a nonnegative integer"
     exit
   }
   /* End of setting temporary variables */
@@ -1023,6 +1068,89 @@ program ci_c, rclass
 
   return matrix load_ci `ci_load'
   return matrix path_ci `ci_path'
+
+  /* Clean up */
+  capture mata: cleanup(st_local("tempnamelist"))
+end
+
+program f2_c, rclass
+  version 15.1
+  syntax , [ DIGits(integer 3) ]
+  
+  /* Options:
+     --------
+     digits(integer 3)          --> number of digits to display (default 3)
+  */
+   
+  /* Description:
+     ------------
+     This postestimation command provides the Cohen's f2  effect sizes.
+  */
+  
+  local struct "structural"
+  local props = e(properties)
+  local isstruct : list struct in props
+  if (!`isstruct') {
+    display as error "the fitted plssem model includes only the measurement part"
+    exit
+  }
+
+  if (`digits' < 0) {
+    display as error "number of digits must be a nonnegative integer"
+    exit
+  }
+
+  /* Set temporary variables */
+  tempvar __touse__
+  quietly generate `__touse__' = e(sample)
+  local allindicators = e(mvs)
+  local alllatents = e(lvs)
+  local tempnamelist
+
+  tempname modes
+  local num_lv: word count `alllatents'
+  local modeA = e(reflective)
+  matrix `modes' = J(`num_lv', 1, 1)
+  local i = 1
+  foreach var in `alllatents' {
+    if (`: list var in modeA') {
+      matrix `modes'[`i', 1] = 0
+    }
+    local ++i
+  }
+  
+ /* Compute the Cohen's f^2 effect sizes */
+ tempname res_f2 mata_f2
+  local tempnamelist "`tempnamelist' `mata_f2'"
+  capture noisily {
+    mata: `mata_f2' = ///
+      plssem_f2( ///
+        st_data(., "`allindicators'"), ///       note: `__touse__' not used here
+        st_data(., "`alllatents'"), ///
+        st_matrix("e(adj_meas)"), ///
+        st_matrix("e(adj_struct)"), ///
+        st_matrix("e(outerweights)"), ///
+        st_matrix("`modes'"), ///
+        st_matrix("e(rsquared)"), ///
+        "`alllatents'", ///
+        "`e(binarylvs)'", ///
+        "`__touse__'", ///
+        1)
+  }
+
+  /* Display results */
+  mata: st_matrix("`res_f2'", `mata_f2')
+  matrix rownames `res_f2' = `alllatents'
+  mata: st_local("endo_nm", ///
+    invtokens(tokens("`e(lvs)'")[selectindex(colsum(st_matrix("e(adj_struct)")))]))
+  matrix colnames `res_f2' = `endo_nm'
+
+  mktable, matrix(`res_f2') digits(`digits') ///
+    title("Effect sizes  - Cohen's f^2") ///
+    firstcolwidth(13) colwidth(12) novlines hlines(`: word count `alllatents'')
+  
+  /* Return values */
+  return matrix f2 `res_f2'
 
   /* Clean up */
   capture mata: cleanup(st_local("tempnamelist"))

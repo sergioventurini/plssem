@@ -112,3 +112,11 @@ Department of Psychology{break}
 Norwegian University of Science and Technology{break}
 {browse "mailto:mehmetm@svt.ntnu.no":mehmetm@svt.ntnu.no}{break}
 {p_end}
+
+
+{marker references}{...}
+{title:References} 
+
+{marker MehmetogluVenturini2021}{...}
+{phang}
+Mehmetoglu, M., and Venturini, S. 2021. {it:Structural Equation Modelling with Partial Least Squares Using Stata and R}. CRC Press

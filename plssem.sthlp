@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 0.4.0  26Apr2023}{...}
+{* *! version 0.5.0  03Aug2023}{...}
 {vieweralsosee "plssem postestimation" "help plssem postestimation"}{...}
 {vieweralsosee "plssemplot" "help plssemplot"}{...}
 {vieweralsosee "plssemc" "help plssemc"}{...}
@@ -323,6 +323,7 @@ Norwegian University of Science and Technology{break}
 {p2col 5 24 28 2: Scalars}{p_end}
 {synopt:{cmd:e(N)}}number of observations{p_end}
 {synopt:{cmd:e(reps)}}number of bootstrap replications{p_end}
+{synopt:{cmd:e(n_inadmissibles)}}number of inadmissable bootstrap replications{p_end}
 {synopt:{cmd:e(iterations)}}number of iterations to reach convergence{p_end}
 {synopt:{cmd:e(tolerance)}}chosen tolerance value{p_end}
 {synopt:{cmd:e(maxiter)}}maximum number of iterations allowed{p_end}
@@ -407,6 +408,10 @@ Hair, J. F., Hult, G. T. M., Ringle, C. M., and Sarstedt, M. 2022. {it:A Primer 
 {marker Lohmoller1989}{...}
 {phang}
 Lohmöller, J. B. 1989. {it:Latent Variable Path Modeling with Partial Least Squares}. Heidelberg: Physica.
+
+{marker MehmetogluVenturini2021}{...}
+{phang}
+Mehmetoglu, M., and Venturini, S. 2021. {it:Structural Equation Modelling with Partial Least Squares Using Stata and R}. CRC Press
 
 {marker Sobel1982}{...}
 {phang}

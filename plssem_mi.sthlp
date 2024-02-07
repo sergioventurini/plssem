@@ -145,6 +145,10 @@ Hair, J. F., Hult, G. T. M., Ringle, C. M., and Sarstedt, M. 2022. {it:A Primer 
 {phang}
 Lohmöller, J. B. 1989. {it:Latent Variable Path Modeling with Partial Least Squares}. Heidelberg: Physica.
 
+{marker MehmetogluVenturini2021}{...}
+{phang}
+Mehmetoglu, M., and Venturini, S. 2021. {it:Structural Equation Modelling with Partial Least Squares Using Stata and R}. CRC Press
+
 {marker Wold1975}{...}
 {phang}
 Wold, H. O. A. 1975. Path Models with Latent Variables: The NIPALS Approach.
