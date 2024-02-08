@@ -1,5 +1,5 @@
 *!plssem_estat version 0.5.2
-*!Written 07Feb2024
+*!Written 08Feb2024
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -34,6 +34,9 @@ program plssem_estat, rclass
   }
   else if ("`subcmd'" == substr("f2", 1, max(2, `lsubcmd'))) {
     f2 `rest'
+  }
+  else if ("`subcmd'" == substr("ic", 1, max(2, `lsubcmd'))) {
+    ic `rest'
   }
   else if ("`subcmd'" == substr("ci", 1, max(2, `lsubcmd'))) {
     ci `rest'
@@ -2876,6 +2879,64 @@ program f2, rclass
   
   /* Return values */
   return matrix f2 `res_f2'
+
+  /* Clean up */
+  capture mata: cleanup(st_local("tempnamelist"))
+end
+
+program ic, rclass
+  version 15.1
+  syntax , [ DIGits(integer 3) ]
+  
+  /* Options:
+     --------
+     digits(integer 3)          --> number of digits to display (default 3)
+  */
+   
+  /* Description:
+     ------------
+     This postestimation command provides some model selection criteria.
+  */
+  
+  local struct "structural"
+  local props = e(properties)
+  local isstruct : list struct in props
+  if (!`isstruct') {
+    display as error "the fitted plssem model includes only the measurement part"
+    exit
+  }
+
+  if (`digits' < 0) {
+    display as error "number of digits must be a nonnegative integer"
+    exit
+  }
+
+  /* Set temporary variables */
+  local allreflective = e(reflective)
+  local tempnamelist
+
+  /* Compute the model selection criteria */
+  tempname res_crit mata_crit
+  local tempnamelist "`tempnamelist' `mata_crit'"
+  capture noisily {
+    mata: `mata_crit' = ///
+      plssem_selcrit( ///
+        st_numscalar("e(N)"), ///
+        st_matrix("e(adj_struct)"), ///
+        st_matrix("e(rsquared)"))
+  }
+
+  /* Display results */
+  mata: st_matrix("`res_crit'", `mata_crit')
+  matrix rownames `res_crit' = `allreflective'
+  matrix colnames `res_crit' = "AIC AICc AICu BIC FPE HQ HQc"
+
+  mktable, matrix(`res_crit') digits(`digits') ///
+    title("Model information and selection criteria") ///
+    firstcolwidth(13) colwidth(15) novlines hlines(`: word count `allreflective'')
+  
+  /* Return values */
+  return matrix ic `res_crit'
 
   /* Clean up */
   capture mata: cleanup(st_local("tempnamelist"))

@@ -1,10 +1,13 @@
 {smcl}
-{* *! version 0.5.2  07Feb2024}{...}
+{* *! version 0.5.2  08Feb2024}{...}
 {vieweralsosee "plssemc" "help plssemc"}{...}
 {vieweralsosee "plssemplot" "help plssemplot"}{...}
 {viewerjumpto "Postestimation commands" "plssemc postestimation##description"}{...}
 {viewerjumpto "estat" "plssemc postestimation##syntax_estat"}{...}
 {viewerjumpto "estat options" "plssemc postestimation##options_estat"}{...}
+{viewerjumpto "estat indirect stored results" "plssemc postestimation##results_indirect"}{...}
+{viewerjumpto "estat f2 stored results" "plssemc postestimation##results_f2"}{...}
+{viewerjumpto "estat ic stored results" "plssemc postestimation##results_ic"}{...}
 {viewerjumpto "predict" "plssemc postestimation##syntax_predict"}{...}
 {viewerjumpto "predict options" "plssemc postestimation##options_predict"}{...}
 {viewerjumpto "predict stored results" "plssemc postestimation##results_predict"}{...}
@@ -37,12 +40,14 @@ The following postestimation commands are of special interest after
   ratio of correlations for assessing discriminant validity{p_end}
 {synopt:{helpb plssemc postestimation##ci:estat ci}}confidence intervals
   for all model's coefficients{p_end}
-{synopt:{helpb plssem postestimation##f2:estat f2}}Cohen's f^2 effect
+{synopt:{helpb plssemc postestimation##f2:estat f2}}Cohen's f^2 effect
   sizes{p_end}
+{synopt:{helpb plssemc postestimation##ic:estat ic}}Model's information and
+  selection criteria{p_end}
 {synoptline}
 {p2colreset}{...}
 {p 4 6 2}
-* {cmd:estat vif} and {cmd:estat unobshet} are not available for models fitted using bootstrap.
+* {cmd:estat vif} is not available for models fitted using bootstrap.
 {p_end}
 
 {pstd}
@@ -114,6 +119,15 @@ Display the Cohen's f^2 effect sizes
 [{opt dig:its(#)}]
 
 
+{marker ic}{...}
+{pstd}
+Display the model's information and selection criteria
+
+{p 8 14 2}
+{cmd:estat} {cmdab:ic},
+[{opt dig:its(#)}]
+
+
 {marker desc_estat}{...}
 {title:Description for estat}
 
@@ -121,9 +135,9 @@ Display the Cohen's f^2 effect sizes
 {cmd:estat indirect}
 estimates the (standardized) indirect effects and the corresponding tests of significance
 using the Sobel's {it:z} statistic (default) as well as the bootstrap
-approach ({help plssem_postestimation##Sobel1982:Sobel 1982},
-{help plssem_postestimation##BaronKenny1986:Baron and Kenny 1986}, 
-{help plssem_postestimation##VanderWeele2015:VanderWeele 2015}). The command can
+approach ({help plssemc_postestimation##Sobel1982:Sobel 1982},
+{help plssemc_postestimation##BaronKenny1986:Baron and Kenny 1986}, 
+{help plssemc_postestimation##VanderWeele2015:VanderWeele 2015}). The command can
 estimate up to five different indirect effects at a time. Each of these should
 specified by sequentially typing the dependent, mediator and independent variable
 from any PLS-SEM model. By adding the sub-option {cmd:boot(#)}, you can obtain
@@ -155,7 +169,17 @@ computes the confidence intervals for both the measurement and structural models
 coefficients; different types of confidence intervals are available.
 
 {pstd} {cmd:estat f2}
-computes the Cohen's f^2 effect sizes ({help plssem_postestimation##Cohen1988:Cohen 1988}).
+computes the Cohen's f^2 effect sizes ({help plssemc_postestimation##Cohen1988:Cohen 1988}).
+
+{pstd} {cmd:estat ic}
+computes some information and selection criteria for the fitted model for each
+structural equation of the model separately, as suggested by
+{help plssemc_postestimation##Sharma2019:Sharma et al. 2019}. More specifically,
+the command provides the following indexes: Akaike information criterion (AIC),
+Corrected AIC (AICc), Unbiased AIC (AICu), Bayesian information criterion (BIC),
+final prediction error (FPE), Hannan-Quinn criterion (HQ) and Corrected HQ criterion
+(HQc). The definitions used by the commend for these indexes can be found in table B1
+of {help plssemc_postestimation##Sharma2019:Sharma et al. 2019}.
 
  
 {marker options_estat}{...}
@@ -276,6 +300,19 @@ are not saved in the data set.
 {p2colreset}{...}
 
 
+{marker results_htmt}{...}
+{title:Stored results for estat htmt}
+
+{pstd}
+{cmd:estat htmt} stores the following in {cmd:r()}:
+
+{synoptset 20 tabbed}{...}
+{p2col 5 20 24 2: Matrices}{p_end}
+{synopt:{cmd:r(htmt)}}matrix of heterotrait-monotrait ratios (HTMT){p_end}
+{synopt:{cmd:r(htmt2)}}matrix of advanced heterotrait-monotrait ratios (HTMT2){p_end}
+{p2colreset}{...}
+
+
 {marker results_f2}{...}
 {title:Stored results for estat f2}
 
@@ -284,8 +321,19 @@ are not saved in the data set.
 
 {synoptset 20 tabbed}{...}
 {p2col 5 20 24 2: Matrices}{p_end}
-{synopt:{cmd:r(htmt)}}matrix of heterotrait-monotrait ratios (HTMT){p_end}
-{synopt:{cmd:r(htmt2)}}matrix of advanced heterotrait-monotrait ratios (HTMT2){p_end}
+{synopt:{cmd:r(f2)}}matrix of the Cohen's f^2 effect sizes{p_end}
+{p2colreset}{...}
+
+
+{marker results_ic}{...}
+{title:Stored results for estat ic}
+
+{pstd}
+{cmd:estat ic} stores the following in {cmd:r()}:
+
+{synoptset 20 tabbed}{...}
+{p2col 5 20 24 2: Matrices}{p_end}
+{synopt:{cmd:r(ic)}}matrix of the model's information and selection criteria{p_end}
 {p2colreset}{...}
 
 
@@ -315,8 +363,10 @@ are not saved in the data set.
 {pstd}Discriminant validity assessment (HTMT){p_end}
 {phang2}{cmd:. estat htmt}{p_end}
 
-{pstd}Multicollinearity assessment{p_end}
+{pstd}Structural model assessment{p_end}
 {phang2}{cmd:. estat vif}{p_end}
+{phang2}{cmd:. estat f2}{p_end}
+{phang2}{cmd:. estat ic}{p_end}
 
 {pstd}Indirect effects{p_end}
 {phang2}{cmd:. estat indirect, effects(Muscle Appearance Attractive, Weight Appearance Attractive)}{p_end}
@@ -357,7 +407,7 @@ Personality and Social Psychology, 51, 1173-1182.
 
 {marker Cohen1988}{...}
 {phang}
-Cohen, J. 1988. Statistical power analysis for the behavioral sciences. Mahwah, NJ: Erlbaum.
+Cohen, J. 1988. {it:Statistical Power Analysis for the Behavioral Sciences}. Mahwah, NJ: Erlbaum.
 
 {marker Hahnetal2002}{...}
 {phang}
@@ -372,14 +422,23 @@ Hair, J. F., Hult, G. T. M., Ringle, C. M., and Sarstedt, M. 2022. {it:A Primer 
 {phang}
 Hair, J. F., Sarstedt, M., Ringle, C. M., and Gudergan, S. P. 2018. {it:Advanced Issues in Partial Least Squares Structural Equation Modeling}. Sage.
 
+{marker Iacobuccietal2007}{...}
+{phang}
+Iacobucci, D., Saldanha, N., & Deng, X. 2007. A meditation on mediation: evidence that structural equation models perform better than regressions. Journal of
+Consumer Psychology, 17, 140-154.
+
 {marker MehmetogluVenturini2021}{...}
 {phang}
-Mehmetoglu, M., and Venturini, S. 2021. {it:Structural Equation Modelling with Partial Least Squares Using Stata and R}. CRC Press
+Mehmetoglu, M., and Venturini, S. 2021. {it:Structural Equation Modelling with Partial Least Squares Using Stata and R}. CRC Press.
 
 {marker Ringleetal2014}{...}
 {phang}
 Ringle, C. M., Sarstedt, M., and Schlittgen, R. 2014. Genetic algorithm segmentation
 in partial least squares structural equation modeling. OR Spectrum, 36, 251–276.
+
+{marker Sharma2019}{...}
+{phang}
+Sharma, P., Sarstedt, M., Shmueli, G., Kim, K. H., Thiele, K. O. 2019. PLS-Based Model Selection: The Role of Alternative Explanations in Information Systems Research. Journal of the Association for Information Systems, 20(4), 346-397.
 
 {marker Sobel1982}{...}
 {phang}
@@ -393,4 +452,9 @@ Trinchera, L. 2007. {it:Unobserved Heterogeneity in Structural Equation Models: 
 {marker VanderWeele2015}{...}
 {phang}
 VanderWeele, T. J. 2015. {it:Explanation in Causal Inference}. Oxford University Press.
+
+{marker Zhaoetal2010}{...}
+{phang}
+Zhao, X., Lynch, J. G. Jr., & Chen, Q. 2010. Reconsidering Baron and Kenny: myths and
+truths about mediation analysis. Journal of Consumer Research, 37, 197-206.
 {p_end}
