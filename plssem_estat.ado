@@ -2585,7 +2585,6 @@ program ci, rclass
                                       distribution of the resample estimates; works only when
                                       bootstrap has been used
                                     - "bc" ==> bias corrected (Bc) confidence interval
-  # should be.
      level(real 0.95)           --> confidence level (default 0.95)
      digits(integer 3)          --> number of digits to display (default 3)
   */
@@ -2749,11 +2748,7 @@ program ci, rclass
   
   /* Display results */
   display
-  local title "Partial least squares SEM"
-  local nobs: display _skip(0) "`title'" _col(49) ///
-    "Number of obs" _col(69) "=" _skip(5)
-  display as text "`nobs'" _continue
-  display as result e(N)
+  display as text "Consistent partial least squares (PLSc) SEM"
   display
   local subtitle "Confidence intervals for model's coefficients"
   display as text "`subtitle'"
@@ -2761,6 +2756,8 @@ program ci, rclass
   display as result "`e(vce)'"
   display as text "Confidence interval method: " _continue
   display as result "`type'"
+  display as text "Number of obs: " _continue
+  display as result e(N)
 
   local skip1 = 1
   local clevel = `level'*100
