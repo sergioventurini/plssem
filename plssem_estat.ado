@@ -3015,7 +3015,7 @@ program ic, rclass
   }
 
   /* Set temporary variables */
-  local allreflective = e(reflective)
+  local allendogenous "`: colnames e(struct_b)'"
   local tempnamelist
 
   /* Compute the model selection criteria */
@@ -3031,12 +3031,12 @@ program ic, rclass
 
   /* Display results */
   mata: st_matrix("`res_crit'", `mata_crit')
-  matrix rownames `res_crit' = `allreflective'
+  matrix rownames `res_crit' = `allendogenous'
   matrix colnames `res_crit' = "AIC AICc AICu BIC FPE HQ HQc"
 
   mktable, matrix(`res_crit') digits(`digits') ///
     title("Model information and selection criteria") ///
-    firstcolwidth(13) colwidth(15) novlines hlines(`: word count `allreflective'')
+    firstcolwidth(13) colwidth(15) novlines hlines(`: word count `allendogenous'')
   
   /* Return values */
   return matrix ic `res_crit'
