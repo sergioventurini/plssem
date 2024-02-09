@@ -1,5 +1,5 @@
 *!plssemc_estat version 0.5.2
-*!Written 08Feb2024
+*!Written 09Feb2024
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -10,7 +10,7 @@ program plssemc_estat, rclass
   local ismi = (e(cmd) == "mi estimate")
 
   if (`ismi') {
-    display as error "plssem postestimation is not available after multiple imputation"
+    display as error "plssemc postestimation is not available after multiple imputation"
     exit
   } 
   if ("`subcmd'" == substr("indirect", 1, max(2, `lsubcmd'))) {
@@ -33,6 +33,9 @@ program plssemc_estat, rclass
   }
   else if ("`subcmd'" == substr("ic", 1, max(2, `lsubcmd'))) {
     ic_c `rest'
+  }
+  else if ("`subcmd'" == substr("dist", 1, max(2, `lsubcmd'))) {
+    dist_c `rest'
   }
   else if ("`subcmd'" == substr("ci", 1, max(2, `lsubcmd'))) {
     ci_c `rest'
@@ -1149,6 +1152,109 @@ program f2_c, rclass
   
   /* Return values */
   return matrix f2 `res_f2'
+
+  /* Clean up */
+  capture mata: cleanup(st_local("tempnamelist"))
+end
+
+program dist_c, rclass
+  version 15.1
+  syntax , [ DIGits(integer 3) ]
+  
+  /* Options:
+     --------
+     digits(integer 3)          --> number of digits to display (default 3)
+  */
+   
+  /* Description:
+     ------------
+     This postestimation command provides some model distance measures.
+  */
+  
+  if (`digits' < 0) {
+    display as error "number of digits must be a nonnegative integer"
+    exit
+  }
+
+  /* Set temporary variables */
+  tempvar __touse__
+  quietly generate `__touse__' = e(sample)
+  local allindicators = e(mvs)
+  local alllatents = e(lvs)
+  local tempnamelist
+
+  tempname modes
+  local num_lv: word count `alllatents'
+  local modeA = e(reflective)
+  matrix `modes' = J(`num_lv', 1, 1)
+  local i = 1
+  foreach var in `alllatents' {
+    if (`: list var in modeA') {
+      matrix `modes'[`i', 1] = 0
+    }
+    local ++i
+  }
+  
+ /* Compute the geodesic distance */
+ tempname mata_DG
+  local tempnamelist "`tempnamelist' `mata_DG'"
+  capture noisily {
+    mata: `mata_DG' = ///
+      plssem_DG( ///
+        st_data(., "`allindicators'"), ///       note: `__touse__' not used here
+        st_matrix("e(adj_meas)"), ///
+        st_matrix("e(adj_struct)"), ///
+        st_matrix("e(outerweights)"), ///
+        st_matrix("`modes'"), ///
+        editmissing(st_matrix("e(loadings)"), 0), ///
+        st_matrix("e(pathcoef)"), ///
+        "`__touse__'")
+  }
+
+ /* Compute the squared Euclidean distance */
+ tempname mata_DL
+  local tempnamelist "`tempnamelist' `mata_DL'"
+  capture noisily {
+    mata: `mata_DL' = ///
+      plssem_DL( ///
+        st_data(., "`allindicators'"), ///       note: `__touse__' not used here
+        st_matrix("e(adj_meas)"), ///
+        st_matrix("e(adj_struct)"), ///
+        st_matrix("e(outerweights)"), ///
+        st_matrix("`modes'"), ///
+        editmissing(st_matrix("e(loadings)"), 0), ///
+        st_matrix("e(pathcoef)"), ///
+        "`__touse__'")
+  }
+
+ /* Compute the ML distance */
+ tempname mata_DML
+  local tempnamelist "`tempnamelist' `mata_DML'"
+  capture noisily {
+    mata: `mata_DML' = ///
+      plssem_DML( ///
+        st_data(., "`allindicators'"), ///       note: `__touse__' not used here
+        st_matrix("e(adj_meas)"), ///
+        st_matrix("e(adj_struct)"), ///
+        st_matrix("e(outerweights)"), ///
+        st_matrix("`modes'"), ///
+        editmissing(st_matrix("e(loadings)"), 0), ///
+        st_matrix("e(pathcoef)"), ///
+        "`__touse__'")
+  }
+
+  /* Display results */
+  tempname res_dist
+  mata: st_matrix("`res_dist'", (`mata_DG' \ `mata_DL' \ `mata_DML'))
+  matrix rownames `res_dist' = Geodesic Squared_Euclidean ML
+  matrix colnames `res_dist' = "Value"
+
+  mktable, matrix(`res_dist') digits(`digits') ///
+    firstcolname("Measure") title("Distance measures") ///
+    firstcolwidth(20) colwidth(14) novlines hlines(3)
+  
+  /* Return values */
+  return matrix dist `res_dist'
 
   /* Clean up */
   capture mata: cleanup(st_local("tempnamelist"))

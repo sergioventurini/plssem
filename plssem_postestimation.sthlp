@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 0.5.2  08Feb2024}{...}
+{* *! version 0.5.2  09Feb2024}{...}
 {vieweralsosee "plssem" "help plssem"}{...}
 {vieweralsosee "plssemplot" "help plssemplot"}{...}
 {viewerjumpto "Postestimation commands" "plssem postestimation##description"}{...}
@@ -9,6 +9,7 @@
 {viewerjumpto "estat mediate stored results" "plssem postestimation##results_mediate"}{...}
 {viewerjumpto "estat f2 stored results" "plssem postestimation##results_f2"}{...}
 {viewerjumpto "estat ic stored results" "plssem postestimation##results_ic"}{...}
+{viewerjumpto "estat dist stored results" "plssem postestimation##results_dist"}{...}
 {viewerjumpto "predict" "plssem postestimation##syntax_predict"}{...}
 {viewerjumpto "predict options" "plssem postestimation##options_predict"}{...}
 {viewerjumpto "predict stored results" "plssem postestimation##results_predict"}{...}
@@ -47,8 +48,10 @@ The following postestimation commands are of special interest after
   for all model's coefficients{p_end}
 {synopt:{helpb plssem postestimation##f2:estat f2}}Cohen's f^2 effect
   sizes{p_end}
-{synopt:{helpb plssem postestimation##ic:estat ic}}Model's information and
+{synopt:{helpb plssem postestimation##ic:estat ic}}model's information and
   selection criteria{p_end}
+{synopt:{helpb plssem postestimation##dist:estat dist}}model's distance
+  measures{p_end}
 {synoptline}
 {p2colreset}{...}
 {p 4 6 2}
@@ -157,6 +160,15 @@ Display the model's information and selection criteria
 [{opt dig:its(#)}]
 
 
+{marker dist}{...}
+{pstd}
+Display the model's distance measures
+
+{p 8 14 2}
+{cmd:estat} {cmdab:dist},
+[{opt dig:its(#)}]
+
+
 {marker desc_estat}{...}
 {title:Description for estat}
 
@@ -224,6 +236,11 @@ Corrected AIC (AICc), Unbiased AIC (AICu), Bayesian information criterion (BIC),
 final prediction error (FPE), Hannan-Quinn criterion (HQ) and Corrected HQ criterion
 (HQc). The definitions used by the commend for these indexes can be found in table B1
 of {help plssemc_postestimation##Sharma2019:Sharma et al. 2019}.
+
+{pstd} {cmd:estat dist}
+computes some measures of the distance between the empirical and the model-implied
+indicator correlation matrices. Currently, the geodesic distance, the squared Euclidean
+distance and the the maximum likelihood-based distance function are implemented.
 
  
 {marker options_estat}{...}
@@ -558,6 +575,18 @@ are not saved in the data set.
 {synoptset 20 tabbed}{...}
 {p2col 5 20 24 2: Matrices}{p_end}
 {synopt:{cmd:r(ic)}}matrix of the model's information and selection criteria{p_end}
+{p2colreset}{...}
+
+
+{marker results_dist}{...}
+{title:Stored results for estat dist}
+
+{pstd}
+{cmd:estat dist} stores the following in {cmd:r()}:
+
+{synoptset 20 tabbed}{...}
+{p2col 5 20 24 2: Matrices}{p_end}
+{synopt:{cmd:r(dist)}}matrix of the model's distance measures{p_end}
 {p2colreset}{...}
 
 
