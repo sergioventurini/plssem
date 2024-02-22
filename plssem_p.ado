@@ -1,5 +1,5 @@
-*!plssem_p version 0.4.0
-*!Written 05Jul2023
+*!plssem_p version 0.4.1
+*!Written 17Feb2024
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -64,8 +64,8 @@ program plssem_p, rclass sortpreserve
     display as txt "(the model doesn't include any structural part; " _continue
     display as txt "quantities saved only for the measurement part)"
   }
-  local noscale "unscaled"
-  local isnoscale : list noscale in props
+  local unscaled "unscaled"
+  local isunscaled : list unscaled in props
   local knnimp "knn"
   local isknnimp : list knnimp in props
   local meanimp "mean"
@@ -175,7 +175,7 @@ program plssem_p, rclass sortpreserve
   if (!`noreflective') {
     tempname ores mvs_nm
     local tempnamelist "`tempnamelist' `mvs_nm'"
-    if (!`isnoscale') {
+    if (!`isunscaled') {
       mata: st_matrix("`indicators_std'", ///
         scale(st_matrix("`indicators'")[., `mvs_idx']))
       matrix `ores' = `indicators_std' - `ohat'
@@ -256,14 +256,14 @@ program plssem_p, rclass sortpreserve
         if (_rc == 110) {
           quietly drop `varname'
         }
-        quietly generate `varname' = .
+        quietly generate double `varname' = .
         label variable `varname' "Fitted values for outer model (`: word `j' of `indvs'') [`now']"
       }
       tempname ohat_mata orig_m orig_s
       local tempnamelist "`tempnamelist' `ohat_mata' `orig_m' `orig_s'"
       mata: `ohat_mata' = st_matrix("`ohat'")
-      mata: `orig_m' = mean(`original_data_exp')
-      mata: `orig_s' = sd(`original_data_exp')
+      mata: `orig_m' = mean(`original_data_exp')[`mvs_idx']
+      mata: `orig_s' = sd(`original_data_exp')[`mvs_idx']
       mata: st_matrix("`ohat'", unscale(scale(`ohat_mata'), `orig_s', `orig_m'))
       mata: st_store(., tokens("`ohat_nm'"), "`__touse__'", st_matrix("`ohat'"))
     }
@@ -274,7 +274,7 @@ program plssem_p, rclass sortpreserve
         if (_rc == 110) {
           quietly drop `varname'
         }
-        quietly generate `varname' = .
+        quietly generate double `varname' = .
         label variable `varname' "Fitted values for inner model (`: word `j' of `endovs'') [`now']"
       }
       mata: st_store(., tokens("`ihat_nm'"), "`__touse__'", st_matrix("`ihat'"))
@@ -289,7 +289,7 @@ program plssem_p, rclass sortpreserve
         if (_rc == 110) {
           quietly drop `varname'
         }
-        quietly generate `varname' = .
+        quietly generate double `varname' = .
         label variable `varname' "Residuals for outer model (`: word `j' of `indvs'') [`now']"
       }
       mata: st_store(., tokens("`ores_nm'"), "`__touse__'", st_matrix("`ores'"))
@@ -301,7 +301,7 @@ program plssem_p, rclass sortpreserve
         if (_rc == 110) {
           quietly drop `varname'
         }
-        quietly generate `varname' = .
+        quietly generate double `varname' = .
         label variable `varname' "Residuals for inner model (`: word `j' of `endovs'') [`now']"
       }
       mata: st_store(., tokens("`ires_nm'"), "`__touse__'", st_matrix("`ires'"))

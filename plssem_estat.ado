@@ -1,5 +1,5 @@
-*!plssem_estat version 0.5.2
-*!Written 09Feb2024
+*!plssem_estat version 0.5.3
+*!Written 22Feb2024
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -43,6 +43,9 @@ program plssem_estat, rclass
   }
   else if ("`subcmd'" == substr("ci", 1, max(2, `lsubcmd'))) {
     ci `rest'
+  }
+  else if ("`subcmd'" == substr("blindfolding", 1, max(2, `lsubcmd'))) {
+    blindf `rest'
   }
   else {
     // estat_default `0'
@@ -3040,6 +3043,187 @@ program ic, rclass
   
   /* Return values */
   return matrix ic `res_crit'
+
+  /* Clean up */
+  capture mata: cleanup(st_local("tempnamelist"))
+end
+
+program blindf, rclass
+  version 15.1
+  syntax , DIStance(numlist integer >1 min=1 max=1) [ DIGits(integer 3) ]
+  
+  /* Options:
+     --------
+     distance(numlist integer >1 min=1 max=1)
+                                --> omission distance
+     digits(integer 3)          --> number of digits to display (default 3)
+  */
+   
+  /* Description:
+     ------------
+     This postestimation command applies the blindfolding approach to a fitted model.
+  */
+  
+  tempvar __touse__
+  quietly generate `__touse__' = e(sample)
+
+  local struct "structural"
+  local props = e(properties)
+  local isstruct : list struct in props
+  if (!`isstruct') {
+    display as error "the fitted plssem model includes only the measurement part"
+    exit
+  }
+
+  mata: st_local("endo_nm", ///
+    invtokens(tokens("`e(lvs)'")[selectindex(colsum(st_matrix("e(adj_struct)")))]))
+  local refl_nm `e(reflective)'
+  local endo_refl : list endo_nm & refl_nm
+  if ("`endo_refl'" == "") {
+    display as error "the blindfolding procedure requires at least one " _continue
+    display as error "endogenous reflective latent variable"
+    exit
+  }
+
+  if (`digits' < 0) {
+    display as error "number of digits must be a nonnegative integer"
+    exit
+  }
+
+  local n e(N)
+  if (mod(`n', `distance') == 0) {
+    display as error "omission distance must not be a divisor of sample size"
+    exit
+  }
+
+  /* Compute the q^2 effect sizes through blindfolding */
+  tempname res_q2 mata_q2 X isbinary i nvals modes Xstd Yinit res_blind
+  tempname mata_blind
+  local tempnamelist "`tempnamelist' `mata_q2' `X' `isbinary' `i' `nvals'"
+  local tempnamelist "`tempnamelist' `Xstd' `Yinit' `mata_blind'"
+
+  mata: `X' = st_data(., "`e(mvs)'", "`__touse__'")   // note: ___touse___
+                                                      // already applied
+  local mean "mean"
+  local ismean : list mean in props
+  if (`ismean') {
+    mata: `isbinary' = plssem_isbinary(`X')
+    mata: `X' = meanimp_mat(`X', `isbinary')
+  }
+  local alllatents = e(lvs)
+  local allindicators = e(mvs)
+  foreach var in `allindicators' {
+    local allstdindicators "`allstdindicators' std`var'"
+  }
+  local allstdindicators : list clean allstdindicators
+  local initmeth "eigen indsum"
+  local init: list props & initmeth
+  local schemeval "centroid factorial path"
+  local scheme: list props & schemeval
+  local relative "relative square"
+  local convcrit: list props & relative
+  local rawsum "rawsum"
+  local rawsum_sc : list rawsum in props
+  local num_lv: word count `alllatents'
+  local modeA = e(reflective)
+  matrix `modes' = J(`num_lv', 1, 1)
+  local i = 1
+  foreach var in `alllatents' {
+    if (`: list var in modeA') {
+      matrix `modes'[`i', 1] = 0
+    }
+    local ++i
+  }
+  
+  capture noisily {
+    mata: `Xstd' = ///
+      plssem_scale_mat( ///
+        `X', ///
+        ., ///
+        "")
+
+    mata: `Yinit' = ///
+      plssem_init_mat( ///
+        `Xstd', ///
+        st_matrix("e(adj_meas)"), ///
+        "`allindicators'", ///
+        "`allstdindicators'", ///
+        "`alllatents'", ///
+        "`__touse__'", ///
+        strtoreal("`rawsum_sc'"), ///
+        "`init'")
+
+    mata: `mata_blind' = ///
+      plssem_blindfolding( ///
+        `X', ///
+        `Yinit', ///
+        st_matrix("e(adj_meas)"), ///
+        st_matrix("e(adj_struct)"), ///
+        st_matrix("`modes'"), ///
+        "`alllatents'", ///
+        "`e(binary)'", ///
+        st_numscalar("e(tolerance)"), ///
+        st_numscalar("e(maxiter)"), ///
+        "`__touse__'", ///
+        "`scheme'", ///
+        "`convcrit'", ///
+        strtoreal("`isstruct'"), ///
+        strtoreal("`rawsum_sc'"), ///
+        0, ///
+        `distance')
+
+    mata: `mata_q2' = ///
+      plssem_q2( ///
+        `X', ///
+        `Yinit', ///
+        st_matrix("e(adj_meas)"), ///
+        st_matrix("e(adj_struct)"), ///
+        st_matrix("`modes'"), ///
+        "`alllatents'", ///
+        "`e(binary)'", ///
+        st_numscalar("e(tolerance)"), ///
+        st_numscalar("e(maxiter)"), ///
+        "`__touse__'", ///
+        "`scheme'", ///
+        "`convcrit'", ///
+        strtoreal("`isstruct'"), ///
+        strtoreal("`rawsum_sc'"), ///
+        0, ///
+        `distance')
+  }
+
+  /* Display results */
+  mata: st_matrix("`res_blind'", `mata_blind')
+  matrix rownames `res_blind' = `endo_refl'
+  matrix colnames `res_blind' = "SSO SSE Q2"
+
+  mktable, matrix(`res_blind') digits(`digits') firstcolname("Variable") ///
+    title("Blindfolding - Construct cross-validated redundancy - Q^2 measures") ///
+    firstcolwidth(14) colwidth(14) novlines hlines(`: word count `endo_refl'')
+
+  mata: st_local("q2isempty", ///
+    strofreal(`mata_q2' == J(rows(`mata_q2'), cols(`mata_q2'), .)))
+  if (!`q2isempty') {
+    mata: st_local("q2_nonmiss", invtokens( ///
+      tokens("`alllatents'")[selectindex(colnonmissing(`mata_q2') :!= 0)]))
+    local q2_nm : list q2_nonmiss & endo_refl
+    mata: st_matrix("`res_q2'", plssem_remove_miss_cols(`mata_q2'))
+    matrix rownames `res_q2' = `alllatents'
+    matrix colnames `res_q2' = `q2_nm'
+
+    mktable, matrix(`res_q2') digits(`digits') ///
+      title("Effect sizes  - q^2 measures") ///
+      firstcolwidth(14) colwidth(14) novlines hlines(`: word count `alllatents'')
+  }
+  else {
+    display as text "note: the q^2 measures are not available for this model"
+  }
+ 
+  /* Return values */
+  return matrix Q2 `res_blind'
+  if (!`q2isempty') {
+    return matrix q2 `res_q2'
+  }
 
   /* Clean up */
   capture mata: cleanup(st_local("tempnamelist"))
