@@ -1,5 +1,5 @@
 *!plssemc version 0.5.1
-*!Written 03Aug2023
+*!Written 06Apr2024
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -527,6 +527,23 @@ program Estimate_c, eclass byable(recall)
     local parenthesis = "("
     local reg3eqs : list reg3eqs - parenthesis
     local reg3eqs : list clean reg3eqs
+
+    tokenize `reg3eqs', parse("()")
+    local tok_i = 1
+    while ("``tok_i''" != "") {
+      if ("``tok_i''" != "(" & "``tok_i''" != ")") {
+        local check_lv_new : word 1 of ``tok_i''
+        local check_lv "`check_lv' `check_lv_new'"
+      }
+      local ++tok_i
+    }
+    local check_lv : list clean check_lv
+    local check_lv_uniq : list uniq check_lv
+    if (`: word count `check_lv'' != `: word count `check_lv_uniq'') {
+      display as error "specify a single equation for each construct in the structural model"
+      error 198
+      exit
+    }
 
     foreach var in `alllatents' {
       if ("`r`var''`c`var''" == "") {
