@@ -1,5 +1,5 @@
-*!plssemc_estat version 0.5.3
-*!Written 22Feb2024
+*!plssemc_estat version 0.6.0
+*!Written 25Apr2024
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -787,26 +787,24 @@ program htmt_c, rclass
   capture noisily {
     mata: `mata_htmt' = ///
       plssem_htmt( ///
-        st_data(., "`allindicators'"), ///       note: `__touse__' not used here
+        st_matrix("e(ind_vcv)"), ///
         st_matrix("e(adj_meas)"), ///
         "`allindicators'", ///
         "`allstdindicators'", ///
         "`alllatents'", ///
         "`e(binarylvs)'", ///
         "`e(reflective)'", ///
-        `is_all', ///
-        "`__touse__'")
+        `is_all')
     mata: `mata_htmt2' = ///
       plssem_htmt2( ///
-        st_data(., "`allindicators'"), ///       note: `__touse__' not used here
+        st_matrix("e(ind_vcv)"), ///
         st_matrix("e(adj_meas)"), ///
         "`allindicators'", ///
         "`allstdindicators'", ///
         "`alllatents'", ///
         "`e(binarylvs)'", ///
         "`e(reflective)'", ///
-        `is_all', ///
-        "`__touse__'")
+        `is_all')
   }
 
   /* Display results */
@@ -976,8 +974,8 @@ program ci_c, rclass
       mata: `load_boot' = st_matrix("e(loadings_breps)")
       mata: `path_boot' = st_matrix("e(pathcoef_breps)")
       mata: `path_boot' = `path_boot'[., selectindex(colnonmissing(`path_boot'))]
-      mata: `load_q' = quantile(`load_boot', (1 - `alpha_cl' \ `alpha_cl'), 1)
-      mata: `path_q' = quantile(`path_boot', (1 - `alpha_cl' \ `alpha_cl'), 1)
+      mata: `load_q' = plssem_quantile(`load_boot', (1 - `alpha_cl' \ `alpha_cl'), 1)
+      mata: `path_q' = plssem_quantile(`path_boot', (1 - `alpha_cl' \ `alpha_cl'), 1)
       mata: `mata_load_lower' = `load_q'[1, .]'
       mata: `mata_load_upper' = `load_q'[2, .]'
       mata: st_matrix("`ci_load'", ///
@@ -1204,14 +1202,15 @@ program dist_c, rclass
   capture noisily {
     mata: `mata_DG' = ///
       plssem_DG( ///
-        st_data(., "`allindicators'"), ///       note: `__touse__' not used here
+        st_matrix("e(ind_vcv)"), ///
         st_matrix("e(adj_meas)"), ///
         st_matrix("e(adj_struct)"), ///
         st_matrix("e(outerweights)"), ///
         st_matrix("`modes'"), ///
         editmissing(st_matrix("e(loadings)"), 0), ///
         st_matrix("e(pathcoef)"), ///
-        "`__touse__'")
+        st_matrix("e(construct_vcv)"), ///
+        st_matrix("e(proxy_vcv)"))
   }
 
  /* Compute the squared Euclidean distance */
@@ -1220,14 +1219,15 @@ program dist_c, rclass
   capture noisily {
     mata: `mata_DL' = ///
       plssem_DL( ///
-        st_data(., "`allindicators'"), ///       note: `__touse__' not used here
+        st_matrix("e(ind_vcv)"), ///
         st_matrix("e(adj_meas)"), ///
         st_matrix("e(adj_struct)"), ///
         st_matrix("e(outerweights)"), ///
         st_matrix("`modes'"), ///
         editmissing(st_matrix("e(loadings)"), 0), ///
         st_matrix("e(pathcoef)"), ///
-        "`__touse__'")
+        st_matrix("e(construct_vcv)"), ///
+        st_matrix("e(proxy_vcv)"))
   }
 
  /* Compute the ML distance */
@@ -1236,14 +1236,15 @@ program dist_c, rclass
   capture noisily {
     mata: `mata_DML' = ///
       plssem_DML( ///
-        st_data(., "`allindicators'"), ///       note: `__touse__' not used here
+        st_matrix("e(ind_vcv)"), ///
         st_matrix("e(adj_meas)"), ///
         st_matrix("e(adj_struct)"), ///
         st_matrix("e(outerweights)"), ///
         st_matrix("`modes'"), ///
         editmissing(st_matrix("e(loadings)"), 0), ///
         st_matrix("e(pathcoef)"), ///
-        "`__touse__'")
+        st_matrix("e(construct_vcv)"), ///
+        st_matrix("e(proxy_vcv)"))
   }
 
   /* Display results */
@@ -1385,6 +1386,8 @@ program blindf_c, rclass
   }
   local alllatents = e(lvs)
   local allindicators = e(mvs)
+  local robust = e(robust)
+  local ordinal = e(ordinal)
   foreach var in `allindicators' {
     local allstdindicators "`allstdindicators' std`var'"
   }
@@ -1443,7 +1446,12 @@ program blindf_c, rclass
         strtoreal("`isstruct'"), ///
         strtoreal("`rawsum_sc'"), ///
         1, ///
-        `distance')
+        `distance', ///
+        1, ///
+        0, ///
+        "`robust'", ///
+        "`allindicators'", ///
+        "`ordinal'")
 
     mata: `mata_q2' = ///
       plssem_q2( ///
@@ -1462,7 +1470,11 @@ program blindf_c, rclass
         strtoreal("`isstruct'"), ///
         strtoreal("`rawsum_sc'"), ///
         1, ///
-        `distance')
+        `distance', ///
+        0, ///
+        "`robust'", ///
+        "`allindicators'", ///
+        "`ordinal'")
   }
 
   /* Display results */

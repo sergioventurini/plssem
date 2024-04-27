@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 0.5.0  03Aug2023}{...}
+{* *! version 0.6.0  25Apr2024}{...}
 {vieweralsosee "plssem postestimation" "help plssem postestimation"}{...}
 {vieweralsosee "plssemplot" "help plssemplot"}{...}
 {vieweralsosee "plssemc" "help plssemc"}{...}
@@ -71,6 +71,10 @@ and P the number of latent variables in the model).
 {synopt:{cmd:no}{cmdab:sc:ale}}manifest variables are not standardized before running the algorithm{p_end}
 {synopt:{cmdab:conv:crit(relative)}}relative convergence criterion; the default{p_end}
 {synopt:{cmdab:conv:crit(square)}}square convergence criterion{p_end}
+{synopt:{opth ord:inal(varlist)}}list of ordinal indicators{p_end}
+{synopt:{cmdab:rob:ust(none)}}use non-robust correlation measures (see below for more details){p_end}
+{synopt:{cmdab:rob:ust(spearman)}}use the Spearman rank correlation measure{p_end}
+{synopt:{cmdab:rob:ust(mcd)}}use a robust correlation measure (minimum covariance determinant, MCD){p_end}
 {synoptline}
 
 {p 4 6 2}
@@ -231,6 +235,20 @@ the manifest variables are not standardized before running the algorithm.
 the convergence criterion to use. Alternative choices are {bf:relative} or {bf:square}. The
 default is {bf:relative}.
 
+{phang}{opt ordinal(ind)}
+specifies the list of indicators to treat as ordinal; for these variables, the polyserial
+or polychoric measures are used to assess the correlation with the other indicators. In
+other terms, this option implements a version of ordinal PLS (OrdPLS) approach (see {help plssem##CantaluppiBoari2016:Cantaluppi and Boari 2016})
+
+{phang}{opt robust(corr_method)}
+specifies the method to use for computing the correlation among the indicators. If
+{it:corr_method} is set to {bf:none}, the standard Bravais-Pearson correlation is used
+if the indicators are numerical, while the polyserial or polychoric correlations are
+used for the ordinal/categorical indicators (OrdPLS). If {it:corr_method} is set to
+{bf:spearman}, the Spearman rank correlation measure is used. Finally, if
+{it:corr_method} is set to {bf:mcd}, the minimum covariance determinant (MCD) approach
+is used (see {help plssem##RousseeuwvanDriessen1999:Rousseeuw and K. van Driessen 1999}). The latter provides an implementation of the robust PLS (Robust PLS) approach (see {help plssem##Schambergeretal2020:Schamberger et al. 2020}).
+
 
 {marker examples}{...}
 {title:Examples}
@@ -351,6 +369,8 @@ Norwegian University of Science and Technology{break}
 whether the bootstrap has been used, whether the model has a structural part, whether the
 {cmd:rawsum} option has been used, and whether the manifest variables have been scaled or
 not{p_end}
+{synopt:{cmd:e(robust)}}robust correlation method used{p_end}
+{synopt:{cmd:e(ordinal)}}list of indicators treated as ordinal (if any){p_end}
 
 {synoptset 24 tabbed}{...}
 {p2col 5 24 28 2: Matrices}{p_end}
@@ -385,6 +405,12 @@ if the {cmd:boot()} option is chosen){p_end}
 {synopt:{cmd:e(imputed_data)}}matrix of imputed indicators; available only if the
 the {cmd:missing} option has been used{p_end}
 {synopt:{cmd:e(R)}}latent variable correlation matrix{p_end}
+{synopt:{cmd:e(ind_vcv)}}indicators' variance-covariance matrix{p_end}
+{synopt:{cmd:e(proxy_vcv)}}proxies' variance-covariance matrix{p_end}
+{synopt:{cmd:e(construct_vcv)}}constructs' variance-covariance matrix{p_end}
+{synopt:{cmd:e(resid_corr)}}residuals' correlation matrix{p_end}
+{synopt:{cmd:e(struct_vif)}}inner model's variance inflation factors{p_end}
+{synopt:{cmd:e(reliabilities)}}construct reliabilities{p_end}
 
 {synoptset 24 tabbed}{...}
 {p2col 5 24 28 2: Functions}{p_end}
@@ -401,6 +427,10 @@ Baron, R. M., and Kenny, D. A. 1986. The Moderator-Mediator Variable Distinction
 Research: Conceptual, Strategic, and Statistical Considerations. Journal of
 Personality and Social Psychology, 51, 1173-1182.
 
+{marker CantaluppiBoari2016}{...}
+{phang}
+Cantaluppi, G., and Boari, G. 2016. A Partial Least Squares Algorithm Handling Ordinal Variables. In Abdi, H., Esposito Vinzi, V., Russolillo, G., Saporta, G. and Trinchera, L. (Eds.), {it:The Multiple Facets of Partial Least Squares and Related Methods}, (pp. 295-306). Springer.
+
 {marker Hairetal2022}{...}
 {phang}
 Hair, J. F., Hult, G. T. M., Ringle, C. M., and Sarstedt, M. 2022. {it:A Primer on Partial Least Squares Structural Equation Modeling (PLS-SEM)}. Third edition. Sage.
@@ -411,7 +441,15 @@ Lohmöller, J. B. 1989. {it:Latent Variable Path Modeling with Partial Least Squ
 
 {marker MehmetogluVenturini2021}{...}
 {phang}
-Mehmetoglu, M., and Venturini, S. 2021. {it:Structural Equation Modelling with Partial Least Squares Using Stata and R}. CRC Press
+Mehmetoglu, M., and Venturini, S. 2021. {it:Structural Equation Modelling with Partial Least Squares Using Stata and R}. CRC Press.
+
+{marker RousseeuwvanDriessen1999}{...}
+{phang}
+Rousseeuw, P. J. and van Driessen, K. 1999. A Fast Algorithm For The Minimum Covariance Determinant Estimator. Technometrics, 41, 212–223.
+
+{marker Schambergeretal2020}{...}
+{phang}
+Schamberger, T., Schuberth, F., Henseler, J., and Dijkstra, T. K. 2020. Robust Partial Least Squares Path Modeling. Behaviormetrika, 47, 1, 307–334.
 
 {marker Sobel1982}{...}
 {phang}

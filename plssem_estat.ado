@@ -1,5 +1,5 @@
-*!plssem_estat version 0.5.3
-*!Written 22Feb2024
+*!plssem_estat version 0.6.0
+*!Written 25Apr2024
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -778,6 +778,8 @@ program REBUS, rclass
   local allindicators = e(mvs)
   local alllatents = e(lvs)
   local allreflective = e(reflective)
+  local robust = e(robust)
+  local ordinal = e(ordinal)
   local num_ind : word count `allindicators'
   local num_lv : word count `alllatents'
   tempname cm ow path ind indstd y_local loads r2 block x_hat out_res endo ///
@@ -820,7 +822,9 @@ program REBUS, rclass
         strtoreal("`numclass'"), ///
         strtoreal("`maxiter'"), ///
         strtoreal("`stop'"), ///
-        1)
+        1, ///
+        "`robust'", ///
+        "`ordinal'")
     
     mata: st_local("iter", strofreal(`res_rebus'.niter))
     mata: st_local("rN0", strofreal(`res_rebus'.rN0))
@@ -960,7 +964,9 @@ program REBUS, rclass
         strtoreal("`numclass'"), ///
         strtoreal("`reps'"), ///
         strtoreal("`seed'"), ///
-        1)
+        1, ///
+        "`robust'", ///
+        "`ordinal'")
     }
     if (_rc != 0) {
       if (_rc == 409) {
@@ -1227,8 +1233,8 @@ program FIMIX, rclass
      the presence of unobserved heterogeneity.
   */
   
-  display as error "warning: FIMIX-PLS calculations are experimental"
-  display as error "         and need further testing; use at your own risk!"
+  display as error "warning: FIMIX-PLS calculations are experimental " _continue
+  display as error "and need further testing"
   
   local tempnamelist
 
@@ -1719,8 +1725,8 @@ program GAS, rclass
      the presence of unobserved heterogeneity.
   */
 
-  display as error "warning: PLS-GAS calculations are experimental"
-  display as error "         and need further testing; use at your own risk!"
+  display as error "warning: PLS-GAS calculations are experimental " _continue
+  display as error "and need further testing"
   
   local tempnamelist
 
@@ -1916,6 +1922,8 @@ program GAS, rclass
     local allstdindicators "`allstdindicators' std`var'"
   }
   local allstdindicators : list clean allstdindicators
+  local robust = e(robust)
+  local ordinal = e(ordinal)
 
   /* Run the PLS-GAS algorithm */
   tempname res_gas
@@ -1947,7 +1955,9 @@ program GAS, rclass
         strtoreal("`ptransf'"), ///
         strtoreal("`maxitgas'"), ///
         strtoreal("`seed'"), ///
-        1)
+        1, ///
+        "`robust'", ///
+        "`ordinal'")
     
     mata: st_local("iter", strofreal(`res_gas'.niter))
   }
@@ -2507,26 +2517,24 @@ program htmt, rclass
   capture noisily {
     mata: `mata_htmt' = ///
       plssem_htmt( ///
-        st_data(., "`allindicators'"), ///       note: `__touse__' not used here
+        st_matrix("e(ind_vcv)"), ///
         st_matrix("e(adj_meas)"), ///
         "`allindicators'", ///
         "`allstdindicators'", ///
         "`alllatents'", ///
         "`e(binarylvs)'", ///
         "`e(reflective)'", ///
-        `is_all', ///
-        "`__touse__'")
+        `is_all')
     mata: `mata_htmt2' = ///
       plssem_htmt2( ///
-        st_data(., "`allindicators'"), ///       note: `__touse__' not used here
+        st_matrix("e(ind_vcv)"), ///
         st_matrix("e(adj_meas)"), ///
         "`allindicators'", ///
         "`allstdindicators'", ///
         "`alllatents'", ///
         "`e(binarylvs)'", ///
         "`e(reflective)'", ///
-        `is_all', ///
-        "`__touse__'")
+        `is_all')
   }
 
   /* Display results */
@@ -2696,8 +2704,8 @@ program ci, rclass
       mata: `load_boot' = st_matrix("e(loadings_breps)")
       mata: `path_boot' = st_matrix("e(pathcoef_breps)")
       mata: `path_boot' = `path_boot'[., selectindex(colnonmissing(`path_boot'))]
-      mata: `load_q' = quantile(`load_boot', (1 - `alpha_cl' \ `alpha_cl'), 1)
-      mata: `path_q' = quantile(`path_boot', (1 - `alpha_cl' \ `alpha_cl'), 1)
+      mata: `load_q' = plssem_quantile(`load_boot', (1 - `alpha_cl' \ `alpha_cl'), 1)
+      mata: `path_q' = plssem_quantile(`path_boot', (1 - `alpha_cl' \ `alpha_cl'), 1)
       mata: `mata_load_lower' = `load_q'[1, .]'
       mata: `mata_load_upper' = `load_q'[2, .]'
       mata: st_matrix("`ci_load'", ///
@@ -2931,14 +2939,15 @@ program dist, rclass
   capture noisily {
     mata: `mata_DG' = ///
       plssem_DG( ///
-        st_data(., "`allindicators'"), ///       note: `__touse__' not used here
+        st_matrix("e(ind_vcv)"), ///
         st_matrix("e(adj_meas)"), ///
         st_matrix("e(adj_struct)"), ///
         st_matrix("e(outerweights)"), ///
         st_matrix("`modes'"), ///
         editmissing(st_matrix("e(loadings)"), 0), ///
         st_matrix("e(pathcoef)"), ///
-        "`__touse__'")
+        st_matrix("e(construct_vcv)"), ///
+        st_matrix("e(proxy_vcv)"))
   }
 
  /* Compute the squared Euclidean distance */
@@ -2947,14 +2956,15 @@ program dist, rclass
   capture noisily {
     mata: `mata_DL' = ///
       plssem_DL( ///
-        st_data(., "`allindicators'"), ///       note: `__touse__' not used here
+        st_matrix("e(ind_vcv)"), ///
         st_matrix("e(adj_meas)"), ///
         st_matrix("e(adj_struct)"), ///
         st_matrix("e(outerweights)"), ///
         st_matrix("`modes'"), ///
         editmissing(st_matrix("e(loadings)"), 0), ///
         st_matrix("e(pathcoef)"), ///
-        "`__touse__'")
+        st_matrix("e(construct_vcv)"), ///
+        st_matrix("e(proxy_vcv)"))
   }
 
  /* Compute the ML distance */
@@ -2963,14 +2973,15 @@ program dist, rclass
   capture noisily {
     mata: `mata_DML' = ///
       plssem_DML( ///
-        st_data(., "`allindicators'"), ///       note: `__touse__' not used here
+        st_matrix("e(ind_vcv)"), ///
         st_matrix("e(adj_meas)"), ///
         st_matrix("e(adj_struct)"), ///
         st_matrix("e(outerweights)"), ///
         st_matrix("`modes'"), ///
         editmissing(st_matrix("e(loadings)"), 0), ///
         st_matrix("e(pathcoef)"), ///
-        "`__touse__'")
+        st_matrix("e(construct_vcv)"), ///
+        st_matrix("e(proxy_vcv)"))
   }
 
   /* Display results */
@@ -3112,6 +3123,8 @@ program blindf, rclass
   }
   local alllatents = e(lvs)
   local allindicators = e(mvs)
+  local robust = e(robust)
+  local ordinal = e(ordinal)
   foreach var in `allindicators' {
     local allstdindicators "`allstdindicators' std`var'"
   }
@@ -3170,7 +3183,12 @@ program blindf, rclass
         strtoreal("`isstruct'"), ///
         strtoreal("`rawsum_sc'"), ///
         0, ///
-        `distance')
+        `distance', ///
+        1, ///
+        0, ///
+        "`robust'", ///
+        "`allindicators'", ///
+        "`ordinal'")
 
     mata: `mata_q2' = ///
       plssem_q2( ///
@@ -3189,7 +3207,11 @@ program blindf, rclass
         strtoreal("`isstruct'"), ///
         strtoreal("`rawsum_sc'"), ///
         0, ///
-        `distance')
+        `distance', ///
+        0, ///
+        "`robust'", ///
+        "`allindicators'", ///
+        "`ordinal'")
   }
 
   /* Display results */

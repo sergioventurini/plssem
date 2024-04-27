@@ -1,5 +1,5 @@
-*!plssemc version 0.5.1
-*!Written 06Apr2024
+*!plssemc version 0.6.0
+*!Written 25Apr2024
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -73,7 +73,7 @@ program Estimate_c, eclass byable(recall)
     MAXiter(integer 100) MISsing(string) k(numlist integer >0 max=1) ///
     INIT(string) DIGits(integer 3) noHEADer noMEAStable noDISCRIMtable ///
     noSTRUCTtable LOADPval STATs GRoup(string) CORRelate(string) RAWsum ///
-    noSCale CONVcrit(string) noCLeanup ]
+    noSCale CONVcrit(string) ORDinal(varlist) ROBust(string) noCLeanup ]
   
   /* Options:
      --------
@@ -119,6 +119,9 @@ program Estimate_c, eclass byable(recall)
      noscale                        --> manifest variables are not standardized
      convcrit                       --> convergence criterion (either 'relative'
                                         or 'square')
+     ordinal(varlist)               --> list of variables to be considered as ordinal
+     robust(string)                 --> robustness correlation method (either 'spearman'
+                                        or 'mcd')
      nocleanup                      --> Mata temporary objects are not removed
                                         (undocumented)
    */
@@ -222,12 +225,10 @@ program Estimate_c, eclass byable(recall)
   if ("`binary'" != "") {
     noisily {
       display
-      display as error "WARNING: the use of binary latent variables " _continue
+      display as error "warning: the use of binary latent variables " _continue
       display as error "goes beyond the original scopes of PLS-SEM. "
       display as error "         They are provided here only for exploratory " _continue
-      display as error "purposes and we suggest not to "
-      display as error "         report the corresponding results " _continue
-      display as error "in any published study or report."
+      display as error "purposes."
     }
     local binary : list clean binary
     foreach var in `binary' {
@@ -334,6 +335,32 @@ program Estimate_c, eclass byable(recall)
     exit
   }
   /* End of parsing the inner weight scheme */
+
+  /* Check the robust option */
+  if ("`robust'" == "") {
+    local robust "none"
+  }
+  else if !("`robust'" == "none" | "`robust'" == "spearman" | "`robust'" == "mcd") {
+    display as error "robust option can be either 'none', 'spearman' or 'mcd'"
+    exit
+  }
+  /* End of checking the robust option */
+
+  /* Check the ordinal option */
+  if ("`ordinal'" != "") {
+    local ordinal : list clean ordinal
+    local ordinal : list uniq ordinal
+    foreach var of local ordinal {
+      if (!`: list var in allindicators') {
+        display as error "one of the variables included in the 'ordinal' option is not an indicator"
+        exit
+      }
+    }
+  }
+  else {
+    local ordinal ""
+  }
+  /* End of checking the ordinal option */
 
   /* Check convergence parameters */
   if (`maxiter' <= 0) {
@@ -715,7 +742,12 @@ program Estimate_c, eclass byable(recall)
         "`convcrit'", ///
         st_numscalar("`struct_sc'"), ///
         st_numscalar("`rawsum_sc'"), ///
-        1)
+        1, ///
+        0, ///
+        0, ///
+        st_local("robust"), ///
+        st_local("allindicators"), ///
+        st_local("ordinal"))
     
     mata: st_numscalar("`converged'", `res'.converged)
     mata: st_numscalar("`iter'", `res'.niter)
@@ -748,8 +780,8 @@ program Estimate_c, eclass byable(recall)
     
     if ("`boot'" == "") {
       // note: in PLSc variances are available only using bootstrap
-      mata: `xload_v' = J(rows(`res'.loadings_c), cols(`res'.loadings_c), .)
-      mata: `path_v' = J(rows(`res'.path_c), cols(`res'.path_c), .)
+      mata: `xload_v' = J(rows(`res'.loadings), cols(`res'.loadings), .)
+      mata: `path_v' = J(rows(`res'.path), cols(`res'.path), .)
     }
     else {
       tempname res_bs
@@ -774,7 +806,10 @@ program Estimate_c, eclass byable(recall)
           1, ///
           strtoreal("`boot'"), ///
           strtoreal("`seed'"), ///
-          1)
+          1, ///
+          st_local("robust"), ///
+          st_local("allindicators"), ///
+          st_local("ordinal"))
       mata: st_local("n_inadmissible", strofreal(`res_bs'.n_inadmiss))
       mata: `xload_v' = `res_bs'.xloadings_v
       if ("`structural'" != "") {
@@ -818,11 +853,11 @@ program Estimate_c, eclass byable(recall)
   tempname loadings xloadings annihilate_se loadings_se xloadings_se
   local tempnamelist "`tempnamelist' `annihilate_se'"
 
-  mata: st_matrix("`loadings'", `res'.loadings_c)
+  mata: st_matrix("`loadings'", `res'.loadings)
   matrix rownames `loadings' = `loadrownames'
   matrix colnames `loadings' = `loadcolnames'
 
-  mata: st_matrix("`xloadings'", `res'.xloadings_c)
+  mata: st_matrix("`xloadings'", `res'.xloadings)
   matrix rownames `xloadings' = `loadrownames'
   matrix colnames `xloadings' = `loadcolnames'
 
@@ -861,7 +896,7 @@ program Estimate_c, eclass byable(recall)
     matrix rownames `sqcorr' = `modeA'
     matrix colnames `sqcorr' = `modeA'
     */
-    mata: st_matrix("`sqcorr'", `res'.R_c :^ 2)
+    mata: st_matrix("`sqcorr'", `res'.construct_vcv :^ 2)
     matrix rownames `sqcorr' = `alllatents'
     matrix colnames `sqcorr' = `alllatents'
   }
@@ -913,7 +948,7 @@ program Estimate_c, eclass byable(recall)
     tempname path path_se rsquared redundancy path_pval pathtab path_toteff
     local tempnamelist "`tempnamelist' `path_pval'"
     
-    mata: st_matrix("`path'", `res'.path_c)
+    mata: st_matrix("`path'", `res'.path)
     matrix rownames `path' = `alllatents'
     matrix colnames `path' = `alllatents'
 
@@ -929,11 +964,11 @@ program Estimate_c, eclass byable(recall)
     matrix rownames `path_se' = `alllatents'
     matrix colnames `path_se' = `alllatents'
 
-    mata: st_matrix("`rsquared'", `res'.r2_c)
+    mata: st_matrix("`rsquared'", `res'.r2)
     matrix rownames `rsquared' = "r2"
     matrix colnames `rsquared' = `alllatents'
     
-    mata: st_matrix("`redundancy'", `res'.r2_c :* st_matrix("`ave'"))
+    mata: st_matrix("`redundancy'", `res'.r2 :* st_matrix("`ave'"))
     matrix rownames `redundancy' = "redundancy"
     matrix colnames `redundancy' = `alllatents'
     
@@ -953,14 +988,14 @@ program Estimate_c, eclass byable(recall)
         ("`boot'" != ""))
 
     mata: st_matrix("`pathtab'", ///
-      plssem_pathtab(st_matrix("`path'"), `path_pval', `res'.r2_a_c))
+      plssem_pathtab(st_matrix("`path'"), `path_pval', `res'.r2_a))
     foreach var in `regest_all' {
       local pathtab_rownames "`pathtab_rownames' `var' ."
     }
     matrix rownames `pathtab' = `pathtab_rownames' "r2_a"
     matrix colnames `pathtab' = `lv_regest_all'
 
-    mata: st_matrix("`path_toteff'", `res'.total_effects_c)
+    mata: st_matrix("`path_toteff'", `res'.total_effects)
     matrix rownames `path_toteff' = `alllatents'
     matrix colnames `path_toteff' = `alllatents'
   }
@@ -1000,16 +1035,19 @@ program Estimate_c, eclass byable(recall)
     matrix rownames `strse' = `struct_rownames'
     matrix colnames `strse' = `lv_regest_all'
     
-    mata: st_matrix("`R_Y'", `res'.R_c)
+    mata: st_matrix("`R_Y'", `res'.construct_vcv)
     matrix rownames `R_Y' = `alllatents'
     matrix colnames `R_Y' = `alllatents'
-    mata: `path_vif_mata' = ///
-      plssem_vif(st_matrix("`R_Y'"), st_matrix("`adj_struct'"))
-    mata: st_matrix("`strvif'", ///
-      `path_vif_mata'[selectindex(rownonmissing(`path_vif_mata')), ///
-        selectindex(colnonmissing(`path_vif_mata'))])
-    matrix rownames `strvif' = `struct_rownames'
-    matrix colnames `strvif' = `lv_regest_all'
+//    mata: `path_vif_mata' = ///
+//      plssem_vif(st_matrix("`R_Y'"), st_matrix("`adj_struct'"))
+//    mata: st_matrix("`strvif'", ///
+//      `path_vif_mata'[selectindex(rownonmissing(`path_vif_mata')), ///
+//        selectindex(colnonmissing(`path_vif_mata'))])
+    mata: st_matrix("`strvif'", `res'.vif)
+//    matrix rownames `strvif' = `struct_rownames'
+    matrix rownames `strvif' = `alllatents'
+//    matrix colnames `strvif' = `lv_regest_all'
+    matrix colnames `strvif' = `alllatents'
   }
   /* End of setting up the tables of structural coefficients */
   
@@ -1135,6 +1173,8 @@ program Estimate_c, eclass byable(recall)
   ereturn scalar k_aux = 0
   ereturn scalar df_m = `df_m'
 
+  ereturn local ordinal `"`ordinal'"'
+  ereturn local robust `"`robust'"'
   ereturn local struct_eqs `"`reg3eqs'"'
   ereturn local formative `"`modeB'"'
   ereturn local reflective `"`modeA'"'
@@ -1225,6 +1265,34 @@ program Estimate_c, eclass byable(recall)
   if ("`stats'" != "") {
     ereturn matrix indstats = `indstats'
   }
+  tempname ind_vcv_mata proxy_vcv_mata construct_vcv_mata
+  tempname resid_corr_mata vif_mata reliabilities_mata
+  local tempnamelist "`tempnamelist' `ind_vcv_mata' `proxy_vcv_mata'"
+  local tempnamelist "`tempnamelist' `construct_vcv_mata' `resid_corr_mata'"
+  local tempnamelist "`tempnamelist' `vif_mata' `reliabilities_mata'"
+  mata: st_matrix("`ind_vcv_mata'", `res'.ind_vcv)
+  matrix rownames `ind_vcv_mata' = `loadrownames'
+  matrix colnames `ind_vcv_mata' = `loadrownames'
+  mata: st_matrix("`proxy_vcv_mata'", `res'.proxy_vcv)
+  matrix rownames `proxy_vcv_mata' = `alllatents'
+  matrix colnames `proxy_vcv_mata' = `alllatents'
+  mata: st_matrix("`construct_vcv_mata'", `res'.construct_vcv)
+  matrix rownames `construct_vcv_mata' = `alllatents'
+  matrix colnames `construct_vcv_mata' = `alllatents'
+  mata: st_matrix("`resid_corr_mata'", `res'.resid_corr)
+  matrix rownames `resid_corr_mata' = `loadrownames'
+  matrix colnames `resid_corr_mata' = `loadrownames'
+  mata: st_matrix("`vif_mata'", `res'.vif)
+  matrix rownames `vif_mata' = `alllatents'
+  matrix colnames `vif_mata' = `alllatents'
+  mata: st_matrix("`reliabilities_mata'", `res'.reliabilities)
+  matrix colnames `reliabilities_mata' = `alllatents'
+  ereturn matrix ind_vcv = `ind_vcv_mata'
+  ereturn matrix proxy_vcv = `proxy_vcv_mata'
+  ereturn matrix construct_vcv = `construct_vcv_mata'  // this is the same as e(R); to remove in future releases
+  ereturn matrix resid_corr = `resid_corr_mata'
+  ereturn matrix vif = `vif_mata'
+  ereturn matrix reliabilities = `reliabilities_mata'  // these are also included in e(relcoef)
   /* End of returning values */
   
   /* Display results */
@@ -1283,7 +1351,7 @@ program Compare_c, eclass sortpreserve
     MAXiter(integer 100) MISsing(string) k(numlist integer >0 max=1) ///
     INIT(string) DIGits(integer 3) noHEADer noMEAStable noDISCRIMtable ///
     noSTRUCTtable LOADPval STATs GRoup(string) CORRelate(string) RAWsum ///
-    noSCale CONVcrit(string) noCLeanup ]
+    noSCale CONVcrit(string) ORDinal(varlist) ROBust(string) noCLeanup ]
   
   /* Options:
      --------
@@ -1330,6 +1398,9 @@ program Compare_c, eclass sortpreserve
                                         only centered
      convcrit                       --> convergence criterion (either 'relative'
                                         or 'square')
+     ordinal(varlist)               --> list of variables to be considered as ordinal
+     robust(string)                 --> robustness correlation method (either 'spearman'
+                                        or 'mcd')
      nocleanup                      --> Mata temporary objects are not removed
                                         (undocumented)
    */
@@ -1452,6 +1523,8 @@ program Compare_c, eclass sortpreserve
   local allorigindicators = e(mvs_orig)
   local allreflective = e(reflective)
   local nlv : word count `alllatents'
+  local robust = e(robust)
+  local ordinal = e(ordinal)
   
   foreach what in `whatstr' {
     tempname tmp_`what' whole_`what' loadrownames_`what' loadcolnames_`what'
@@ -1604,7 +1677,12 @@ program Compare_c, eclass sortpreserve
         "`convcrit'", ///
         st_numscalar("`struct_sc'"), ///
         st_numscalar("`rawsum_sc'"), ///
-        1)
+        1, ///
+        0, ///
+        0, ///
+        st_local("robust"), ///
+        st_local("allindicators"), ///
+        st_local("ordinal"))
 
     /* Compute the model parameter variances */
     tempname xload_v path_v
@@ -1647,7 +1725,10 @@ program Compare_c, eclass sortpreserve
           1, ///
           strtoreal("`boot'"), ///
           strtoreal("`seed'"), ///
-          1)
+          1, ///
+          st_local("robust"), ///
+          st_local("allindicators"), ///
+          st_local("ordinal"))
       // mata: st_local("n_inadmissible", strofreal(`res_bs'.n_inadmiss))
       mata: `xload_v' = `res_bs'.xloadings_v
       if ("`structural'" != "") {
@@ -1658,7 +1739,7 @@ program Compare_c, eclass sortpreserve
     foreach what in `whatstr' {
       tempname strb_`what'_`ng' strvar_`what'_`ng' group_`what'_`ng'
       if ("`what'" == "path") {
-        mata: `tmp_mata' = `res'.path_c
+        mata: `tmp_mata' = `res'.path
         mata: `tmp_mata' = `tmp_mata'[selectindex(rownonmissing(`tmp_mata')), ///
           selectindex(colnonmissing(`tmp_mata'))]
         mata: st_matrix("`strb_`what'_`ng''", `tmp_mata')
@@ -1675,7 +1756,7 @@ program Compare_c, eclass sortpreserve
         matrix `strvar_`what'_`ng'' = vec(`strvar_`what'_`ng'')
       }
       else if ("`what'" == "loadings") {
-        mata: st_matrix("`strb_`what'_`ng''", `res'.loadings_c)
+        mata: st_matrix("`strb_`what'_`ng''", `res'.loadings)
         matrix rownames `strb_`what'_`ng'' = `loadrownames_`what''
         matrix colnames `strb_`what'_`ng'' = `loadcolnames_`what''
         matrix `strb_`what'_`ng'' = vec(`strb_`what'_`ng'')
@@ -1817,7 +1898,10 @@ program Compare_c, eclass sortpreserve
             st_data(., "`groupvar'"), ///            note: `touse' not used here
             strtoreal("`reps'"), ///
             strtoreal("`groupseed'"), ///
-            1)
+            1, ///
+            st_local("robust"), ///
+            st_local("allindicators"), ///
+            st_local("ordinal"))
         
         foreach what in `whatstr' {
           mata: st_matrix("`dtest_`what''", plssem_mga_perm_diff(`res_mga', ///
@@ -1848,7 +1932,10 @@ program Compare_c, eclass sortpreserve
             st_data(., "`groupvar'"), ///            note: `touse' not used here
             strtoreal("`reps'"), ///
             strtoreal("`groupseed'"), ///
-            1)
+            1, ///
+            st_local("robust"), ///
+            st_local("allindicators"), ///
+            st_local("ordinal"))
         
         foreach what in `whatstr' {
           mata: st_matrix("`dtest_`what''", plssem_mga_boot_diff(`res_mga', ///
