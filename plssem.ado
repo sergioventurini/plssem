@@ -1,5 +1,5 @@
 *!plssem version 0.6.0
-*!Written 25Apr2024
+*!Written 29Apr2024
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -1017,7 +1017,10 @@ program Estimate, eclass byable(recall) properties(mi)
       st_data(., "`allindicators'", "`touse'"), ///
       st_matrix("`loadings'"), ///
       st_matrix("`modes'"), ///
-      st_matrix("`outerW'")))
+      st_matrix("`outerW'"), ///
+      st_local("robust"), ///
+      st_local("allindicators"), ///
+      st_local("ordinal")))
   matrix rownames `relcoef' = "Cronbach" "DG" "rho_A"
   matrix colnames `relcoef' = `loadcolnames'
   /* End of computing the reliability coefficients */
@@ -1079,7 +1082,10 @@ program Estimate, eclass byable(recall) properties(mi)
       st_data(., "`allindicators'", "`touse'"), ///
       st_matrix("`adj_meas'"), ///
       st_matrix("`adj_struct'"), ///
-      st_matrix("`modes'"))
+      st_matrix("`modes'"), ///
+      st_local("robust"), ///
+      st_local("allindicators"), ///
+      st_local("ordinal"))
     mata: st_numscalar("`gof'", `gof_all'[1])
     mata: st_numscalar("`gof_r'", `gof_all'[2])
     matrix `mod_assessment' = J(1, 5, .)
@@ -1379,7 +1385,7 @@ program Compare, eclass sortpreserve
                                         or "path")
      binary(namelist min=1)         --> indicators to fit using logit
      boot(numlist integer >0
-          min=1 max=1)              --> bootstrap estimation (# of repetions)
+          min=1 max=1)              --> bootstrap estimation (# of replications)
      seed(numlist max=1)            --> bootstrap seed number
      tol(real 1e-7)                 --> tolerance (default 1e-7)
      maxiter(integer 100)           --> maximum number of iterations (default

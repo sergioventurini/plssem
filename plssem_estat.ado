@@ -1,5 +1,5 @@
 *!plssem_estat version 0.6.0
-*!Written 25Apr2024
+*!Written 29Apr2024
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -2844,6 +2844,8 @@ program f2, rclass
   quietly generate `__touse__' = e(sample)
   local allindicators = e(mvs)
   local alllatents = e(lvs)
+  local robust = e(robust)
+  local ordinal = e(ordinal)
   local tempnamelist
 
   tempname modes
@@ -2874,7 +2876,10 @@ program f2, rclass
         "`alllatents'", ///
         "`e(binarylvs)'", ///
         "`__touse__'", ///
-        0)
+        0, ///
+        "`robust'", ///
+        "`allindicators'", ///
+        "`ordinal'")
   }
 
   /* Display results */
