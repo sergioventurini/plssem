@@ -1,5 +1,5 @@
 *!plssemmat version 0.6.0
-*!Written 29Apr2024
+*!Written 02May2024
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -1060,6 +1060,8 @@ program Estimate_mat, eclass byable(recall) properties(mi)
   ereturn scalar converged = `converged'
   ereturn scalar k_aux = 0
   ereturn scalar df_m = `df_m'
+  mata: st_local("admissible", strofreal(`res'.admissible))
+  ereturn scalar admissible = `admissible'
 
   ereturn local ordinal `"`ordinal'"'
   ereturn local robust `"`robust'"'
