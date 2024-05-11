@@ -7,9 +7,13 @@ The companion package for simulating data in accordance with a given PLS-SEM mod
 
 # Installation notes
 
-To install `plssem` directly from GitHub you can run the following code in your Stata session:
+To install `plssem` directly from GitHub you need to use the `github` Stata package. You can install the latest version of the `github` package by executing the following code in your Stata session:
 
-    net install plssem, replace from(https://raw.githubusercontent.com/sergioventurini/plssem/master/)
+    net install github, from("https://haghish.github.io/github/")
+
+Then, you can install the `plssem` package using the following code in Stata:
+
+    github install sergioventurini/plssem
 
 # Authors
 Sergio Venturini, Department of Economic and Social Sciences, Università Cattolica del Sacro Cuore, Cremona, Italy
