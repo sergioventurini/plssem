@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 0.5.3  22Feb2024}{...}
+{* *! version 0.5.3  28May2024}{...}
 {vieweralsosee "plssem" "help plssem"}{...}
 {vieweralsosee "plssemplot" "help plssemplot"}{...}
 {viewerjumpto "Postestimation commands" "plssem postestimation##description"}{...}
@@ -98,7 +98,7 @@ Display the decomposition of the total effects in the corresponding direct and i
 Display the mediation analysis using partial least squares structural equation modelling
 
 {p 8 14 2}
-{cmd:estat} {cmdab:me:diate}
+{cmd:estat} {cmdab:me:diate}{cmd:,}
 {cmdab:ind:ep(}{it:varname}{cmd:)} {cmdab:med:(}{it:varname}{cmd:)}
 {cmdab:dep:(}{it:varname}{cmd:)} [{opt br:eps(#)} {opt s:eed(#)} {opt zlc:}
 {opt rit:} {opt rid:} {opt bc:a} {opt l:evel(#)} {opt dig:its(#)}]

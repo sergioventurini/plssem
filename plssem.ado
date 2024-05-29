@@ -1,5 +1,5 @@
-*!plssem version 0.6.0
-*!Written 02May2024
+*!plssem version 0.6.1
+*!Written 29May2024
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -775,8 +775,8 @@ program Estimate, eclass byable(recall) properties(mi)
     /* End of labeling the LVs */
     
     /* Compute the model parameter variances */
-    tempname xload_v path_v
-    local tempnamelist "`tempnamelist' `xload_v' `path_v'"
+    tempname xload_v path_v ow_v
+    local tempnamelist "`tempnamelist' `xload_v' `path_v' `ow_v'"
     
     if ("`boot'" == "") {
       mata: `xload_v' = ///
@@ -820,6 +820,7 @@ program Estimate, eclass byable(recall) properties(mi)
       mata: `xload_v' = `res_bs'.xloadings_v
       if ("`structural'" != "") {
         mata: `path_v' = `res_bs'.path_v
+        mata: `ow_v' = `res_bs'.ow_v
       }
     }
     /* End of computing the model parameter variances */
@@ -868,7 +869,7 @@ program Estimate, eclass byable(recall) properties(mi)
   matrix colnames `xloadings' = `loadcolnames'
 
   if ("`boot'" != "") {
-    tempname loadings_bs xloadings_bs
+    tempname loadings_bs xloadings_bs ow_bs
     
     mata: st_matrix("`loadings_bs'", `res_bs'.loadings_bs)
     matrix rownames `loadings_bs' = `loadrownames'
@@ -877,6 +878,12 @@ program Estimate, eclass byable(recall) properties(mi)
     mata: st_matrix("`xloadings_bs'", `res_bs'.xloadings_bs)
     matrix rownames `xloadings_bs' = `loadrownames'
     matrix colnames `xloadings_bs' = `loadcolnames'
+    
+    if ("`structural'" != "") {
+      mata: st_matrix("`ow_bs'", `res_bs'.ow_bs)
+      matrix rownames `ow_bs' = `loadrownames'
+      matrix colnames `ow_bs' = `loadcolnames'
+    }
   }
 
   mata: `annihilate_se' = editvalue(st_matrix("`adj_meas'"), 0, .)
@@ -887,6 +894,14 @@ program Estimate, eclass byable(recall) properties(mi)
   mata: st_matrix("`xloadings_se'", sqrt(`xload_v'))
   matrix rownames `xloadings_se' = `loadrownames'
   matrix colnames `xloadings_se' = `loadcolnames'
+
+  if ("`boot'" != "" & "`structural'" != "") {
+    tempname ow_se
+
+    mata: st_matrix("`ow_se'", sqrt(`ow_v') :* `annihilate_se')
+    matrix rownames `ow_se' = `loadrownames'
+    matrix colnames `ow_se' = `loadcolnames'
+  }
   /* End of computing the table of measurement loadings */
   
   /* Compute the table of average variance extracted (AVE) */
@@ -1238,8 +1253,17 @@ program Estimate, eclass byable(recall) properties(mi)
     ereturn matrix R = `R_Y'
     if ("`rawsum'" == "") {
       ereturn matrix reldiff = `matreldiff'
-      ereturn matrix outerweights =  `outerW'
-      ereturn matrix ow_history =  `Whistory'
+      ereturn matrix outerweights = `outerW'
+      ereturn matrix ow_history = `Whistory'
+      if ("`boot'" != "") {
+        tempname ow_reps
+        mata: st_matrix("`ow_reps'", `res_bs'.ow_reps)
+        matrix colnames `ow_reps' = `loadrownames'
+
+        ereturn matrix ow_se = `ow_se'
+        ereturn matrix ow_bs = `ow_bs'
+        ereturn matrix ow_breps = `ow_reps'
+      }
     }
     if (`num_lv_A' > 0) {
       ereturn matrix assessment = `mod_assessment'

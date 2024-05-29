@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 0.6.0  25Apr2024}{...}
+{* *! version 0.6.1  29May2024}{...}
 {vieweralsosee "plssemc postestimation" "help plssemc postestimation"}{...}
 {vieweralsosee "plssemplot" "help plssemplot"}{...}
 {vieweralsosee "plssem" "help plssem"}{...}
@@ -380,17 +380,27 @@ not{p_end}
 {synopt:{cmd:e(b)}}coefficient vector{p_end}
 {synopt:{cmd:e(V)}}variance-covariance matrix of the estimators{p_end}
 {synopt:{cmd:e(loadings)}}outer loadings matrix{p_end}
+{synopt:{cmd:e(loadings_breps)}}outer loadings bootstrap replications (available only
+if the {cmd:boot()} option is chosen){p_end}
 {synopt:{cmd:e(loadings_bs)}}bootstrap-based outer loadings matrix (available only
 if the {cmd:boot()} option is chosen){p_end}
 {synopt:{cmd:e(loadings_se)}}matrix of the outer loadings standard errors; this is empty when
 used without bootstrap{p_end}
 {synopt:{cmd:e(cross_loadings)}}cross loadings matrix{p_end}
+{synopt:{cmd:e(cross_loadings_breps)}}cross loadings bootstrap replications (available only
+if the {cmd:boot()} option is chosen){p_end}
 {synopt:{cmd:e(cross_loadings_bs)}}bootstrap-based cross loadings matrix (available only
 if the {cmd:boot()} option is chosen){p_end}
 {synopt:{cmd:e(cross_loadings_se)}}matrix of the cross loadings standard errors; this is empty when
 used without bootstrap{p_end}
 {synopt:{cmd:e(adj_meas)}}adjacency matrix for the measurement (outer) model{p_end}
 {synopt:{cmd:e(outerweights)}}matrix of outer weights{p_end}
+{synopt:{cmd:e(ow_breps)}}outer weights bootstrap replications (available only
+if the {cmd:boot()} option is chosen){p_end}
+{synopt:{cmd:e(ow_bs)}}bootstrap-based outer weights matrix (available only
+if the {cmd:boot()} option is chosen){p_end}
+{synopt:{cmd:e(ow_se)}}matrix of the outer weights standard errors (available only
+if the {cmd:boot()} option is chosen){p_end}
 {synopt:{cmd:e(ow_history)}}matrix of outer weights evolution{p_end}
 {synopt:{cmd:e(relcoef)}}matrix of reliability coefficients{p_end}
 {synopt:{cmd:e(sqcorr)}}matrix of squared correlations among the latent variables{p_end}
@@ -400,6 +410,8 @@ used without bootstrap{p_end}
 used without bootstrap{p_end}
 {synopt:{cmd:e(struct_table)}}table combining estimation results for the structural (inner) model{p_end}
 {synopt:{cmd:e(pathcoef)}}path coefficients matrix (extended form){p_end}
+{synopt:{cmd:e(pathcoef_breps)}}path coefficients bootstrap replications (available only
+if the {cmd:boot()} option is chosen){p_end}
 {synopt:{cmd:e(pathcoef_bs)}}bootstrap-based path coefficients matrix (extended form; available only
 if the {cmd:boot()} option is chosen){p_end}
 {synopt:{cmd:e(adj_struct)}}adjacency matrix for the structural (inner) model{p_end}
