@@ -1,5 +1,5 @@
-*!plssemplot version 0.4.0
-*!Written 05Jul2023
+*!plssemplot version 0.4.1
+*!Written 22Aug2024
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -79,8 +79,7 @@ program _plssemplot
 		capture quietly nwset, clear
 		if ((_rc != 0) & (_rc != 6001)) {
 			display as error "to use the 'innermodel' option you need to install the nwcommands suite"
-			display as error "type " _continue
-			display as smcl "{stata net install nwcommands-ado.pkg}"
+			display as error "please refer to https://nwcommands.wordpress.com/"
 			exit
 		}
 		
