@@ -1,5 +1,5 @@
 # plssem
-###### Current release: 0.6.0
+###### Current release: 0.6.2
 ###### Stata version required: at least 15.1
 Stata package for Structural Equation Modeling with Partial Least Squares (PLS-SEM).
 
