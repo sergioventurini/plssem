@@ -1,5 +1,5 @@
-*!plssem_estat version 0.6.0
-*!Written 29Apr2024
+*!plssem_estat version 0.6.2
+*!Written 27Aug2024
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -2762,7 +2762,7 @@ program ci, rclass
   
   /* Display results */
   display
-  display as text "Consistent partial least squares (PLSc) SEM"
+  display as text "Partial least squares (PLSc) SEM"
   display
   local subtitle "Confidence intervals for model's coefficients"
   display as text "`subtitle'"
