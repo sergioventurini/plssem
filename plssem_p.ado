@@ -1,5 +1,5 @@
-*!plssem_p version 0.4.1
-*!Written 17Feb2024
+*!plssem_p version 0.6.2
+*!Written 28Aug2024
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -318,11 +318,13 @@ program plssem_p, rclass sortpreserve
   /* End of cleaning up */
 	
 	/* Return values */
-	if (!`noreflective') | (`isstruct') {
-		return matrix struct_res = `ires'
+	if (!`noreflective') {
 		return matrix meas_res = `ores'
-		return matrix struct_fit = `ihat'
 		return matrix meas_fit = `ohat'
+	}
+	if (`isstruct') {
+		return matrix struct_res = `ires'
+		return matrix struct_fit = `ihat'
 	}
   /* End of returning */
 end
