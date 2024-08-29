@@ -79,6 +79,7 @@ program plssem_p, rclass sortpreserve
 	else {
 		local missing ""
 	}
+  local binary `e(binarylvs)'
 	
 	/* Save original data set */
 	local allindicators = e(mvs)
@@ -103,7 +104,6 @@ program plssem_p, rclass sortpreserve
 		tempname adj_meas loadings b2use ohat modeA_scores indicators ///
 			indicators_std tmp
 		local modeA `e(reflective)'
-		local binary `e(binarylvs)'
 		local lvs_adj : colnames e(adj_meas)
 		matrix `adj_meas' = e(adj_meas)
 		matrix `loadings' = e(loadings)
