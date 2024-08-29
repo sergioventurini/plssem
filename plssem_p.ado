@@ -1,5 +1,5 @@
 *!plssem_p version 0.6.2
-*!Written 28Aug2024
+*!Written 29Aug2024
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -103,6 +103,7 @@ program plssem_p, rclass sortpreserve
 		tempname adj_meas loadings b2use ohat modeA_scores indicators ///
 			indicators_std tmp
 		local modeA `e(reflective)'
+		local binary `e(binarylvs)'
 		local lvs_adj : colnames e(adj_meas)
 		matrix `adj_meas' = e(adj_meas)
 		matrix `loadings' = e(loadings)
@@ -150,8 +151,13 @@ program plssem_p, rclass sortpreserve
 
 	/* -- inner model -- */
 	if (`isstruct') {
-		tempname adj_struct path endo path_mata ihat lvs_endo_nm
-    local tempnamelist "`tempnamelist' `endo' `path_mata' `lvs_endo_nm'"
+		tempname adj_struct path endo path_mata ihat lvs_endo_nm expit_res
+    local tempnamelist "`tempnamelist' `endo' `path_mata' `lvs_endo_nm' `expit_res'"
+    if ("`binary'" != "") {
+      tempname cutoff ihat_mata
+      local tempnamelist "`tempnamelist' `cutoff' `ihat_mata'"
+      mata: `cutoff' = 0.5
+    }
 		matrix `adj_struct' = e(adj_struct)
 		matrix `path' = e(pathcoef)
 		mata: `endo' = colsum(st_matrix("`adj_struct'"))
@@ -160,10 +166,20 @@ program plssem_p, rclass sortpreserve
 		mata: `path_mata' = st_matrix("`path'")[., selectindex(`endo')]
 		mata: st_matrix("`ihat'", st_matrix("`latents'") * `path_mata')
 		mata: `lvs_endo_nm' = st_matrixcolstripe("`path'")[selectindex(`endo'), 2]
-		forvalues j = 1/`n_endo' {
+    forvalues j = 1/`n_endo' {
 			mata: st_local("lvs_endo", `lvs_endo_nm'[`j'])
 			local endovs "`endovs' `lvs_endo'"
 			local ihat_nm "`ihat_nm' `lvs_endo'_hat"
+      if ("`binary'" != "") {
+        if (`: list lvs_endo in binary') {
+          mata: `expit_res' = ///
+            plssem_expit(st_matrix("`ihat'")[., strtoreal(st_local("j"))])
+          mata: `expit_res' = `expit_res' :>= `cutoff'
+          mata: `ihat_mata' = st_matrix("`ihat'")
+          mata: `ihat_mata'[., strtoreal(st_local("j"))] = `expit_res'
+          mata: st_matrix("`ihat'", `ihat_mata')
+        }
+      }
 		}
 		local ihat_nm : list clean ihat_nm
 		matrix colnames `ihat' = `ihat_nm'
