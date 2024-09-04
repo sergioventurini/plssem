@@ -1,5 +1,5 @@
-*!plssem version 0.6.1
-*!Written 29May2024
+*!plssem version 0.6.3
+*!Written 04Sep2024
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -451,7 +451,7 @@ program Estimate, eclass byable(recall) properties(mi)
         local inter "``tok_i''"
         gettoken depvar : inter
         if (strpos("`depvar'", "*")) {
-          display as error "`depvar': interactions cannot involve a dependent variable"
+          display as error "`depvar': interactions not allowed within a dependent variable"
           exit
         }
         local new_tok "`depvar'"
@@ -478,48 +478,50 @@ program Estimate, eclass byable(recall) properties(mi)
               }
             }
 
-            // Add the interactions to the list of LVs
-            local alllatents "`alllatents' `internm'"
-            local modeA "`modeA' `internm'"
-            local num_lv: word count `alllatents'
-            local LV`num_lv' `internm'
-            
-            // Create macros of product indicators to use for scaling
-            local inter_latent "`inter_latent' `var1'%£%]_[%£%`var2'"
-            
-            // Check that the new interaction is reflective
-            local int_in_modeB : list internm in modeB
-            if (`int_in_modeB') {
-              display as error "interactions of latent variables must be reflective"
-              exit
-            }
-
-            // Generate the product indicators
-            foreach ind1 in `i`var1'' {
-              foreach ind2 in `i`var2'' {
-                local indnm = "`ind1'`ind2'"
-                if (_byindex() == 1) {  // this provides the indicators when by'd
-                  capture confirm new variable `indnm'
-                  if (_rc == 110) {
-                    capture quietly drop `indnm'
-                  }
-                  quietly generate double `indnm' = `ind1'*`ind2' if `touse'
-                }
-                else {
-                  quietly replace `indnm' = `ind1'*`ind2' if `touse'
-                }
-                
-                // Add the product indicator to the list of indicators
-                local allindicators "`allindicators' `indnm'"
-                mata: `isproduct' = (`isproduct' \ 1)
-                local inter_ind "`inter_ind' `indnm'"
-                
-                // Create macros of product indicators to use for scaling
-                local inter_for_scale "`inter_for_scale' `ind1'%£%]_[%£%`ind2'"
+            // Add the interaction to the list of LVs
+            if (!`: list internm in alllatents') {
+              local alllatents "`alllatents' `internm'"
+              local modeA "`modeA' `internm'"
+              local num_lv: word count `alllatents'
+              local LV`num_lv' `internm'
+              
+              // Create macros of product indicators to use for scaling
+              local inter_latent "`inter_latent' `var1'%£%]_[%£%`var2'"
+              
+              // Check that the new interaction is reflective
+              local int_in_modeB : list internm in modeB
+              if (`int_in_modeB') {
+                display as error "interactions of latent variables must be reflective"
+                exit
               }
+
+              // Generate the product indicators
+              foreach ind1 in `i`var1'' {
+                foreach ind2 in `i`var2'' {
+                  local indnm = "`ind1'`ind2'"
+                  if (_byindex() == 1) {  // this provides the indicators when by'd
+                    capture confirm new variable `indnm'
+                    if (_rc == 110) {
+                      capture quietly drop `indnm'
+                    }
+                    quietly generate double `indnm' = `ind1'*`ind2' if `touse'
+                  }
+                  else {
+                    quietly replace `indnm' = `ind1'*`ind2' if `touse'
+                  }
+                  
+                  // Add the product indicator to the list of indicators
+                  local allindicators "`allindicators' `indnm'"
+                  mata: `isproduct' = (`isproduct' \ 1)
+                  local inter_ind "`inter_ind' `indnm'"
+                  
+                  // Create macros of product indicators to use for scaling
+                  local inter_for_scale "`inter_for_scale' `ind1'%£%]_[%£%`ind2'"
+                }
+              }
+              local i`num_lv' `inter_ind'
+              local i`internm' `inter_ind'
             }
-            local i`num_lv' `inter_ind'
-            local i`internm' `inter_ind'
 
             local new_tok "`new_tok' `var1' `var2' `internm'"
           }
