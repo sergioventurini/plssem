@@ -1,5 +1,5 @@
 *!plssem version 0.6.3
-*!Written 04Sep2024
+*!Written 05Sep2024
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -497,7 +497,23 @@ program Estimate_c, eclass byable(recall)
 
               // Generate the product indicators
               foreach ind1 in `i`var1'' {
+                mata: st_local("is_std", strofreal(abs(mean(st_data(., "`ind1'", "`touse'"))) < epsilon(1e10)))
+                if (!`is_std') mata: st_local("is_std", strofreal( ///
+                  variance(st_data(., "`ind1'", "`touse'")) < 1 + epsilon(1e10) & ///
+                  variance(st_data(., "`ind1'", "`touse'")) > 1 - epsilon(1e10)))
+                if (!`is_std') {
+                  display as error "interactions require indicators that are already standardized"
+                  error 197
+                }
                 foreach ind2 in `i`var2'' {
+                  mata: st_local("is_std", strofreal(abs(mean(st_data(., "`ind2'", "`touse'"))) < epsilon(1e10)))
+                  if (!`is_std') mata: st_local("is_std", strofreal( ///
+                    variance(st_data(., "`ind2'", "`touse'")) < 1 + epsilon(1e10) & ///
+                    variance(st_data(., "`ind2'", "`touse'")) > 1 - epsilon(1e10)))
+                  if (!`is_std') {
+                    display as error "interactions require indicators that are already standardized"
+                    error 197
+                  }
                   local indnm = "`ind1'`ind2'"
                   if (_byindex() == 1) {  // this provides the indicators when by'd
                     capture confirm new variable `indnm'
