@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 0.5.3  22Feb2024}{...}
+{* *! version 0.5.3  27Sep2024}{...}
 {vieweralsosee "plssemc" "help plssemc"}{...}
 {vieweralsosee "plssemplot" "help plssemplot"}{...}
 {viewerjumpto "Postestimation commands" "plssemc postestimation##description"}{...}
@@ -48,7 +48,7 @@ The following postestimation commands are of special interest after
   selection criteria{p_end}
 {synopt:{helpb plssemc postestimation##dist:estat dist}}model's distance
   measures{p_end}
-{synopt:{helpb plssemc postestimation##blindfolding:estat blindfolding}}blindfolding
+{synopt:{helpb plssemc postestimation##blind:estat blindfolding}}blindfolding
   procedure{p_end}
 {synoptline}
 {p2colreset}{...}

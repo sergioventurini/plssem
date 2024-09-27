@@ -3112,7 +3112,7 @@ program blindf, rclass
     exit
   }
 
-  /* Compute the q^2 effect sizes through blindfolding */
+  /* Compute the q2 effect sizes through blindfolding */
   tempname res_q2 mata_q2 X isbinary i nvals modes Xstd Yinit res_blind
   tempname mata_blind
   local tempnamelist "`tempnamelist' `mata_q2' `X' `isbinary' `i' `nvals'"
@@ -3225,7 +3225,7 @@ program blindf, rclass
   matrix colnames `res_blind' = "SSO SSE Q2"
 
   mktable, matrix(`res_blind') digits(`digits') firstcolname("Variable") ///
-    title("Blindfolding - Construct cross-validated redundancy - Q^2 measures") ///
+    title("Blindfolding - Construct cross-validated redundancy - Q2 measures") ///
     firstcolwidth(14) colwidth(14) novlines hlines(`: word count `endo_refl'')
 
   mata: st_local("q2isempty", ///
@@ -3239,11 +3239,11 @@ program blindf, rclass
     matrix colnames `res_q2' = `q2_nm'
 
     mktable, matrix(`res_q2') digits(`digits') ///
-      title("Effect sizes  - q^2 measures") ///
+      title("Effect sizes  - q2 measures") ///
       firstcolwidth(14) colwidth(14) novlines hlines(`: word count `alllatents'')
   }
   else {
-    display as text "note: the q^2 measures are not available for this model"
+    display as text "note: the q2 measures are not available for this model"
   }
  
   /* Return values */
