@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 0.5.3  27Sep2024}{...}
+{* *! version 0.6.3  10Oct2024}{...}
 {vieweralsosee "plssem" "help plssem"}{...}
 {vieweralsosee "plssemplot" "help plssemplot"}{...}
 {viewerjumpto "Postestimation commands" "plssem postestimation##description"}{...}
@@ -9,7 +9,7 @@
 {viewerjumpto "estat mediate stored results" "plssem postestimation##results_mediate"}{...}
 {viewerjumpto "estat f2 stored results" "plssem postestimation##results_f2"}{...}
 {viewerjumpto "estat ic stored results" "plssem postestimation##results_ic"}{...}
-{viewerjumpto "estat dist stored results" "plssem postestimation##results_dist"}{...}
+{viewerjumpto "estat fit stored results" "plssem postestimation##results_fit"}{...}
 {viewerjumpto "estat blindfolding stored results" "plssem postestimation##results_blind"}{...}
 {viewerjumpto "predict" "plssem postestimation##syntax_predict"}{...}
 {viewerjumpto "predict options" "plssem postestimation##options_predict"}{...}
@@ -51,8 +51,8 @@ The following postestimation commands are of special interest after
   sizes{p_end}
 {synopt:{helpb plssem postestimation##ic:estat ic}}model's information and
   selection criteria{p_end}
-{synopt:{helpb plssem postestimation##dist:estat dist}}model's distance
-  measures{p_end}
+{synopt:{helpb plssem postestimation##fit:estat fit}}model's distance
+  and fit measures{p_end}
 {synopt:{helpb plssem postestimation##blind:estat blindfolding}}blindfolding
   procedure{p_end}
 {synoptline}
@@ -163,12 +163,12 @@ Display the model's information and selection criteria
 [{opt dig:its(#)}]
 
 
-{marker dist}{...}
+{marker fit}{...}
 {pstd}
-Display the model's distance measures
+Display the model's distance and fit measures
 
 {p 8 14 2}
-{cmd:estat} {cmdab:di:st},
+{cmd:estat} {cmdab:fi:t},
 [{opt dig:its(#)}]
 
 
@@ -249,10 +249,14 @@ final prediction error (FPE), Hannan-Quinn criterion (HQ) and Corrected HQ crite
 (HQc). The definitions used by the commend for these indexes can be found in table B1
 of {help plssemc_postestimation##Sharma2019:Sharma et al. 2019}.
 
-{pstd} {cmd:estat dist}
+{pstd} {cmd:estat fit}
 computes some measures of the distance between the empirical and the model-implied
 indicator correlation matrices. Currently, the geodesic distance, the squared Euclidean
 distance and the the maximum likelihood-based distance function are implemented.
+In addition, the command reports many model's fit measures like the Chi square,
+Chi square degrees freedom, CFI, CN, GFI, IFI, NFI, NNFI, RMSEA, RMS theta and
+SRMR indexes (more details on these indexes can be found in
+{help plssem_postestimation##Henseler2021:Henseler 2021}).
 
 {pstd} {cmd:estat blindfolding}
 computes the Q2 and q2 values ({help plssem_postestimation##Geisser1974:Geisser 1974};
@@ -603,15 +607,16 @@ are not saved in the data set.
 {p2colreset}{...}
 
 
-{marker results_dist}{...}
-{title:Stored results for estat dist}
+{marker results_fit}{...}
+{title:Stored results for estat fit}
 
 {pstd}
-{cmd:estat dist} stores the following in {cmd:r()}:
+{cmd:estat fit} stores the following in {cmd:r()}:
 
 {synoptset 20 tabbed}{...}
 {p2col 5 20 24 2: Matrices}{p_end}
 {synopt:{cmd:r(dist)}}matrix of the model's distance measures{p_end}
+{synopt:{cmd:r(fit)}}matrix of the model's fit measures{p_end}
 {p2colreset}{...}
 
 
@@ -722,6 +727,10 @@ Hair, J. F., Hult, G. T. M., Ringle, C. M., and Sarstedt, M. 2022. {it:A Primer 
 {marker Hairetal2018}{...}
 {phang}
 Hair, J. F., Sarstedt, M., Ringle, C. M., and Gudergan, S. P. 2018. {it:Advanced Issues in Partial Least Squares Structural Equation Modeling}. Sage.
+
+{marker Henseler2021}{...}
+{phang}
+Henseler, J. 2021. {it:Composite-Based Structural Equation Modeling}. The Guilford Press.
 
 {marker Iacobuccietal2007}{...}
 {phang}

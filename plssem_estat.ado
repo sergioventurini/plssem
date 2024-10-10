@@ -1,5 +1,5 @@
-*!plssem_estat version 0.6.2
-*!Written 27Aug2024
+*!plssem_estat version 0.6.3
+*!Written 9Oct2024
 *!Written by Sergio Venturini and Mehmet Mehmetoglu
 *!The following code is distributed under GNU General Public License version 3 (GPL-3)
 
@@ -38,8 +38,8 @@ program plssem_estat, rclass
   else if ("`subcmd'" == substr("ic", 1, max(2, `lsubcmd'))) {
     ic `rest'
   }
-  else if ("`subcmd'" == substr("dist", 1, max(2, `lsubcmd'))) {
-    dist `rest'
+  else if ("`subcmd'" == substr("fit", 1, max(2, `lsubcmd'))) {
+    fit `rest'
   }
   else if ("`subcmd'" == substr("ci", 1, max(2, `lsubcmd'))) {
     ci `rest'
@@ -2900,7 +2900,7 @@ program f2, rclass
   capture mata: cleanup(st_local("tempnamelist"))
 end
 
-program dist, rclass
+program fit, rclass
   version 15.1
   syntax , [ DIGits(integer 3) ]
   
@@ -2938,8 +2938,8 @@ program dist, rclass
     local ++i
   }
   
- /* Compute the geodesic distance */
- tempname mata_DG
+  /* Compute the geodesic distance */
+  tempname mata_DG
   local tempnamelist "`tempnamelist' `mata_DG'"
   capture noisily {
     mata: `mata_DG' = ///
@@ -2955,8 +2955,8 @@ program dist, rclass
         st_matrix("e(proxy_vcv)"))
   }
 
- /* Compute the squared Euclidean distance */
- tempname mata_DL
+  /* Compute the squared Euclidean distance */
+  tempname mata_DL
   local tempnamelist "`tempnamelist' `mata_DL'"
   capture noisily {
     mata: `mata_DL' = ///
@@ -2972,12 +2972,205 @@ program dist, rclass
         st_matrix("e(proxy_vcv)"))
   }
 
- /* Compute the ML distance */
- tempname mata_DML
+  /* Compute the ML distance */
+  tempname mata_DML
   local tempnamelist "`tempnamelist' `mata_DML'"
   capture noisily {
     mata: `mata_DML' = ///
       plssem_DML( ///
+        st_matrix("e(ind_vcv)"), ///
+        st_matrix("e(adj_meas)"), ///
+        st_matrix("e(adj_struct)"), ///
+        st_matrix("e(outerweights)"), ///
+        st_matrix("`modes'"), ///
+        editmissing(st_matrix("e(loadings)"), 0), ///
+        st_matrix("e(pathcoef)"), ///
+        st_matrix("e(construct_vcv)"), ///
+        st_matrix("e(proxy_vcv)"))
+  }
+
+  /* Compute the Chi_square fit measure */
+  tempname mata_chisq
+  local tempnamelist "`tempnamelist' `mata_chisq'"
+  capture noisily {
+    mata: `mata_chisq' = ///
+      plssem_chisquare( ///
+        st_matrix("e(ind_vcv)"), ///
+        st_matrix("e(adj_meas)"), ///
+        st_matrix("e(adj_struct)"), ///
+        st_matrix("e(outerweights)"), ///
+        st_matrix("`modes'"), ///
+        editmissing(st_matrix("e(loadings)"), 0), ///
+        st_matrix("e(pathcoef)"), ///
+        st_matrix("e(construct_vcv)"), ///
+        st_matrix("e(proxy_vcv)"), ///
+        st_numscalar("e(N)"))
+  }
+
+  /* Compute the Chi_square df */
+  tempname mata_chisq_df
+  local tempnamelist "`tempnamelist' `mata_chisq_df'"
+  capture noisily {
+    mata: `mata_chisq_df' = ///
+      plssem_chisquare_df( ///
+        st_matrix("e(ind_vcv)"), ///
+        st_matrix("e(adj_meas)"), ///
+        st_matrix("e(adj_struct)"), ///
+        st_matrix("e(outerweights)"), ///
+        st_matrix("`modes'"), ///
+        editmissing(st_matrix("e(loadings)"), 0), ///
+        st_matrix("e(pathcoef)"), ///
+        st_matrix("e(construct_vcv)"), ///
+        st_matrix("e(proxy_vcv)"), ///
+        st_numscalar("e(N)"))
+  }
+
+  /* Compute the CFI index */
+  tempname mata_CFI
+  local tempnamelist "`tempnamelist' `mata_CFI'"
+  capture noisily {
+    mata: `mata_CFI' = ///
+      plssem_CFI( ///
+        st_matrix("e(ind_vcv)"), ///
+        st_matrix("e(adj_meas)"), ///
+        st_matrix("e(adj_struct)"), ///
+        st_matrix("e(outerweights)"), ///
+        st_matrix("`modes'"), ///
+        editmissing(st_matrix("e(loadings)"), 0), ///
+        st_matrix("e(pathcoef)"), ///
+        st_matrix("e(construct_vcv)"), ///
+        st_matrix("e(proxy_vcv)"), ///
+        st_numscalar("e(N)"))
+  }
+
+  /* Compute the CN index */
+  tempname mata_CN
+  local tempnamelist "`tempnamelist' `mata_CN'"
+  capture noisily {
+    mata: `mata_CN' = ///
+      plssem_CN( ///
+        st_matrix("e(ind_vcv)"), ///
+        st_matrix("e(adj_meas)"), ///
+        st_matrix("e(adj_struct)"), ///
+        st_matrix("e(outerweights)"), ///
+        st_matrix("`modes'"), ///
+        editmissing(st_matrix("e(loadings)"), 0), ///
+        st_matrix("e(pathcoef)"), ///
+        st_matrix("e(construct_vcv)"), ///
+        st_matrix("e(proxy_vcv)"), ///
+        st_numscalar("e(N)"), ///
+        0.05)
+  }
+
+  /* Compute the GFI index */
+  tempname mata_GFI
+  local tempnamelist "`tempnamelist' `mata_GFI'"
+  capture noisily {
+    mata: `mata_GFI' = ///
+      plssem_GFI( ///
+        st_matrix("e(ind_vcv)"), ///
+        st_matrix("e(adj_meas)"), ///
+        st_matrix("e(adj_struct)"), ///
+        st_matrix("e(outerweights)"), ///
+        st_matrix("`modes'"), ///
+        editmissing(st_matrix("e(loadings)"), 0), ///
+        st_matrix("e(pathcoef)"), ///
+        st_matrix("e(construct_vcv)"), ///
+        st_matrix("e(proxy_vcv)"), ///
+        "ML")
+  }
+
+  /* Compute the IFI index */
+  tempname mata_IFI
+  local tempnamelist "`tempnamelist' `mata_IFI'"
+  capture noisily {
+    mata: `mata_IFI' = ///
+      plssem_IFI( ///
+        st_matrix("e(ind_vcv)"), ///
+        st_matrix("e(adj_meas)"), ///
+        st_matrix("e(adj_struct)"), ///
+        st_matrix("e(outerweights)"), ///
+        st_matrix("`modes'"), ///
+        editmissing(st_matrix("e(loadings)"), 0), ///
+        st_matrix("e(pathcoef)"), ///
+        st_matrix("e(construct_vcv)"), ///
+        st_matrix("e(proxy_vcv)"), ///
+        st_numscalar("e(N)"))
+  }
+
+  /* Compute the NFI index */
+  tempname mata_NFI
+  local tempnamelist "`tempnamelist' `mata_NFI'"
+  capture noisily {
+    mata: `mata_NFI' = ///
+      plssem_NFI( ///
+        st_matrix("e(ind_vcv)"), ///
+        st_matrix("e(adj_meas)"), ///
+        st_matrix("e(adj_struct)"), ///
+        st_matrix("e(outerweights)"), ///
+        st_matrix("`modes'"), ///
+        editmissing(st_matrix("e(loadings)"), 0), ///
+        st_matrix("e(pathcoef)"), ///
+        st_matrix("e(construct_vcv)"), ///
+        st_matrix("e(proxy_vcv)"))
+  }
+
+  /* Compute the NNFI index */
+  tempname mata_NNFI
+  local tempnamelist "`tempnamelist' `mata_NNFI'"
+  capture noisily {
+    mata: `mata_NNFI' = ///
+      plssem_NNFI( ///
+        st_matrix("e(ind_vcv)"), ///
+        st_matrix("e(adj_meas)"), ///
+        st_matrix("e(adj_struct)"), ///
+        st_matrix("e(outerweights)"), ///
+        st_matrix("`modes'"), ///
+        editmissing(st_matrix("e(loadings)"), 0), ///
+        st_matrix("e(pathcoef)"), ///
+        st_matrix("e(construct_vcv)"), ///
+        st_matrix("e(proxy_vcv)"), ///
+        st_numscalar("e(N)"))
+  }
+
+  /* Compute the RMSEA index */
+  tempname mata_RMSEA
+  local tempnamelist "`tempnamelist' `mata_RMSEA'"
+  capture noisily {
+    mata: `mata_RMSEA' = ///
+      plssem_RMSEA( ///
+        st_matrix("e(ind_vcv)"), ///
+        st_matrix("e(adj_meas)"), ///
+        st_matrix("e(adj_struct)"), ///
+        st_matrix("e(outerweights)"), ///
+        st_matrix("`modes'"), ///
+        editmissing(st_matrix("e(loadings)"), 0), ///
+        st_matrix("e(pathcoef)"), ///
+        st_matrix("e(construct_vcv)"), ///
+        st_matrix("e(proxy_vcv)"), ///
+        st_numscalar("e(N)"))
+  }
+
+  /* Compute the RMS_theta index */
+  tempname mata_RMS_theta
+  local tempnamelist "`tempnamelist' `mata_RMS_theta'"
+  capture noisily {
+    mata: `mata_RMS_theta' = ///
+      plssem_RMS_theta( ///
+        st_matrix("e(ind_vcv)"), ///
+        st_matrix("e(adj_meas)"), ///
+        st_matrix("e(outerweights)"), ///
+        st_matrix("`modes'"), ///
+        editmissing(st_matrix("e(loadings)"), 0), ///
+        st_matrix("e(construct_vcv)"))
+  }
+
+  /* Compute the SRMR index */
+  tempname mata_SRMR
+  local tempnamelist "`tempnamelist' `mata_SRMR'"
+  capture noisily {
+    mata: `mata_SRMR' = ///
+      plssem_SRMR( ///
         st_matrix("e(ind_vcv)"), ///
         st_matrix("e(adj_meas)"), ///
         st_matrix("e(adj_struct)"), ///
@@ -2999,8 +3192,19 @@ program dist, rclass
     firstcolname("Measure") title("Distance measures") ///
     firstcolwidth(20) colwidth(14) novlines hlines(3)
   
+  tempname res_fit
+  mata: st_matrix("`res_fit'", ///
+    (`mata_chisq' \ `mata_chisq_df' \ `mata_CFI' \ `mata_CN' \ `mata_GFI' \ `mata_IFI' \ `mata_NFI' \ `mata_NNFI' \ `mata_RMSEA' \ `mata_RMS_theta' \ `mata_SRMR'))
+  matrix rownames `res_fit' = Chi_square Chi_square_df CFI CN GFI IFI NFI NNFI RMSEA RMS_theta SRMR
+  matrix colnames `res_fit' = "Value"
+
+  mktable, matrix(`res_fit') digits(`digits') ///
+    firstcolname("Measure") title("Fit measures") ///
+    firstcolwidth(20) colwidth(14) novlines hlines(11)
+  
   /* Return values */
   return matrix dist `res_dist'
+  return matrix fit `res_fit'
 
   /* Clean up */
   capture mata: cleanup(st_local("tempnamelist"))
